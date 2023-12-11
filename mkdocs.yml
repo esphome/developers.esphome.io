@@ -5,15 +5,17 @@ edit_uri: edit/main/docs/
 
 theme:
   name: material
+  locale: en
   custom_dir: ext_theme
   logo: assets/logo.svg
-  favicon: assets/favicon.png
+  favicon: assets/favicon.ico
   features:
-    - navigation.sections
+
     - navigation.expand
     - navigation.path
     - navigation.prune
     - navigation.indexes
+    - navigation.tracking
     - navigation.top
     - search.suggest
     - search.highlight
@@ -32,20 +34,17 @@ theme:
     view: material/eye
 
   palette:
-
-    - media: "(prefers-color-scheme)"
-      toggle:
-        icon: material/brightness-auto
-        name: Switch to light mode
     # Palette toggle for light mode
     - scheme: default
       media: "(prefers-color-scheme: light)"
+      primary: grey
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
 
     # Palette toggle for dark mode
     - scheme: slate
+      primary: black
       media: "(prefers-color-scheme: dark)"
       toggle:
         icon: material/brightness-4

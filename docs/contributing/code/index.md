@@ -14,7 +14,7 @@ menu:
 
 # Contributing to ESPHome
 
-For a detailed guide, please see [contributing-to-esphom](https://esphome.io/guides/contributing.html#contributing-to-esphome
+For a detailed guide, please see [contributing-to-esphom](https://esphome.io/guides/contributing.html#contributing-to-esphome)
 
 Things to note when contributing:
 

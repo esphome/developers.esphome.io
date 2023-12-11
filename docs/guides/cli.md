@@ -1,7 +1,8 @@
 ---
 title: CLI commands
 
-description: This section explains how you can use the **esphome** cli tool.
+description: Documentation for the command line interface of ESPHome.
+
 weight: 3
 menu:
   main:
@@ -9,70 +10,54 @@ menu:
 kind: page
 
 ---
-```rest
+# Command Line Interface
 
-Command Line Interface
-======================
-
-.. seo::
-    :description: Documentation for the command line interface of ESPHome.
-
-Base Usage
-----------
+## Base Usage
 
 ESPHome's command line interface always has the following format
 
-.. code-block:: console
+```bash
+esphome [OPTIONS] <COMMAND> <CONFIGURATION...> [ARGUMENTS]
+```
 
-    esphome [OPTIONS] <COMMAND> <CONFIGURATION...> [ARGUMENTS]
+## esphome base options
 
-.. note::
+### Option `-h` or `--help`
 
-    You can specify multiple configuration files in the command line interface for some commands,
-    just list all files after the <COMMAND> like so:
+Output possible <commands> and [arguments].
+!!! Note
+    You can also use ``--help`` for any command to get arguments specific to that command.
 
-    .. code-block:: console
+```bash
+esphome <some_command> --help
+```
 
-        esphome run livingroom.yaml kitchen.yaml
+### Option `-v` or `--verbose`
 
-``--help`` Option
---------------------
+Enable verbose esphome logs.
 
-.. option:: -h|--help
+### Option `-q` or `--quiet`
 
-    Output possible <commands> and [arguments].
-    Note: you can also use ``--help`` for any command to get arguments specific to that command.
-.. code-block:: console
+Disable all esphome logs.
 
-    esphome <some_command> --help
-
-``--verbose`` Option
---------------------
-
-.. option:: -v|--verbose
-
-    Enable verbose esphome logs.
-
-``--quiet`` Option
-------------------
-
-.. option:: -q|--quiet
-
-    Disable all esphome logs.
-
-``--substitution`` Option
--------------------------
+### Option `-s` or `--substitution KEY VALUE`
 
 *(can be issued multiple times)*
 
-.. option:: -s|--substitution KEY VALUE
+Defines or overrides substitution KEY with value VALUE.
 
-    Defines or overrides substitution KEY with value VALUE.
+Please see [command line substitutions](#command-line-substitutions) for details.
 
-Please see :ref:`command line substitutions <command-line-substitutions>` for details.
+## esphome commands
+!!note
+    You can specify multiple configuration files in the command line interface for some commands,
+    just list all files after the <COMMAND> like so:
 
-``run`` Command
----------------
+    ```console
+    esphome run livingroom.yaml kitchen.yaml
+    ```
+
+## ``run`` Command
 
 The ``esphome run <CONFIG>`` command is the most common command for ESPHome. It
 
@@ -81,190 +66,203 @@ The ``esphome run <CONFIG>`` command is the most common command for ESPHome. It
 * Uploads the firmware (over OTA or USB)
 * Starts the log view
 
-.. program:: esphome run
+```bash
+esphome run [--device UPLOAD_PORT] [--no-logs] [--topic TOPIC] [--username USERNAME] [--password PASSWORD] [--client-id CLIENT_ID] [--host-port HOST_PORT] <CONFIG>
 
-.. option:: --device UPLOAD_PORT
+```
 
-    Manually specify the upload port/IP to use. For example ``/dev/cu.SLAB_USBtoUART``, or ``192.168.1.176``
-    to perform an OTA.
+### Option `--device UPLOAD_PORT`
 
-.. option:: --no-logs
+Manually specify the upload port/IP to use. For example ``/dev/cu.SLAB_USBtoUART``, or ``192.168.1.176``
+to perform an OTA.
 
-    Disable starting log view.
+### Option `--no-logs`
 
-.. option:: --topic TOPIC
+Disable starting log view.
 
-    Manually set the topic to subscribe to for MQTT logs (defaults to the one in the configuration).
+### Option `--topic TOPIC`
 
-.. option:: --username USERNAME
+Manually set the topic to subscribe to for MQTT logs (defaults to the one in the configuration).
 
-    Manually set the username to subscribe with for MQTT logs (defaults to the one in the configuration).
+### Option `--username USERNAME`
 
-.. option:: --password PASSWORD
+Manually set the username to subscribe with for MQTT logs (defaults to the one in the configuration).
 
-    Manually set the password to subscribe with for MQTT logs (defaults to the one in the configuration).
+### Option `--password PASSWORD`
 
-.. option:: --client-id CLIENT_ID
+Manually set the password to subscribe with for MQTT logs (defaults to the one in the configuration).
 
-    Manually set the client ID to subscribe with for MQTT logs (defaults to a randomly chosen one).
+### Option `--client-id CLIENT_ID`
 
-.. option:: --host-port HOST_PORT
+Manually set the client ID to subscribe with for MQTT logs (defaults to a randomly chosen one).
 
-    Specify the host port to use for legacy Over the Air uploads.
+### Option `--host-port HOST_PORT`
 
-``config`` Command
-------------------
+Specify the host port to use for legacy Over the Air uploads.
 
-.. program:: esphome config
+## ``config`` Command
 
-The ``esphome config <CONFIG>`` validates the configuration and displays the validation result.
+The `esphome config <CONFIG>` validates the configuration and displays the validation result.
 
+```bash
+esphome config <CONFIG>
 
-``compile`` Command
--------------------
+```
 
-.. program:: esphome compile
+## ``compile`` Command
 
-The ``esphome compile <CONFIG>`` validates the configuration and compiles the firmware.
+The `esphome compile <CONFIG>` validates the configuration and compiles the firmware.
 
-.. option:: --only-generate
+```bash
+esphome compile [--only-generate] <CONFIG>
 
-    If set, only generates the C++ source code and does not compile the firmware.
+```
 
-``upload`` Command
-------------------
+### Option `--only-generate`
 
-.. program:: esphome upload
+If set, only generates the C++ source code and does not compile the firmware.
 
-The ``esphome upload <CONFIG>`` validates the configuration and uploads the most recent firmware build.
+## ``upload`` Command
+The `esphome upload <CONFIG>` validates the configuration and uploads the most recent firmware build.
 
-.. option:: --device UPLOAD_PORT
+```bash
+esphome upload [--device UPLOAD_PORT] [--host-port HOST_PORT] <CONFIG>
+```
 
-    Manually specify the upload port/IP address to use. For example ``/dev/cu.SLAB_USBtoUART``, or ``192.168.1.176``
-    to perform an OTA.
+### Option `--device UPLOAD_PORT`
+Manually specify the upload port/IP address to use. For example ``/dev/cu.SLAB_USBtoUART``, or ``192.168.1.176`` to perform an OTA.
 
-.. option:: --host-port HOST_PORT
+### Option `--host-port HOST_PORT`
 
-    Specify the host port to use for legacy Over the Air uploads.
+Specify the host port to use for legacy Over the Air uploads.
 
-``clean-mqtt`` Command
-----------------------
-
-.. program:: esphome clean-mqtt
+## ``clean-mqtt`` Command
 
 The ``esphome clean-mqtt <CONFIG>`` cleans retained MQTT discovery messages from the MQTT broker.
-See :ref:`mqtt-using_with_home_assistant`.
+See [](#mqtt-using_with_home_assistant).
 
-.. option:: --topic TOPIC
+```bash
+esphome clean-mqtt [--topic TOPIC] [--username USERNAME] [--password PASSWORD] [--client-id CLIENT_ID] <CONFIG>
 
-    Manually set the topic to clean retained messages from (defaults to the MQTT discovery topic of the
-    node).
+```
 
-.. option:: --username USERNAME
+### Option `--topic TOPIC`
 
-    Manually set the username to subscribe with.
+Manually set the topic to clean retained messages from (defaults to the MQTT discovery topic of the
+node).
 
-.. option:: --password PASSWORD
+### Option `--username USERNAME`
 
-    Manually set the password to subscribe with.
+Manually set the username to subscribe with.
 
-.. option:: --client-id CLIENT_ID
+### Option `--password PASSWORD`
 
-    Manually set the client ID to subscribe with.
+Manually set the password to subscribe with.
 
-``wizard`` Command
-------------------
+### Option `--client-id CLIENT_ID`
 
-.. program:: esphome wizard
+Manually set the client ID to subscribe with.
 
-The ``esphome wizard <CONFIG>`` command starts the ESPHome configuration creation wizard.
+##  ``wizard`` Command
 
-``mqtt-fingerprint`` Command
-----------------------------
+The `esphome wizard <CONFIG>` command starts the ESPHome configuration creation wizard.
 
-.. program:: esphome mqtt-fingerprint
+```bash
+esphome wizard <CONFIG>
 
-The ``esphome mqtt-fingerprint <CONFIG>`` command shows the MQTT SSL fingerprints of the remote used
+```
+
+##  ``mqtt-fingerprint`` Command
+
+The `esphome mqtt-fingerprint <CONFIG>` command shows the MQTT SSL fingerprints of the remote used
 for SSL MQTT connections. See :ref:`mqtt-ssl_fingerprints`.
 
-``version`` Command
--------------------
+```bash
+esphome mqtt-fingerprint <CONFIG>
 
-.. program:: esphome version
+```
 
-The ``esphome version`` command shows the current ESPHome version and exits.
+##  ``version`` Command
 
-``clean`` Command
------------------
+The `esphome version` command shows the current ESPHome version and exits.
 
-.. program:: esphome clean
+```bash
+esphome version
+```
 
-The ``esphome clean <CONFIG>`` command cleans all build files and can help with some build issues.
+##  ``clean`` Command
 
-``dashboard`` Command
----------------------
+The `esphome clean <CONFIG>` command cleans all build files and can help with some build issues.
 
-.. program:: esphome dashboard
+```bash
+esphome clean <CONFIG>
 
-The ``esphome dashboard <CONFIG>`` command starts the ESPHome dashboard server for using ESPHome
+```
+
+##  ``dashboard`` Command
+
+The `esphome dashboard <CONFIG>` command starts the ESPHome dashboard server for using ESPHome
 through a graphical user interface. This command accepts a configuration directory instead of a
 single configuration file.
 
-.. option:: --port PORT
+```bash
+esphome dashboard [--port PORT] [--username USERNAME] [--password PASSWORD] [--open-ui] <CONFIG>
 
-    Manually set the HTTP port to open connections on (defaults to 6052)
+```
 
-.. option:: --username USERNAME
+### Option `--port PORT`
 
-    The optional username to require for authentication.
+Manually set the HTTP port to open connections on (defaults to 6052)
 
-.. option:: --password PASSWORD
+### Option `--username USERNAME`
 
-    The optional password to require for authentication.
+The optional username to require for authentication.
 
-.. option:: --open-ui
+### Option `--password PASSWORD`
 
-    If set, opens the dashboard UI in a browser once the server is up and running.
+The optional password to require for authentication.
 
-``logs`` Command
----------------------
+### Option `--open-ui`
 
-.. program:: esphome logs
+If set, opens the dashboard UI in a browser once the server is up and running.
 
-The ``esphome logs <CONFIG>`` command validates the configuration and shows all logs.
+##  ``logs`` Command
 
-.. option:: --topic TOPIC
+The `esphome logs <CONFIG>` command validates the configuration and shows all logs.
 
-    Manually set the topic to subscribe to.
+```bash
+esphome logs [--topic TOPIC] [--username USERNAME] [--password PASSWORD] [--client-id CLIENT_ID] [--device SERIAL_PORT] <CONFIG>
 
-.. option:: --username USERNAME
+```
 
-    Manually set the username.
+### Option `--topic TOPIC`
 
-.. option:: --password PASSWORD
+Manually set the topic to subscribe to.
 
-    Manually set the password.
+### Option `--username USERNAME`
 
-.. option:: --client-id CLIENT_ID
+Manually set the username.
 
-    Manually set the client id.
+### Option `--password PASSWORD`
 
-.. option:: --device SERIAL_PORT
+Manually set the password.
 
-    Manually specify a serial port/IP to use. For example ``/dev/cu.SLAB_USBtoUART``.
+### Option `--client-id CLIENT_ID`
 
-Using Bash or ZSH auto-completion
----------------------------------
+Manually set the client id.
+
+### Option `--device SERIAL_PORT`
+
+Manually specify a serial port/IP to use. For example ``/dev/cu.SLAB_USBtoUART``.
+
+## Using Bash or ZSH auto-completion
 
 ESPHome's command line interface provides the ability to use auto-completion features provided by Bash or ZSH.
 
 You can register ESPHome for auto-completion by adding the following to your ~/.bashrc file:
 
-.. code-block:: console
-
-    eval "$(register-python-argcomplete esphome)"
-
-For more information, see `argcomplete <https://kislyuk.github.io/argcomplete/>`__ documentation.
-
+``` console
+eval "$(register-python-argcomplete esphome)"
 ```
 
+For more information, see [argcomplete](https://kislyuk.github.io/argcomplete/) documentation.

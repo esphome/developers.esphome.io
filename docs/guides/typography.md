@@ -71,17 +71,6 @@ Ordered list
 2.  Green
 3.  Blue
 
-```goat
-      .               .                .               .--- 1          .-- 1     / 1
-     / \              |                |           .---+            .-+         +
-    /   \         .---+---.         .--+--.        |   '--- 2      |   '-- 2   / \ 2
-   +     +        |       |        |       |    ---+            ---+          +
-  / \   / \     .-+-.   .-+-.     .+.     .+.      |   .--- 3      |   .-- 3   \ / 3
- /   \ /   \    |   |   |   |    |   |   |   |     '---+            '-+         +
- 1   2 3   4    1   2   3   4    1   2   3   4         '--- 4          '-- 4     \ 4
-
-```
-
 ``` reStructuredText
         .. _my-reference-label:
 
@@ -145,7 +134,7 @@ Pop
 -   Multiple definitions and terms are possible
 -   Definitions can include multiple paragraphs too
 
-\*[ABBR]&#x3A; Markdown plus abbreviations (produces an <abbr> tag)
+[ABBR]&#x3A; Markdown plus abbreviations (produces an <abbr> tag)
 
 
 Table (Source: [为什么有些汉字在日语中会读成两拍](https://risehere.net/posts/checked-tone-in-japanese/))
@@ -154,3 +143,4 @@ Table (Source: [为什么有些汉字在日语中会读成两拍](https://risehe
 | -- | ------------- | ------- | --------- |
 | 写作 | 贝克汉姆          | 碧咸      | ベッカム      |
 | 读作 | bei ke han mu | bik ham | Be kka mu |
+

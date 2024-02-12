@@ -1,8 +1,19 @@
-# Directory Structure
+---
+title: Directory Structure
 
-After you've :ref:`set up development environment <setup_dev_env>`, you will have a folder structure like this:
+description: Documentation for the command line interface of ESPHome.
+date: 2024-01-31T00:00:00.000Z
+categories:
+  - codebase
 
-``` text
+---
+<!--more-->
+
+This guide shows you the file structure of the esphome components.
+
+After you've [set up development environment](setup_dev_env.md), you will have a folder structure like this:
+
+```text
     esphome
     ├── __main__.py
     ├── automation.py

@@ -1,9 +1,12 @@
 ---
 title: Clang requerements
 description: The following overview give's a details overview what the CTidy requerements are.
-
-kind: page
+date: 2024-01-31T00:00:00.000Z
+categories:
+   - linters
+draft: true
 ---
+<!--more-->
 
 ## Full list of current clang checks
 

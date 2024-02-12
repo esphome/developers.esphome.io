@@ -1,14 +1,23 @@
 ---
 title: "Typography - for markdown pages"
 description: List of all possibilities of Markdown
-kind: page
+date: 2024-01-31T00:00:00.000Z
+categories:
+  - documentation
 ---
+<!--more-->
+List of all possibilities of Markdown for [](https://developers.esphome.io).
 
 # Heading 1
+
 ## Heading 2
+
 ### Heading 3
+
 #### Heading 4
+
 ##### Heading 5
+
 ###### Heading 6
 
 ## Typography
@@ -20,7 +29,7 @@ kind: page
 
 ## Following is the syntax highlighted code block
 
-``` go
+```go
 func getCookie(name string, r interface{}) (*http.Cookie, error) {
 	rd := r.(*http.Request)
 	cookie, err := rd.Cookie(name)

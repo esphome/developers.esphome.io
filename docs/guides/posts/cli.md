@@ -1,11 +1,14 @@
 ---
-title: CLI commands
+title: Command Line Interface [CLI] commands
 description: Documentation for the command line interface of ESPHome.
-weight: 3
-kind: page
-
+date: 2024-01-31T00:00:00.000Z
+categories:
+  - others
 ---
-# Command Line Interface
+<!--more-->
+
+The following section explains which functions you can use with the `esphome` cli.
+With this you can for exmple *compile* and *run* etc. locally.
 
 ## Base Usage
 
@@ -19,7 +22,7 @@ esphome [OPTIONS] <COMMAND> <CONFIGURATION...> [ARGUMENTS]
 
 ### Option `-h` or `--help`
 
-Output possible <commands> and [arguments].
+Output possible \<commands\> and [arguments].
 !!! Note
     You can also use ``--help`` for any command to get arguments specific to that command.
 
@@ -45,12 +48,12 @@ Please see [command line substitutions](#command-line-substitutions) for details
 
 ## esphome commands
 !!note
-    You can specify multiple configuration files in the command line interface for some commands,
-    just list all files after the <COMMAND> like so:
+You can specify multiple configuration files in the command line interface for some commands,
+just list all files after the \<COMMAND\> like so:
 
-    ```console
-    esphome run livingroom.yaml kitchen.yaml
-    ```
+```console
+esphome run livingroom.yaml kitchen.yaml
+```
 
 ## ``run`` Command
 
@@ -118,6 +121,7 @@ esphome compile [--only-generate] <CONFIG>
 If set, only generates the C++ source code and does not compile the firmware.
 
 ## ``upload`` Command
+
 The `esphome upload <CONFIG>` validates the configuration and uploads the most recent firmware build.
 
 ```bash
@@ -125,9 +129,11 @@ esphome upload [--device UPLOAD_PORT] [--host-port HOST_PORT] <CONFIG>
 ```
 
 ### Option `--device UPLOAD_PORT`
+
 Manually specify the upload port/IP address to use. For example ``/dev/cu.SLAB_USBtoUART``, or ``192.168.1.176`` to perform an OTA.
 
 ### Option `--host-port HOST_PORT`
+
 
 Specify the host port to use for legacy Over the Air uploads.
 
@@ -142,6 +148,7 @@ esphome clean-mqtt [--topic TOPIC] [--username USERNAME] [--password PASSWORD] [
 ```
 
 ### Option `--topic TOPIC`
+
 
 Manually set the topic to clean retained messages from (defaults to the MQTT discovery topic of the
 node).
@@ -158,7 +165,7 @@ Manually set the password to subscribe with.
 
 Manually set the client ID to subscribe with.
 
-##  ``wizard`` Command
+## ``wizard`` Command
 
 The `esphome wizard <CONFIG>` command starts the ESPHome configuration creation wizard.
 
@@ -167,7 +174,7 @@ esphome wizard <CONFIG>
 
 ```
 
-##  ``mqtt-fingerprint`` Command
+## ``mqtt-fingerprint`` Command
 
 The `esphome mqtt-fingerprint <CONFIG>` command shows the MQTT SSL fingerprints of the remote used
 for SSL MQTT connections. See :ref:`mqtt-ssl_fingerprints`.
@@ -177,7 +184,7 @@ esphome mqtt-fingerprint <CONFIG>
 
 ```
 
-##  ``version`` Command
+## ``version`` Command
 
 The `esphome version` command shows the current ESPHome version and exits.
 
@@ -185,7 +192,7 @@ The `esphome version` command shows the current ESPHome version and exits.
 esphome version
 ```
 
-##  ``clean`` Command
+## ``clean`` Command
 
 The `esphome clean <CONFIG>` command cleans all build files and can help with some build issues.
 
@@ -194,7 +201,7 @@ esphome clean <CONFIG>
 
 ```
 
-##  ``dashboard`` Command
+## ``dashboard`` Command
 
 The `esphome dashboard <CONFIG>` command starts the ESPHome dashboard server for using ESPHome
 through a graphical user interface. This command accepts a configuration directory instead of a
@@ -221,7 +228,7 @@ The optional password to require for authentication.
 
 If set, opens the dashboard UI in a browser once the server is up and running.
 
-##  ``logs`` Command
+## ``logs`` Command
 
 The `esphome logs <CONFIG>` command validates the configuration and shows all logs.
 
@@ -256,7 +263,7 @@ ESPHome's command line interface provides the ability to use auto-completion fea
 
 You can register ESPHome for auto-completion by adding the following to your ~/.bashrc file:
 
-``` console
+```console
 eval "$(register-python-argcomplete esphome)"
 ```
 

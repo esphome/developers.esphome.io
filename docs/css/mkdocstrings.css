@@ -25,3 +25,26 @@ a.external:hover::after,
 a.autorefs-external:hover::after {
   background-color: var(--md-accent-fg-color);
 }
+
+code.doc-symbol-parameter::after {
+  content: "Parameter";
+}
+code.doc-symbol-attribute::after {
+  content: "Attribute";
+}
+
+code.doc-symbol-function::after {
+  content: "Function";
+}
+
+code.doc-symbol-method::after {
+  content: "Method";
+}
+
+code.doc-symbol-class::after {
+  content: "Class";
+}
+
+code.doc-symbol-module::after {
+  content: "Module";
+}

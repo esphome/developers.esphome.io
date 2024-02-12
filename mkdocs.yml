@@ -4,7 +4,7 @@ site_url: https://nielsnl68.github.io/developers.esphome.io/
 site_description: This site is meanly for people that want to extend the functionality of ESPHome.
 copyright: <strong>ESPHome</strong> is an open source project by <a href="https://https://www.nabucasa.com/">Nabu Casa</a>
 
-repo_url: https://github.com/nielsnl68/developers.esphome.io
+repo_url: https://github.com/nielsnl68/developers.esphome.io/
 repo_name: developers.esphome.io
 edit_uri: edit/main/docs/
 
@@ -13,22 +13,24 @@ docs_dir: "docs"
 
 extra:
   esphome_dir: "C:/development/projects/esphome/"
-  homepage: https://developers.esphome.io
+  homepage: https://nielsnl68.github.io/developers.esphome.io/
   analytics:
+    provider: google
+    property: G-7W4JVL1PRY
     feedback:
       title: Was this page helpful?
       ratings:
-        - icon: material/emoticon-happy-outline
+        - icon: material/thumb-up-outline
           name: This page was helpful
           data: 1
           note: >-
             Thanks for your feedback!
-        - icon: material/emoticon-sad-outline
+        - icon: material/thumb-down-outline
           name: This page could be improved
           data: 0
           note: >-
             Thanks for your feedback! Help us improve this page by
-            using our <a href="..." target="_blank" rel="noopener">feedback form</a>.
+            using our <a href="https://discord.com/channels/429907082951524364/1182120062052741141" target="_blank" rel="noopener">feedback form</a>.
   consent:
     title: Cookie consent
     description: >-
@@ -58,15 +60,18 @@ theme:
 
     - announce.dismiss
 
-    - navigation.instant
+    # - navigation.instant
+    - navigation.instant.preview
 
-    - navigation.expand
+    # - navigation.expand
     - navigation.indexes
 
     - navigation.path
-    - navigation.prune
+    # - navigation.prune
 
     - navigation.tracking
+
+    # - navigation.sections
 
     # - navigation.tabs
     # - content.tabs.link
@@ -75,9 +80,7 @@ theme:
     - search.suggest
     - search.highlight
 
-
     - content.action.edit
-    - content.action.view
     - content.code.copy
     - content.code.select
     - content.code.annotate
@@ -88,7 +91,7 @@ theme:
 
 
   icon:
-    repo: fontawesome/brands/github
+    repo: fontawesome/brands/github-alt
     edit: material/pencil
     view: material/eye
 
@@ -166,6 +169,26 @@ markdown_extensions:
 plugins:
   - search
   - tags
+  - blog:
+      blog_dir: guides
+      blog_toc: false
+      post_date_format: medium
+      post_url_date_format: yyyyMMdd
+      post_excerpt: required
+      archive: false
+      pagination_format: "$link_first $link_previous ~2~ $link_next $link_last"
+      draft: true
+      post_url_format: "{file}"
+      post_excerpt_separator: <!--more-->
+      post_readtime: false
+      pagination_per_page: 4
+      categories_allowed:
+        - codebase
+        - documentation
+        - howto's
+        - others
+        - linters
+
   - mkdocstrings:
       enabled: true
       handlers:
@@ -173,21 +196,27 @@ plugins:
           paths: ["C:/development/projects/esphome/esphome"]
           options:
             docstring_style: sphinx
-            docstring_section_style: table
+            docstring_section_style: list
             filters: ["!^_"]
             heading_level: 2
             inherited_members: false
             merge_init_into_class: true
-            separate_signature: true
-            show_root_heading: true
+            separate_signature: false
+            show_root_heading: false
             show_root_full_path: true
+            show_root_members_full_path: false
             show_root_toc_entry: false
+            show_object_full_path: false
             show_if_no_docstring: true
             show_signature_annotations: true
             show_symbol_type_heading: true
             show_symbol_type_toc: true
             signature_crossrefs: true
             summary: true
+            show_category_heading: true
+            group_by_category: true
+            unwrap_annotated: true
+
   - autorefs
   - glightbox
   - minify:
@@ -199,15 +228,6 @@ plugins:
       cache_safe: true
   - redirects:
       redirect_maps: {}
-  - mkdoxy:
-      enabled: false
-      projects:
-        esphome: # name of project must be alphanumeric + numbers (without spaces)
-          src-dirs: "C:/development/projects/esphome/esphome" # path to source code (support multiple paths separated by space) => INPUT
-          full-doc: True # if you want to generate full documentation
-          doxy-cfg: # standard doxygen configuration (key: value)
-            FILE_PATTERNS: "*.h*" # specify file patterns to filter out
-            RECURSIVE: True # recursive search in source directories
 
 extra_css:
   - css/material.css

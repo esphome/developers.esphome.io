@@ -1,10 +1,11 @@
 ---
-
+title: reStructuredTex Syntax
+discription: Here's a quick reStructuredTex (RST) quide
+date: 2024-01-31T00:00:00.000Z
+categories:
+ - documentation
 ---
-# reStructuredTex Syntax
-
-Here's a quick reStructuredTex (RST) primer:
-
+<!--more-->
 Title hierarchy is based on order of occurrence, not on type of character used to underline it. This
 documents establish the following character order for better consistency.
 
@@ -45,7 +46,6 @@ To create a link to an external resource (for example <https://www.google.com>),
 ```reStructuredText
 `Google.com <https://www.google.com>`__
 ```
-
 
 [Google.com](https://www.google.com)
 
@@ -184,11 +184,9 @@ The syntax for lists in RST is more or less the same as in Markdown:
 
 ## imgtable
 
-ESPHome uses a custom RST directive to show the table on the front page (see
-
-[index.rst](https://github.com/esphome/esphome-docs/blob/current/index.rst).
-New pages need to be added to the `imgtable` list. The syntax is CSV with <PAGE NAME>, <FILE NAME> (without RST),
-<IMAGE> (in top-level images/ directory), <COMMENT> (optional - short text to describe the component). The aspect ratio of these images should be 8:10 (or 10:8) but exceptions are possible.
+ESPHome uses a custom RST directive to show the table on the front page (see [index.rst](https://github.com/esphome/esphome-docs/blob/current/index.rst)).
+New pages need to be added to the `imgtable` list. The syntax is CSV with \<PAGE NAME\>, \<FILE NAME\> (without RST),
+\<IMAGE\> (in top-level images/ directory), \<COMMENT\> (optional - short text to describe the component). The aspect ratio of these images should be 8:10 (or 10:8) but exceptions are possible.
 
 Because these images are served on the main page, they need to be compressed heavily. SVGs are preferred over JPGs
 and JPGs should be max. 300x300px.

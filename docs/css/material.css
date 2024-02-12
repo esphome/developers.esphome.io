@@ -24,3 +24,7 @@
   -webkit-mask-image: var(--md-admonition-icon--preview);
   mask-image: var(--md-admonition-icon--preview);
 }
+
+.md-post--excerpt {
+  margin-bottom: 0.8rem;
+}

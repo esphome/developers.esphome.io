@@ -9,5 +9,13 @@
           <img class="dark-invert" src="{{page.featured_image | url }}">
       {% endif %}
   </div>
-  {% include "partials/content.html" %}
+  {{ super() }}
+{% endblock %}
+
+{% block outdated %}
+  You're not viewing the latest version.
+  <a href="{{ '../' ~ base_url }}">
+    <strong>Click here to go to latest.</strong>
+  </a>
+  {{ super() }}
 {% endblock %}

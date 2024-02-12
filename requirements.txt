@@ -1,0 +1,10 @@
+mkdocs
+mkdocs-autorefs
+mkdocs-glightbox
+mkdocs-material
+mkdocs-minify-plugin
+mkdocs-redirects
+mkdocstrings
+mkdocstrings-python
+mkdoxy=1.1.7
+pymdown-extensions

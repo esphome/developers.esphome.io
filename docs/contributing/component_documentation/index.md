@@ -6,12 +6,6 @@ setup, please feel free to submit a pull request.'
 kind: section
 
 weight: 1
-
-menu:
-  main:
-    parent: contrib
-    identifier: docs
-
 ---
 
 ## Contributing to ESPHome-Docs

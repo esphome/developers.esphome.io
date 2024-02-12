@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+
+{% block content %}
+  <div class="post-head-wrapper-text-only ">
+      {% if page.meta and page.meta.featured_image %}
+          <img class="dark-invert" src="{{ page.meta.featured_image | url }}" >
+      {% elif page.featured_image %}
+          <img class="dark-invert" src="{{page.featured_image | url }}">
+      {% endif %}
+  </div>
+  {% include "partials/content.html" %}
+{% endblock %}

@@ -1,12 +1,11 @@
 ---
-title: ""
+title: "Home page"
 description: "Welcome to the developer documentation of ESPHome. Here will you most likely find everthing you need to know to create your own (external) component. And how to create a PR."
-featured_image: assets/logo-text.svg
 kind: home
-cascade:
-    featured_image: assets/logo-text.svg
+---
+
+--8<-- 'README.md'
 
 ---
-![](assets/hero.png){ width="100%" }
 
-
+--8<-- 'CONTRIBUTING.md'

@@ -4,37 +4,84 @@ site_url: https://nielsnl68.github.io/developers.esphome.io/
 site_description: This site is meanly for people that want to extend the functionality of ESPHome.
 copyright: <strong>ESPHome</strong> is an open source project by <a href="https://https://www.nabucasa.com/">Nabu Casa</a>
 
-repo_url: https://github.com/esphome/developers.esphome.io
-repo_name: esphome/developers.esphome.io
+repo_url: https://github.com/nielsnl68/developers.esphome.io
+repo_name: developers.esphome.io
 edit_uri: edit/main/docs/
 
+site_dir: ".docsite"
+docs_dir: "docs"
+
+extra:
+  esphome_dir: "C:/development/projects/esphome/"
+  homepage: https://developers.esphome.io
+  analytics:
+    feedback:
+      title: Was this page helpful?
+      ratings:
+        - icon: material/emoticon-happy-outline
+          name: This page was helpful
+          data: 1
+          note: >-
+            Thanks for your feedback!
+        - icon: material/emoticon-sad-outline
+          name: This page could be improved
+          data: 0
+          note: >-
+            Thanks for your feedback! Help us improve this page by
+            using our <a href="..." target="_blank" rel="noopener">feedback form</a>.
+  consent:
+    title: Cookie consent
+    description: >-
+      We use cookies to recognize your repeated visits and preferences, as well
+      as to measure the effectiveness of our documentation and whether users
+      find what they're searching for. With your consent, you're helping us to
+      make our documentation better.
+
 watch:
-  - ext_theme
+  - docs/.overrides
+  - mkdocs.yml
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+
 
 theme:
   name: material
-  locale: en
-  custom_dir: ext_theme
+  # locale: en
+  use_directory_urls: true
+  custom_dir: docs/.overrides
   logo: assets/logo.svg
   favicon: assets/favicon.ico
   features:
+    - navigation.instant
 
     - navigation.expand
     - navigation.path
     - navigation.prune
     - navigation.indexes
+
     - navigation.tracking
-    - navigation.top
+
+    - navigation.tabs
+    - navigation.tabs.sticky
+
     - search.suggest
     - search.highlight
+
     - announce.dismiss
-    - header.autohide
+
     - content.action.edit
+    - content.action.view
     - content.code.copy
     - content.code.select
     - content.code.annotate
     - content.tabs.link
     - content.tooltips
+
+    - toc.follow
+
 
   icon:
     repo: fontawesome/brands/github
@@ -60,50 +107,86 @@ theme:
 
 
 markdown_extensions:
-  - toc:
-      permalink: true
-      permalink_title: Anchor link to this section for reference
-      title: On this page
-  - admonition
-  - def_list
   - abbr
+  - admonition
   - attr_list
-  - tables
+  - def_list
+  - md_in_html
+
+  - pymdownx.betterem
+  - pymdownx.blocks.admonition
+  - pymdownx.blocks.details
+  - pymdownx.blocks.html
+  - pymdownx.blocks.tab
+  - pymdownx.caret
+  - pymdownx.mark
+  - pymdownx.critic
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.highlight:
       use_pygments: true
       linenums: true
       anchor_linenums: true
       line_spans: __span
       pygments_lang_class: true
-
+  - pymdownx.keys
+  - pymdownx.magiclink
+  - pymdownx.smartsymbols
+  - pymdownx.snippets:
+      # auto_append: [!relative $docs_dir/.glossary.md]
+      base_path: [C:/development/projects/esphome]
+      check_paths: true
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
-  - pymdownx.betterem
-  - pymdownx.caret
-  - pymdownx.mark
-  - pymdownx.tilde
-  - pymdownx.critic
-  - pymdownx.details
-  - pymdownx.emoji
-  - pymdownx.keys
-  - pymdownx.snippets:
-      auto_append:
-        - includes/abbreviations.md
-  - pymdownx.tasklist
-  - md_in_html
-  - pymdownx.tasklist:
-      custom_checkbox: true
   - pymdownx.tabbed:
       alternate_style: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.tasklist:
+      custom_checkbox: true
+      clickable_checkbox: true
 
-
-
+  - pymdownx.tilde
+  - tables
+  - toc:
+      permalink: true
+      permalink_title: Anchor link to this section for reference
+      title: On this page
 
 plugins:
   - search
+  - tags:
+      tags_file: tags.md
+
+  - mkdocstrings:
+      enabled: false
+      handlers:
+        python:
+          paths: ["C:/development/projects/esphome/esphome"]
+          options:
+            docstring_style: sphinx
+            docstring_section_style: table
+            filters: ["!^_"]
+            heading_level: 2
+            inherited_members: false
+            merge_init_into_class: true
+            separate_signature: true
+            show_root_heading: true
+            show_root_full_path: true
+            show_root_toc_entry: false
+            show_if_no_docstring: true
+            show_signature_annotations: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            signature_crossrefs: true
+            summary: true
+  - autorefs
   - glightbox
   - minify:
       minify_html: true
@@ -114,3 +197,15 @@ plugins:
       cache_safe: true
   - redirects:
       redirect_maps: {}
+  - mkdoxy:
+      projects:
+        esphome: # name of project must be alphanumeric + numbers (without spaces)
+          src-dirs: "C:/development/projects/esphome/esphome" # path to source code (support multiple paths separated by space) => INPUT
+          full-doc: True # if you want to generate full documentation
+          doxy-cfg: # standard doxygen configuration (key: value)
+            FILE_PATTERNS: "*.h*" # specify file patterns to filter out
+            RECURSIVE: True # recursive search in source directories
+
+extra_css:
+  - css/material.css
+  - css/mkdocstrings.css

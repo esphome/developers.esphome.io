@@ -1,17 +1,9 @@
 ---
 title: "Typography - for markdown pages"
-date: 2018-03-18T12:13:38+05:30
 description: List of all possibilities of Markdown
-weight: 4
 kind: page
-LinkTitle: "Typography"
-
-menu:
-  main:
-    parent: guide
-
-tags: typography
 ---
+
 # Heading 1
 ## Heading 2
 ### Heading 3

@@ -1,12 +1,7 @@
 ---
 title: CLI commands
-
 description: Documentation for the command line interface of ESPHome.
-
 weight: 3
-menu:
-  main:
-    parent: guide
 kind: page
 
 ---

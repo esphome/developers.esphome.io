@@ -55,29 +55,33 @@ theme:
   logo: assets/logo.svg
   favicon: assets/favicon.ico
   features:
+
+    - announce.dismiss
+
     - navigation.instant
 
     - navigation.expand
+    - navigation.indexes
+
     - navigation.path
     - navigation.prune
-    - navigation.indexes
 
     - navigation.tracking
 
-    - navigation.tabs
-    - navigation.tabs.sticky
+    # - navigation.tabs
+    # - content.tabs.link
+    # - navigation.tabs.sticky
 
     - search.suggest
     - search.highlight
 
-    - announce.dismiss
 
     - content.action.edit
     - content.action.view
     - content.code.copy
     - content.code.select
     - content.code.annotate
-    - content.tabs.link
+
     - content.tooltips
 
     - toc.follow
@@ -161,11 +165,9 @@ markdown_extensions:
 
 plugins:
   - search
-  - tags:
-      tags_file: tags.md
-
+  - tags
   - mkdocstrings:
-      enabled: false
+      enabled: true
       handlers:
         python:
           paths: ["C:/development/projects/esphome/esphome"]
@@ -198,6 +200,7 @@ plugins:
   - redirects:
       redirect_maps: {}
   - mkdoxy:
+      enabled: false
       projects:
         esphome: # name of project must be alphanumeric + numbers (without spaces)
           src-dirs: "C:/development/projects/esphome/esphome" # path to source code (support multiple paths separated by space) => INPUT

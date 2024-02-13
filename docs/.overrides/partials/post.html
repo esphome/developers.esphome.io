@@ -26,9 +26,14 @@
 
     <!-- Post metadata -->
     <div class="md-post__meta md-meta">
+      <!-- Draft marker -->
+      {% if post.config.draft %}
+        <span class="md-draft">
+          {{ lang.t("blog.draft") }}
+        </span>
+      {% endif %}
+      
       <ul class="md-meta__list">
-
-
         <!-- Post categories -->
         {% if post.categories %}
           <li class="md-meta__item">
@@ -47,12 +52,7 @@
 
       </ul>
 
-      <!-- Draft marker -->
-      {% if post.config.draft %}
-        <span class="md-draft">
-          {{ lang.t("blog.draft") }}
-        </span>
-      {% endif %}
+
     </div>
   </header>
 

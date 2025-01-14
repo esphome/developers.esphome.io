@@ -1,0 +1,63 @@
+site_name: ESPHome Developer Docs
+site_author: ESPHome
+site_url: https://developers.esphome.io/
+
+repo_url: https://github.com/esphome/developers.esphome.io/
+repo_name: developers.esphome.io
+edit_uri: edit/main/docs/
+
+header_title: Developers
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.path
+    - navigation.tabs
+    - navigation.tabs.sticky
+
+    - search.suggest
+    - search.highlight
+
+    # - content.action.edit
+    - content.code.copy
+    - content.code.select
+    - content.code.annotate
+    - content.tooltips
+    - toc.follow
+
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      media: "(prefers-color-scheme: light)"
+      primary: grey
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - scheme: slate
+      primary: black
+      media: "(prefers-color-scheme: dark)"
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - blog
+  - privacy
+  - search
+
+hooks:
+  - hooks/copyright.py
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - "Setting up environment"
+  - Architecture:
+    - Core: architecture/core.md
+    - Components:
+      - Sensor: architecture/components/sensor.md
+
+  - Blog: blog/index.md

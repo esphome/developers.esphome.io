@@ -12,6 +12,6 @@ All you need to start developing components for ESPHome
 
 ## Getting Started
 
-  - [Setting up your development environment](getting-started/development-environment.md)
+  - [Setting up your development environment](getting-started/development-environment)
 
 ## 

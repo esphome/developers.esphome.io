@@ -68,10 +68,13 @@ Let's break this down a bit.
 
 ```python
 import esphome.config_validation as cv
+import esphome.codegen as cg
 ```
 
 `config_validation` is a module that contains all the common validation functions that are used to validate the configuration.
 Components may contain their own validations as well and this is very extensible.
+`codegen` is a module that contains all the code generation functions that are used to generate the C++ code that is placed
+into `main.cpp`.
 
 
 ```python
@@ -146,33 +149,23 @@ If the config value is not set, then we do not call the setter function.
 ### Further information
 
 - `AUTO_LOAD` - A list of components that will be automatically loaded if they are not already specified in the configuration.
+  This can be a method that can be run with access to the `CORE` information like the target platform.
 - `CODEOWNERS` - A list of GitHub usernames that are responsible for this component. `script/build_codeowners.py` will 
   update the `CODEOWNERS` file.
 - `DEPENDENCIES` - A list of components that this component depends on. If these components are not present in the configuration,
   validation will fail and the user will be shown an error.
 - `MULTI_CONF` - If this component can be used multiple times in the configuration. If set to `True`, the user can use this component
   multiple times in the configuration. If set to a number, the user can use this component that many times.
+- `MULTI_CONF_NO_DEFAULT` - This is a special flag that allows the component to be auto-loaded without an instance of the configuration.
+  An example of this is the `uart` component. This component can be auto-loaded so that all of the uart headers will be available but
+  potentially there is no native uart instance, but one provided by another component such an an external i2c UART expander.
 
 
+### Final validation
 
-### TODO
+ESPHome has a mechanism to run a final validation step after all of the configuration is initially deemed to be individually valid.
+This final validation gives an instance of a component the ability to check any other components configuration and potentially fail
+the validation stage if an important dependent configuration does not match. 
 
-- FINAL_VALIDATE_SCHEMA
-  - Allows validation of this components configuration against any other config
-
-- consts
-  - AUTO_LOAD
-    - List of strings of components
-    - Can be a function returning a list of strings of components
-  - DEPENDENCIES
-    - list of strings of components
-      - "sensor"
-      - "adc.sensor" or "sensor.adc" - double check
-  - CODEOWNERS
-    - list of gh usernames
-    - Run `script/build_codeowners.py` to update files after altering
-  - MULTI_CONF
-    - True / False / Number of instances allowed
-  - MULTI_CONF_NO_DEFAULT
-    - True / False
-    - Allows a component to be auto loaded without an instance of configuration
+For example many components that rely on `uart` can use the `FINAL_VALIDATE_SCHEMA` to ensure that the `tx_pin` and/or `rx_pin` are 
+configured.

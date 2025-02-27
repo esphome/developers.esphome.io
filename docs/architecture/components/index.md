@@ -66,6 +66,8 @@ async def to_code(config):
 
 Let's break this down a bit.
 
+#### Configuration validation
+
 ```python
 import esphome.config_validation as cv
 import esphome.codegen as cg
@@ -82,7 +84,7 @@ example_component_ns = cg.esphome_ns.namespace("example_component")
 ```
 
 This is the c++ namespace inside the `esphome` namespace. It is required here so that the codegen knows the exact 
-namespace of the class `that is being created. The namespace **must** match the name of the component.
+namespace of the class that is being created. The namespace **must** match the name of the component.
 
 
 ```python
@@ -101,12 +103,13 @@ CONFIG_SCHEMA = cv.Schema({
 })
 ```
 
-This is the schema that will allow user configuration for this component. This example shows that the user must provide
-a `foo` value that is a boolean. The user may optionally provide a `bar` value that is a string, and a `baz` value that is
-an integer between 0 and 255. The `cv.GenerateID()` is a special function that generates a unique ID for this component but
-also allows the user to specify an `id` in the configuration for automations.
+This is the schema that will allow user configuration for this component. This example requires the user to provide
+a boolean value for the key `foo`. The user also may or may not (hence `Optional`) provide a string value for the key
+`bar` and an integer value between 0 and 255 for they key `baz`. The `cv.GenerateID()` is a special function that
+generates a unique ID (C++ variable name used in the generated code) for this component but also allows the user to
+specify their own `id` in their configuration in the event that they wish to refer to it in their automations.
 
-
+#### Code generation
 
 The `to_code` method is called after the entire configuration has been validated. This function is given the
 parsed `config` object for this instance of this component. This method is responsible for generating the
@@ -117,9 +120,10 @@ setting the variables on the object.
 var = cg.new_Pvariable(config[CONF_ID])
 ```
 
-`var` becomes a special object that represents the actual C++ object that will be generated. The `CONF_ID` that represents
-the above `cv.GenerateID()` holds both the id string, and the class name of the component `ExampleComponent`. Subsequent arguments
-to `new_Pvariable` are arguments that can be passed to the constructor of the class.
+`var` becomes a special object that represents the actual C++ object that will be generated. The `CONF_ID` that
+represents the above `cv.GenerateID()` contains both the `id` string and the class name of the component -- in our
+example, this is `ExampleComponent`. Subsequent arguments to `new_Pvariable` are arguments that can be passed to the
+constructor of the class.
 
 ```python
 await cg.register_component(var, config)
@@ -128,15 +132,19 @@ await cg.register_component(var, config)
 This line generates `App.register_component(var)` in C++ which registers the component so that its `setup`, `loop` and/or `update`
 functions are called correctly.
 
+Assuming the user has `foo: true` in their YAML configuration, this line:
+
 ```python 
 cg.add(var.set_foo(config[CONF_FOO]))
 ```
+
+...will result in this line:
 
 ```c++
 var->set_foo(true);
 ```
 
-This would become the above C++ assuming the user set `foo: true` in the YAML configuration.
+...in the generated `main.cpp` file.
 
 ```python
 if bar := config.get(CONF_BAR):
@@ -154,8 +162,8 @@ If the config value is not set, then we do not call the setter function.
   update the `CODEOWNERS` file.
 - `DEPENDENCIES` - A list of components that this component depends on. If these components are not present in the configuration,
   validation will fail and the user will be shown an error.
-- `MULTI_CONF` - If this component can be used multiple times in the configuration. If set to `True`, the user can use this component
-  multiple times in the configuration. If set to a number, the user can use this component that many times.
+- `MULTI_CONF` - If set to `True`, the user can use this component multiple times in their configuration. If set to a 
+  number, the user can use this component that number of times.
 - `MULTI_CONF_NO_DEFAULT` - This is a special flag that allows the component to be auto-loaded without an instance of the configuration.
   An example of this is the `uart` component. This component can be auto-loaded so that all of the uart headers will be available but
   potentially there is no native uart instance, but one provided by another component such an an external i2c UART expander.
@@ -164,7 +172,7 @@ If the config value is not set, then we do not call the setter function.
 ### Final validation
 
 ESPHome has a mechanism to run a final validation step after all of the configuration is initially deemed to be individually valid.
-This final validation gives an instance of a component the ability to check any other components configuration and potentially fail
+This final validation gives an instance of a component the ability to check the configuration of any other components and potentially fail
 the validation stage if an important dependent configuration does not match. 
 
 For example many components that rely on `uart` can use the `FINAL_VALIDATE_SCHEMA` to ensure that the `tx_pin` and/or `rx_pin` are 

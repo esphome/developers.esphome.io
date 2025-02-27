@@ -66,7 +66,7 @@ async def to_code(config):
 
 Let's break this down a bit.
 
-#### Configuration validation
+#### Module/component setup
 
 ```python
 import esphome.config_validation as cv
@@ -93,6 +93,8 @@ ExampleComponent = example_component_ns.class_("ExampleComponent", cg.Component)
 
 This is the class that is being created. The first argument is the name of the class, the second and subsequent 
 arguments are the base classes that this class inherits from.
+
+#### Configuration validation
 
 ```python
 CONFIG_SCHEMA = cv.Schema({

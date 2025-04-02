@@ -8,7 +8,7 @@ hide:
 
 Start developing your own components for ESPHome!
 
-Not a developer? [Go to the user documentation.](https://esphome.io)
+**Not a developer?** [Go to the user documentation.](https://esphome.io)
 
 ---
 

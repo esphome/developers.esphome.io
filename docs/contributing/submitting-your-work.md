@@ -220,4 +220,4 @@ Note that you can use this procedure for other branches, too, such as `next` or 
     and, when you force-push, this history **is lost**, forcing your reviewer to re-review files they may have already
     reviewed!
 
-    If you must update your branch, use a method described in :ref:`feature_branches`, instead.
+    If you must update your branch, use a method described in [feature branches](#feature-branches), instead.

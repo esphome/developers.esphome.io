@@ -1,4 +1,4 @@
-site_name: ESPHome Developer Docs
+site_name: ESPHome Developer Documentation
 site_author: ESPHome
 site_url: https://developers.esphome.io/
 
@@ -43,6 +43,11 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
 
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+
 plugins:
   - blog
   - privacy
@@ -53,11 +58,40 @@ hooks:
 
 nav:
   - Home: index.md
-  - Getting Started:
-    - "Setting up environment"
+  - Contributing:
+    - Getting started: contributing/getting-started.md
+    - Development environment: contributing/development-environment.md
+    - Submitting your work: contributing/submitting-your-work.md
+    - Contributing:
+      - Code: contributing/code.md
+      - Documentation: contributing/docs.md
+      - Important notes: contributing/code-notes.md
   - Architecture:
+    - Overview: architecture/overview.md
     - Core: architecture/core.md
     - Components:
+      - Overview: architecture/components/index.md
+      - Alarm control panel: architecture/components/alarm_control_panel.md
+      - Binary sensor: architecture/components/binary_sensor.md
+      - Button: architecture/components/button.md
+      - Climate: architecture/components/climate.md
+      - Cover: architecture/components/cover.md
+      - Display: architecture/components/display.md
+      - Event: architecture/components/event.md
+      - Fan: architecture/components/fan.md
+      - Light: architecture/components/light.md
+      - Lock: architecture/components/lock.md
+      - Media player: architecture/components/media_player.md
+      - Number: architecture/components/number.md
+      - Output: architecture/components/output.md
+      - Select: architecture/components/select.md
       - Sensor: architecture/components/sensor.md
+      - Speaker: architecture/components/speaker.md
+      - Switch: architecture/components/switch.md
+      - Text: architecture/components/text.md
+      - Text sensor: architecture/components/text_sensor.md
+      - Time: architecture/components/time.md
+      - Touchscreen: architecture/components/touchscreen.md
+      - Valve: architecture/components/valve.md
 
   - Blog: blog/index.md

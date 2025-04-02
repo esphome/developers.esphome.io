@@ -1,1 +1,1 @@
-# ESPHome Core Architecture
+# Core Architecture

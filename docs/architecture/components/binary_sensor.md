@@ -1,1 +1,1 @@
-# Sensor
+# Binary Sensor

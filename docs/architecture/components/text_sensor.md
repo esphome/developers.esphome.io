@@ -1,1 +1,1 @@
-# Sensor
+# Text Sensor

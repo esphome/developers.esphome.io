@@ -33,3 +33,4 @@ Please see our [getting started guide](contributing/getting-started).
 ## Going Further
 
 - [ESPHome component architecture](architecture/components)
+- [ESPHome API](architecture/api)

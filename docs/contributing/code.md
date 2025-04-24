@@ -48,7 +48,7 @@ In general, we try to avoid use of external libraries.
       version of the YAML key. For example: `CONF_SUPERBUS_ID = "superbus_id"`
     - When used in only a single component, they should be defined within that component.
     - If a key is used in two or more components, it should be migrated to `esphome/const.py`.
-    - If a key appears in four or more components, it **must** be migrated to `esphome/const.py` or CI checks will fail.
+    - If a key appears in three or more components, it **must** be migrated to `esphome/const.py` or CI checks will fail.
     - Create a separate PR if/when you wish to move a constant into  `esphome/const.py`.
 - Use Python's walrus operator for optional config gathering, except for boolean values. For example:
   `sensor_config := config.get(CONF_SENSOR)`

@@ -93,5 +93,5 @@ nav:
       - Time: architecture/components/time.md
       - Touchscreen: architecture/components/touchscreen.md
       - Valve: architecture/components/valve.md
-
+    - API: architecture/api
   - Blog: blog/index.md

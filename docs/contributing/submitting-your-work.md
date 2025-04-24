@@ -11,6 +11,7 @@ Please be sure you've read through our contributing guides:
 
 - [Code](code.md)
 - [Documentation](docs.md)
+- [Important notes](/contributing/code-notes)
 
 ## Submitting a Pull Request
 

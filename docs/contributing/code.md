@@ -6,48 +6,70 @@ This is a guide to contributing to the ESPHome codebase.
 
 ## Codebase standards
 
-ESPHome's maintainers work hard to maintain a high standard for its code. We try our best to adhere to these standards:
+ESPHome's maintainers work hard to maintain a high standard for its code. We try our best to adhere to the standards
+outlined below.
 
-- The C++ code style is based on the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html) with a 
-  few modifications as follows:
+### C++ code style
 
-    - Function, method and variable names are `lower_snake_case`
-    - Class/struct/enum names should be `UpperCamelCase`
-    - Constants should be `UPPER_SNAKE_CASE`
-    - Fields should be `protected` and `lower_snake_case_with_trailing_underscore_` (DO NOT use `private`)
-    - It's preferred to use long variable/function names over short and non-descriptive ones.
-    - All uses of class members and member functions should be prefixed with `this->` to distinguish them from global
-      functions/variables.
-    - Use two spaces, not tabs.
-    - Using `#define` is discouraged and should be replaced with constants or enums (if appropriate).
-    - Use `using type_t = int;` instead of `typedef int type_t;`
-    - Wrap lines in all files at no more than 120 characters. This makes reviewing PRs faster and easier. Exceptions
-      should be made only for lines where wrapping them would result in a syntax issue.
+We use the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html) with a few modifications:
 
-- Components should dump their configuration using `ESP_LOGCONFIG` at startup in `dump_config()`.
+- Function, method and variable names are `lower_snake_case`
+- Class/struct/enum names should be `UpperCamelCase`
+- Constants should be `UPPER_SNAKE_CASE`
+- Fields should be `protected` and `lower_snake_case_with_trailing_underscore_` (DO NOT use `private`)
+- It's preferred to use long variable/function names over short and non-descriptive ones.
+- All uses of class members and member functions should be prefixed with `this->` to distinguish them from global
+  functions/variables.
+- Use two spaces, not tabs.
+- Using `#define` is discouraged and should be replaced with constants or enums (if appropriate).
+- Use `using type_t = int;` instead of `typedef int type_t;`
+- Wrap lines in all files at no more than 120 characters. This makes reviewing PRs faster and easier. Exceptions
+  should be made only for lines where wrapping them would result in a syntax issue.
+
+### Use of external libraries
+
+In general, we try to avoid use of external libraries.
+
+- If the component you're developing has a simple communication interface, please consider implementing it natively in
+  ESPHome.
+- Libraries which use hardware interfaces (I²C, for example), should be configured/wrapped to use ESPHome's own
+  communication abstractions.
+- Libraries which directly manipulate pins or don't do any I/O generally do not cause problems.
+- Libraries which access/maintain a global variable/state (`Wire` is a good example) are likely to cause a problem
+  because the component won't be modular. Put another way, this approach generally means that it's not possible to
+  create multiple instances of the component for use within ESPHome.
+
+### ESPHome-specific idiosyncrasies
+
+- Components **must** use the provided abstractions like `sensor`, `switch`, etc.
+- Components should **not** directly access other components -- for example, to publish to MQTT topics.
+- Configuration keys (those that appear as keys in YAML):
+    - Should be defined as constants--even if used only once--in the form `CONF_XYZ` where `XYZ` is the upper-case
+      version of the YAML key. For example: `CONF_SUPERBUS_ID = "superbus_id"`
+    - When used in only a single component, they should be defined within that component.
+    - If a key is used in two or more components, it should be migrated to `esphome/const.py`.
+    - If a key appears in three or more components, it **must** be migrated to `esphome/const.py` or CI checks will fail.
+    - Create a separate PR if/when you wish to move a constant into  `esphome/const.py`.
+- Use Python's walrus operator for optional config gathering, except for boolean values. For example:
+  `sensor_config := config.get(CONF_SENSOR)`
+- Using `AUTO_LOAD` to load main platform components (`sensor`, `binary_sensor`, `switch`, etc.) is not permitted.
+- Components should dump their configuration using `ESP_LOGCONFIG` at startup in `dump_config()`. Code in this
+  method must do **nothing** other than print values determined during `setup()`.
+- In general, avoid "hard-coding" values -- use constants instead. In particular:
+    - Any literal string used more than once should be defined as a constant.
+    - Constants should be used in C++ as much as possible to aid with readability. For example, it's easier to
+      understand code which refers to registers using constants instead of "hard-coded" values.
 - ESPHome uses a unified formatting tool for all source files (but this tool can be difficult to install).
   When creating a new PR in GitHub, be sure to check the [GitHub Actions](submitting-your-work.md#automated-checks)
   output to see what formatting needs to be changed and what potential problems are detected.
-- Use of external libraries should be kept to a minimum:
-
-    - If the component you're developing has a simple communication interface, please consider implementing the library
-      natively in ESPHome.
-    - Libraries which directly manipulate pins or don't do any I/O generally do not cause problems.
-    - Libraries which use hardware interfaces (I²C, for example), should be configured/wrapped to use ESPHome's own
-      communication abstractions.
-    - If the library accesses a global variable/state (`Wire` is a good example) then there's likely a problem because
-      the component may not be modular. Put another way, this approach may mean that it's not possible to create multiple
-      instances of the component for use within ESPHome.
-
-- Components **must** use the provided abstractions like `sensor`, `switch`, etc. Components specifically should
-  **not** directly access other components -- for example, to publish to MQTT topics.
-- Implementations for new devices should contain reference links for the datasheet and other sample implementations.
-- If you have used `delay()` or constructed code which blocks for a duration longer than ten milliseconds, be sure to
-  read [a note about delays in code](code-notes.md#delays-in-code).
-- Comments in code should be used as appropriate, such as to help explain some complexity or to provide a brief summary
-  of what a class, method, etc. is doing. PRs which include large blocks of commented-out code will not be accepted.
-  Single lines of commented code may be useful from time to time (for example, to call out something which was
-  deliberately omitted for some reason) but should generally be avoided.
+- Implementations for new devices should contain reference links for the datasheet and/or other sample
+  implementations.
+- If you have used `delay()` or constructed code which blocks for a duration longer than ten milliseconds, be sure
+  to read [a note about delays in code](code-notes.md#delays-in-code).
+- Comments in code should be used as appropriate, such as to help explain some complexity or to provide a brief
+  summary of what a class, method, etc. is doing. PRs which include large blocks of commented-out code will not be
+  accepted. Single lines of commented code may be useful from time to time (for example, to call out something
+  which was deliberately omitted for some reason) but should generally be avoided.
 - Please test your changes :)
 
 !!!note

@@ -11,7 +11,33 @@ The ESPHome documentation is built using [Sphinx](http://www.sphinx-doc.org) and
 
 If you're not familiar with rST, see [rST syntax](#rst-syntax) for a quick primer.
 
-## Through GitHub
+## Documentation guidelines
+
+- Use the English language (duh...)
+- Documentation for any given component/platform should contain a **minimal** example for the component/platform.
+  In the example, **do not include:**
+    - Optional configuration variables
+    - Dependent components (Instead, include a sentence explaining the dependency and a link to the dependency's
+      documentation)
+- Pin numbers used in examples should be the string `GPIOXX` -- not a specific pin number.
+- If a component/platform is used exclusively/primarily on a single specific board (perhaps with dedicated pin
+  numbers), a complete configuration for the component/platform on that specific board may be included as an example
+  _at the end of the document._ This example must be clearly identified as being for that specific hardware and it may
+  not replace the generic example configuration provided near the top of the document.
+- An image is worth a thousand words; please use them wherever possible. Regardless, don't forget to optimize them so
+  pages load quickly! You might try using [https://tinyjpg.com](https://tinyjpg.com) and/or
+  [https://tinypng.com](https://tinypng.com).
+- When using highly accurate, domain-specific terminology, be sure that it does not interfere with a new user's ability
+  to understand the content.
+- Be sure to target the correct **base branch** of the `esphome-docs` repository:
+    - **Fixes/improvements** for documentation must target the `current` branch.
+    - **New features** must target the `next` branch.
+- **Create new branches in your fork** for each pull request; to avoid confusion (and other potential issues), do not
+  make changes directly in the `next` and `current` branches in your fork.
+- Wrap lines in all files at no more than 120 characters. This makes reviewing PRs faster and easier. Exceptions should
+  be made only for lines which contain long links or other specific content/metadata that cannot be wrapped.
+
+## Contributing changes via GitHub
 
 This guide essentially goes over the same material found in
 [GitHub's Editing files in another user's repository](https://docs.github.com/en/repositories/working-with-files/managing-files/editing-files#editing-files-in-another-users-repository).
@@ -87,24 +113,6 @@ Then, use the provided Makefile to build the changes and start a live-updating w
 # Start web server on port 8000
 make live-html
 ```
-
-## General notes/guidelines
-
-- Use the English language (duh...)
-- An image is worth a thousand words, please use them wherever possible. Regardless, don't forget to optimize them so
-  pages load quickly; you might try using https://tinypng.com/
-- Try to use examples as often as possible.
-- When using highly accurate, domain-specific terminology, be sure that it does not interfere with new users
-  understanding the content.
-- Be sure to target the correct **base branch** of the `esphome-docs` repository:
-
-  - **Fixes/improvements** for documentation must target the `current` branch.
-  - **New features** must target the `next` branch.
-
-- **Create new branches in your fork** for each pull request; to avoid confusion (and other potential issues), do not
-  make changes directly in the `next` and `current` branches in your fork.
-- Wrap lines in all files at no more than 120 characters. This makes reviewing PRs faster and easier. Exceptions should
-  be made only for lines which contain long links or other specific content/metadata that cannot be wrapped.
 
 ## rST syntax
 

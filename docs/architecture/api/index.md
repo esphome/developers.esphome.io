@@ -57,8 +57,8 @@ regenerate the `api_pb2` files based on the changes made in the `.proto` files.
 
 ### `aioesphomeapi`
 
-This is the Home Assistant side of ESPHome; it must be updated to be consistent with the changes made to ESPHome
-itself.
+This is the Python client for ESPHome which runs in Home Assistant; it must be updated to be consistent with the
+changes made to ESPHome itself.
 
 ### Home Assistant core
 

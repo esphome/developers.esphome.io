@@ -40,7 +40,7 @@ Once the fork is created, you can clone the repository to your local machine:
 ```bash
 git clone https://github.com/YOUR_GITHUB_USERNAME/NAME_OF_FORK.git
 cd NAME_OF_FORK
-git remote add updtream https://github.com/esphome/esphome.git
+git remote add upstream https://github.com/esphome/esphome.git
 ```
 
 ## Run the `setup` script

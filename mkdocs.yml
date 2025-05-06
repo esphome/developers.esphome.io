@@ -6,8 +6,6 @@ repo_url: https://github.com/esphome/developers.esphome.io/
 repo_name: developers.esphome.io
 edit_uri: edit/main/docs/
 
-header_title: Developers
-
 theme:
   name: material
   features:
@@ -59,13 +57,11 @@ hooks:
 nav:
   - Home: index.md
   - Contributing:
-    - Getting started: contributing/getting-started.md
     - Development environment: contributing/development-environment.md
     - Submitting your work: contributing/submitting-your-work.md
     - Contributing:
       - Code: contributing/code.md
       - Documentation: contributing/docs.md
-      - Important notes: contributing/code-notes.md
   - Architecture:
     - Overview: architecture/overview.md
     - Core: architecture/core.md
@@ -93,5 +89,5 @@ nav:
       - Time: architecture/components/time.md
       - Touchscreen: architecture/components/touchscreen.md
       - Valve: architecture/components/valve.md
-    - API: architecture/api
+    - API: architecture/api/index.md
   - Blog: blog/index.md

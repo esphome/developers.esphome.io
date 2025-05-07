@@ -227,11 +227,13 @@ Given the example Python code above, let's consider the following C++ code:
   static const char *TAG = "example_component.component";
 
   void ExampleComponent::setup() {
-    // ...
+    // Code here should perform all component initialization,
+    //  whether hardware, memory, or otherwise
   }
 
   void ExampleComponent::loop() {
-    // ...
+    // Tasks here will be performed at every call of the main application loop.
+    // Note: code here MUST NOT BLOCK (see below)
   }
 
   void ExampleComponent::dump_config(){
@@ -262,7 +264,7 @@ a new measurement/reading.
 
 ### Common methods
 
-There are four methods `Component` defines which every component must implement. They are as follows:
+There are four methods `Component` defines which all components typically implement. They are as follows:
 
 - `setup()`: This method is called once as ESPHome starts up to perform initialization of the component. This may mean
   simply initializing some memory/variables or performing a series of read/write calls to look for and initialize
@@ -272,20 +274,27 @@ There are four methods `Component` defines which every component must implement.
 - `dump_config()`: This method is called as-needed to "dump" the device's current configuration. Typically this happens
   once after booting and then each time a new client connects to monitor logs (assuming logging is enabled). Note
   that this method is to be used **only** to dump configuration values determined during `setup()`; this method is
-  not permitted to contain any other types of calls to (for example) perform bus reads and/or writes.
+  not permitted to contain any other types of calls to (for example) perform bus reads and/or writes. We require that
+  this method is implemented for all components.
 - `get_setup_priority()`: This method is called to determine the component's setup priority. This is used specifically
   to ensure components are initialized in an appropriate order. For example, an I2C sensor cannot be initialized before
   the I2C bus is initialized; therefore, for I2C sensors, this must return a value indicating that it is to be
   initialized _only after_ (I2C) busses are initialized. See `setup_priority` in `esphome/core/component.h` for
   commonly-used values.
-- Setter methods: it is quite common that components will have at least one configuration variable which must be set in
-  order to configure the component. In `ExampleComponent`, we have three of these: "foo", "bar" and "baz".
-  [As mentioned earlier](#code-generation), these methods are the same methods referred from within the `to_code`
-  function in Python; the values contained in the user's YAML configuration are passed through to these setter methods
-  as they are placed into the generated `main.cpp` file produced by ESPHome's code generation (codegen). It's important
-  to note that **these methods will be called (and, thus, variables set) *before* the `setup()` method is called.**
 
 In addition, for `PollingComponent`:
 
 - `update()`: This method is called at an interval defined in the user's YAML configuration. For many components, the
   interval defaults to 60 seconds, but this may be overridden by the user to fit their use case.
+
+In general, code (particularly in `loop()` and/or `update()`)
+[must not block](http://localhost:8001/contributing/code/#esphome-specific-idiosyncrasies).
+
+### Component-specific methods
+
+Most components need to define "setter" methods since it's common to have at least one configuration variable which
+must be set in order to configure the component. In `ExampleComponent`, we have three such variables: "foo", "bar" and
+"baz". [As mentioned earlier](#code-generation), these methods are the same methods referred from within the `to_code`
+function in Python; the values contained in the user's YAML configuration are passed through to these setter methods as
+they are placed into the generated `main.cpp` file produced by ESPHome's code generation (codegen). It's important to
+note that **these methods will be called (and, thus, variables set) *before* the `setup()` method is called.**

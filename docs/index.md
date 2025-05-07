@@ -12,25 +12,24 @@ Start developing your own components for ESPHome!
 
 ---
 
-# Start Here
-
-We welcome contributions to the ESPHome suite of code and documentation!
-
-All of the project code and documentation is hosted on [GitHub](https://github.com):
+All project code and documentation is hosted on [GitHub](https://github.com):
 
 - [ESPHome](https://github.com/esphome/esphome)
 - [ESPHome-Docs](https://github.com/esphome/esphome-docs)
 
-## For New Developers
+---
 
-Please see our [getting started guide](contributing/getting-started).
+## For new developers
+
+- [Set up your development environment](/contributing/development-environment)
+- [Architectural overview](/architecture/overview)
+
+## Going further
+
+- [Component architecture](architecture/components)
+- [API](architecture/api)
 
 ## Contributing
 
-- [Code](contributing/code) and related [important notes](contributing/code-notes)
+- [Code](contributing/code)
 - [Documentation](contributing/docs)
-
-## Going Further
-
-- [ESPHome component architecture](architecture/components)
-- [ESPHome API](architecture/api)

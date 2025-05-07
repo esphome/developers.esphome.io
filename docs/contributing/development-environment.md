@@ -1,9 +1,10 @@
 # Setting up a development environment
 
-In order to develop ESPHome itself, or new ESPHome components, you will need to set up a development environment.
-Specifically, ESPHome is set up to use a Python virtual environment.
+You need a development environment if you wish to develop ESPHome -- new components or otherwise.
 
-This guide will walk you through these steps.
+In short, ESPHome is set up to use a Python virtual environment.
+
+This guide will walk you through the steps to set up an environment you can use for development.
 
 !!!note
     These instructions that follow apply for Linux and macOS. Windows users can still develop ESPHome and its

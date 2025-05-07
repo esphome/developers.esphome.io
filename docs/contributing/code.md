@@ -59,17 +59,30 @@ In general, we try to avoid use of external libraries.
     - Any literal string used more than once should be defined as a constant.
     - Constants should be used in C++ as much as possible to aid with readability. For example, it's easier to
       understand code which refers to registers using constants instead of "hard-coded" values.
-- ESPHome uses a unified formatting tool for all source files (but this tool can be difficult to install).
-  When creating a new PR in GitHub, be sure to check the [GitHub Actions](submitting-your-work.md#automated-checks)
-  output to see what formatting needs to be changed and what potential problems are detected.
+- Code in `loop()`, `update()` and `setup()` **must not block**.
+    - Avoid using methods such as `delay()` and note that **delays longer than 10 ms are not permitted**. Because
+      ESPHome uses a single-threaded loop for all components, if your component blocks, it will delay the whole loop,
+      negatively impacting other components. This can result in a variety of problems such as network connections being
+      lost.
+    - If your code **must** wait for something to happen (for example, your sensor requires hundreds of milliseconds to
+      initialize and/or take a reading), then you'll need to implement a state machine to facilitate this. For example,
+      your code can send the "take reading" command, return, and, when the next iteration of `loop()` or `update()` is
+      called, it then attempts to read back the measurement from the sensor.
+    - `loop()` is called every 16 ms (assuming no other components delay this, which may happen from time to time) and
+      `update()` is called at an interval defined in the user configuration for the component, but only for
+      [`PollingComponent`](https://esphome.io/api/classesphome_1_1_polling_component).
+    - For any [`Component`](https://esphome.io/api/classesphome_1_1_component) (which is nearly everything), the
+      well-known `set_timeout` method is also available; this can be a handy alternative to implementing a state
+      machine.
 - Implementations for new devices should contain reference links for the datasheet and/or other sample
   implementations.
-- If you have used `delay()` or constructed code which blocks for a duration longer than ten milliseconds, be sure
-  to read [a note about delays in code](code-notes.md#delays-in-code).
 - Comments in code should be used as appropriate, such as to help explain some complexity or to provide a brief
   summary of what a class, method, etc. is doing. PRs which include large blocks of commented-out code will not be
   accepted. Single lines of commented code may be useful from time to time (for example, to call out something
   which was deliberately omitted for some reason) but should generally be avoided.
+- ESPHome uses a unified formatting tool for all source files (but this tool can be difficult to install).
+  When creating a new PR in GitHub, be sure to check the [GitHub Actions](submitting-your-work.md#automated-checks)
+  output to see what formatting needs to be changed and what potential problems are detected.
 - Please test your changes :)
 
 !!!note

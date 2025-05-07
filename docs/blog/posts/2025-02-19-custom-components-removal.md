@@ -1,34 +1,14 @@
-# Contributing to ESPHome -- important notes
+---
+date: 2025-02-19
+---
 
-## Delays in code
-
-**Code in** `loop()`, `update()` **and** `setup()` **must not block**.
-
-Methods like `delay()` should be avoided and **delays longer than 10 ms are not permitted**. Because ESPHome uses a
-single-threaded loop for all components, if your component blocks, it will delay the whole loop, negatively impacting
-other components. This can result in a variety of problems such as network connections being lost.
-
-If your code **must** wait for something to happen (for example, your sensor requires hundreds of milliseconds to
-initialize and/or take a reading), then you'll need to implement a state machine to facilitate this. For example, your
-code can send the "take reading" command, return, and, when the next iteration of `loop()` or `update()` is called,
-it then attempts to read back the measurement from the sensor.
-
-`loop()` is called every 16 ms (assuming no other components delay this, which may happen from time to time) and
-`update()` is called at an interval defined in the user configuration for the component, but only for
-[`PollingComponent`](https://esphome.io/api/classesphome_1_1_polling_component).
-
-For any [`Component`](https://esphome.io/api/classesphome_1_1_component) (which is nearly everything), the well-known
-`set_timeout` method is also available; this can be a handy alternative to implementing a state machine.
-
-## Custom components
-
-*"I read that support for custom components was removed...so now what do I do???"*
+# About the removal of support for custom components
 
 ESPHome's "custom component" mechanism was a holdover from Home Assistant's feature by the same name. It existed before
 [external components](https://esphome.io/components/external_components) and offered a way to "hack in" support for
 devices which were not officially supported by ESPHome.
 
-### Why were custom components removed?
+## Why were custom components removed?
 
 There are several reasons for this change.
 
@@ -53,7 +33,7 @@ There are several reasons for this change.
         - Touch/edit any C++ code.
     - They tend to be more flexible since they are configured in YAML (as opposed to editing C++ code to make changes).
 
-### What's the difference?
+## What's the difference?
 
 Custom components are typically (more or less) just the [runtime](/architecture/overview/#runtime) part of an ESPHome component/platform. On
 the other hand, [external components](https://esphome.io/components/external_components) are just like any other
@@ -69,7 +49,7 @@ As such, most custom components can be made into
 [external components](https://esphome.io/components/external_components) simply by adding the required Python parts to
 make the custom component into a proper, complete ESPHome component.
 
-### What's next?
+## What's next?
 
 We encourage all custom component developers to extend their custom component(s) into proper
 [external components](https://esphome.io/components/external_components); doing so will make your custom component

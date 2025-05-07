@@ -25,7 +25,6 @@ configuration.
 example_component:
 ```
 
-
 ## Python module structure
 
 ### Minimum requirements
@@ -185,3 +184,117 @@ any other components and potentially fail the validation stage if an important d
 
 For example many components that rely on `uart` can use the `FINAL_VALIDATE_SCHEMA` to ensure that the `tx_pin` and/or
 `rx_pin` are configured.
+
+## C++ component structure
+
+Given the example Python code above, let's consider the following C++ code:
+
+- **`example_component.h:`**
+  ```cpp
+  #pragma once
+
+  #include "esphome/core/component.h"
+
+  namespace esphome {
+  namespace example_component {
+
+  class ExampleComponent : public Component {
+  public:
+    void setup() override;
+    void loop() override;
+    void dump_config() override;
+    void set_foo(bool foo) { this->foo_ = foo;}
+    void set_bar(std::string bar) { this->bar_ = bar;}
+    void set_baz(int baz) { this->baz_ = baz;}
+  protected:
+    bool foo_{false};
+    std::string bar_{};
+    int baz_{0};
+  };
+
+  }  // namespace example_component
+  }  // namespace esphome
+  ```
+
+- **`example_component.cpp:`**
+  ```cpp
+  #include "esphome/core/log.h"
+  #include "example_component.h"
+
+  namespace esphome {
+  namespace example_component {
+
+  static const char *TAG = "example_component.component";
+
+  void ExampleComponent::setup() {
+    // Code here should perform all component initialization,
+    //  whether hardware, memory, or otherwise
+  }
+
+  void ExampleComponent::loop() {
+    // Tasks here will be performed at every call of the main application loop.
+    // Note: code here MUST NOT BLOCK (see below)
+  }
+
+  void ExampleComponent::dump_config(){
+    ESP_LOGCONFIG(TAG, "Example component");
+    ESP_LOGCONFIG(TAG, "  foo = %s", TRUEFALSE(this->foo_));
+    ESP_LOGCONFIG(TAG, "  bar = %s", this->bar_.c_str());
+    ESP_LOGCONFIG(TAG, "  baz = %i", this->baz_);
+  }
+
+  }  // namespace example_component
+  }  // namespace esphome
+  ```
+
+This represents the minimum required code to implement a component in ESPHome. While most of it is likely reasonably
+self-explanatory, let's walk through it for completeness.
+
+### Namespaces
+
+All components must have their own namespace, named appropriately based on the name of the component. The component's
+namespace will always be placed within the `esphome` namespace.
+
+### Component class
+
+Any component exists as at least one C++ `class`. In ESPHome, components always inherit from either the `Component` or
+`PollingComponent` classes. The latter of these defines an additional `update()` method which is called on a periodic
+basis based on user configuration. This is often useful for hardware such as sensors which are queried periodically for
+a new measurement/reading.
+
+### Common methods
+
+There are four methods `Component` defines which all components typically implement. They are as follows:
+
+- `setup()`: This method is called once as ESPHome starts up to perform initialization of the component. This may mean
+  simply initializing some memory/variables or performing a series of read/write calls to look for and initialize
+  some (sensor, display, etc.) hardware connected via some bus (I2C, SPI, serial/UART, one-wire, etc.).
+- `loop()`: This method is called at each iteration of ESPHome's main application loop. Typically this is every 16
+  milliseconds, but there may be some variance as other components consume cycles to perform their own tasks.
+- `dump_config()`: This method is called as-needed to "dump" the device's current configuration. Typically this happens
+  once after booting and then each time a new client connects to monitor logs (assuming logging is enabled). Note
+  that this method is to be used **only** to dump configuration values determined during `setup()`; this method is
+  not permitted to contain any other types of calls to (for example) perform bus reads and/or writes. We require that
+  this method is implemented for all components.
+- `get_setup_priority()`: This method is called to determine the component's setup priority. This is used specifically
+  to ensure components are initialized in an appropriate order. For example, an I2C sensor cannot be initialized before
+  the I2C bus is initialized; therefore, for I2C sensors, this must return a value indicating that it is to be
+  initialized _only after_ (I2C) busses are initialized. See `setup_priority` in `esphome/core/component.h` for
+  commonly-used values.
+
+In addition, for `PollingComponent`:
+
+- `update()`: This method is called at an interval defined in the user's YAML configuration. For many components, the
+  interval defaults to 60 seconds, but this may be overridden by the user to fit their use case.
+
+In general, code (particularly in `loop()` and/or `update()`)
+[must not block](http://localhost:8001/contributing/code/#esphome-specific-idiosyncrasies).
+
+### Component-specific methods
+
+Most components need to define "setter" methods since it's common to have at least one configuration variable which
+must be set in order to configure the component. In `ExampleComponent`, we have three such variables: "foo", "bar" and
+"baz". [As mentioned earlier](#code-generation), these methods are the same methods referred from within the `to_code`
+function in Python; the values contained in the user's YAML configuration are passed through to these setter methods as
+they are placed into the generated `main.cpp` file produced by ESPHome's code generation (codegen). It's important to
+note that **these methods will be called (and, thus, variables set) *before* the `setup()` method is called.**

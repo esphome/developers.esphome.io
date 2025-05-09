@@ -6,8 +6,6 @@ repo_url: https://github.com/esphome/developers.esphome.io/
 repo_name: developers.esphome.io
 edit_uri: edit/main/docs/
 
-dev_addr: "127.0.0.1:8001"
-
 theme:
   name: material
   features:

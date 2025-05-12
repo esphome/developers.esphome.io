@@ -1,3 +1,8 @@
 # ESPHome Developer Documentation
 
-_Coming soon..._
+**Want to contribute?**
+
+- Clone this repo
+- Run the server:
+    - `mkdocs serve`
+    - Specify a port: `mkdocs serve -a localhost:8001`

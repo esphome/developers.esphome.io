@@ -41,8 +41,8 @@ In general, we try to avoid use of external libraries.
 
 ### ESPHome-specific idiosyncrasies
 
-- Components **must** use the provided abstractions like `sensor`, `switch`, etc.
-- Components should **not** directly access other components -- for example, to publish to MQTT topics.
+#### Python
+
 - Configuration keys (those that appear as keys in YAML):
     - Should be defined as constants--even if used only once--in the form `CONF_XYZ` where `XYZ` is the upper-case
       version of the YAML key. For example: `CONF_SUPERBUS_ID = "superbus_id"`
@@ -50,36 +50,45 @@ In general, we try to avoid use of external libraries.
     - If a key is used in two or more components, it should be migrated to `esphome/const.py`.
     - If a key appears in three or more components, it **must** be migrated to `esphome/const.py` or CI checks will fail.
     - Create a separate PR if/when you wish to move a constant into  `esphome/const.py`.
+- Using `AUTO_LOAD` to load main platform components (`sensor`, `binary_sensor`, `switch`, etc.) is not permitted.
 - Use Python's walrus operator for optional config gathering, except for boolean values. For example:
   `sensor_config := config.get(CONF_SENSOR)`
-- Using `AUTO_LOAD` to load main platform components (`sensor`, `binary_sensor`, `switch`, etc.) is not permitted.
-- Components should dump their configuration using `ESP_LOGCONFIG` at startup in `dump_config()`. Code in this
-  method must do **nothing** other than print values determined during `setup()`.
-- In general, avoid "hard-coding" values -- use constants instead. In particular:
-    - Any literal string used more than once should be defined as a constant.
-    - Constants should be used in C++ as much as possible to aid with readability. For example, it's easier to
-      understand code which refers to registers using constants instead of "hard-coded" values.
-- Code in `loop()`, `update()` and `setup()` **must not block**.
-    - Avoid using methods such as `delay()` and note that **delays longer than 10 ms are not permitted**. Because
-      ESPHome uses a single-threaded loop for all components, if your component blocks, it will delay the whole loop,
-      negatively impacting other components. This can result in a variety of problems such as network connections being
-      lost.
+
+#### C++
+
+- Components **must** use the provided abstractions like `sensor`, `switch`, etc.
+- Components should **not** directly access other components -- for example, to publish to MQTT topics.
+- Components are required to dump their configuration using `ESP_LOGCONFIG` in the `dump_config()` method. This method
+  is used **exclusively** to **print values** determined during `setup()` -- nothing more.
+- Code in `loop()`, `update()` and `setup()` **must not block**. Because ESPHome uses a single-threaded loop for all
+  components, if your component blocks, it will delay the whole loop, negatively impacting other components. This can
+  result in a variety of problems such as network connections being lost. As such:
+    - Avoid using methods such as `delay()` and note that **delays longer than 10 ms are not permitted**.
     - If your code **must** wait for something to happen (for example, your sensor requires hundreds of milliseconds to
       initialize and/or take a reading), then you'll need to implement a state machine to facilitate this. For example,
       your code can send the "take reading" command, return, and, when the next iteration of `loop()` or `update()` is
       called, it then attempts to read back the measurement from the sensor.
-    - `loop()` is called every 16 ms (assuming no other components delay this, which may happen from time to time) and
-      `update()` is called at an interval defined in the user configuration for the component, but only for
-      [`PollingComponent`](https://esphome.io/api/classesphome_1_1_polling_component).
+        - `loop()` is called every 16 ms (assuming no other components delay this, which may occasionally happen).
+        - `update()` is called at an interval defined in the user configuration for the component, but note that this
+          method is only available for [`PollingComponent`](https://esphome.io/api/classesphome_1_1_polling_component).
     - For any [`Component`](https://esphome.io/api/classesphome_1_1_component) (which is nearly everything), the
       well-known `set_timeout` method is also available; this can be a handy alternative to implementing a state
       machine.
+
+#### General
+
+- Avoid "hard-coding" values -- use constants instead. In particular:
+    - Any literal string used more than once should be defined as a constant.
+    - Constants should be used in C++ as much as possible to aid with readability. For example, it's easier to
+      understand code which refers to registers using constants instead of "hard-coded" values.
 - Implementations for new devices should contain reference links for the datasheet and/or other sample
   implementations.
-- Comments in code should be used as appropriate, such as to help explain some complexity or to provide a brief
-  summary of what a class, method, etc. is doing. PRs which include large blocks of commented-out code will not be
-  accepted. Single lines of commented code may be useful from time to time (for example, to call out something
-  which was deliberately omitted for some reason) but should generally be avoided.
+- Comments in code should be used as appropriate:
+    - Comments which explain some complexity or provide a brief summary of what a class, method, etc. is doing are
+      generally helpful and encouraged.
+    - Single lines of commented code may be useful from time to time (for example, to call out something which was
+      deliberately omitted for some reason) but should generally be avoided.
+    - **PRs which include large blocks of commented-out code will not be accepted.**
 - ESPHome uses a unified formatting tool for all source files (but this tool can be difficult to install).
   When creating a new PR in GitHub, be sure to check the [GitHub Actions](submitting-your-work.md#automated-checks)
   output to see what formatting needs to be changed and what potential problems are detected.

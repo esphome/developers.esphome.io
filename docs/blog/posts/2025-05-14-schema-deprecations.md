@@ -6,7 +6,7 @@ authors:
 
 # `*.*_SCHEMA` deprecations
 
-In order to align all of the top level platform components (listed below), we are deprecating the `*_SCHEMA` constants that are present eg: `SENSOR_SCHEMA`, `SWITCH_SCHEMA`, etc.
+In order to align all of the top level platform components (listed below), we are deprecating the `*_SCHEMA` constants that are present e.g., `SENSOR_SCHEMA`, `SWITCH_SCHEMA`, etc.
 
 Each entity platform component has a matching `*_schema(...)` function which takes the class type and common schema defaults as arguments. There are plenty of examples in the ESPHome codebase of these.
 

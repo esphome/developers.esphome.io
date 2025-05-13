@@ -16,7 +16,7 @@ If you are a maintainer of `external_components` that use these constants, pleas
 
 `external_components` are able to import the ESPHome version into their python file in order to support older versions in the cases where the relevant `*_schema(...)` function was not added yet.
 
-## List of affected platforms
+## List of affected components
 
 - `alarm_control_panel`
 - `binary_sensor`

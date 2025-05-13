@@ -36,3 +36,24 @@ If you are a maintainer of `external_components` that use these constants, pleas
 - `text_sensor`
 - `update`
 - `valve`
+
+## Reference Pull Requests
+
+- [esphome/esphome#8747](https://github.com/esphome/esphome/pull/8747)
+- [esphome/esphome#8748](https://github.com/esphome/esphome/pull/8748)
+- [esphome/esphome#8756](https://github.com/esphome/esphome/pull/8756)
+- [esphome/esphome#8757](https://github.com/esphome/esphome/pull/8757)
+- [esphome/esphome#8758](https://github.com/esphome/esphome/pull/8758)
+- [esphome/esphome#8759](https://github.com/esphome/esphome/pull/8759)
+- [esphome/esphome#8760](https://github.com/esphome/esphome/pull/8760)
+- [esphome/esphome#8761](https://github.com/esphome/esphome/pull/8761)
+- [esphome/esphome#8762](https://github.com/esphome/esphome/pull/8762)
+- [esphome/esphome#8763](https://github.com/esphome/esphome/pull/8763)
+- [esphome/esphome#8764](https://github.com/esphome/esphome/pull/8764)
+- [esphome/esphome#8770](https://github.com/esphome/esphome/pull/8770)
+- [esphome/esphome#8771](https://github.com/esphome/esphome/pull/8771)
+- [esphome/esphome#8772](https://github.com/esphome/esphome/pull/8772)
+- [esphome/esphome#8773](https://github.com/esphome/esphome/pull/8773)
+- [esphome/esphome#8774](https://github.com/esphome/esphome/pull/8774)
+- [esphome/esphome#8775](https://github.com/esphome/esphome/pull/8775)
+- [esphome/esphome#8784](https://github.com/esphome/esphome/pull/8784)

@@ -1,5 +1,7 @@
 ---
 date: 2025-01-14
+authors: 
+  - jesserockz
 ---
 
 # Hello Developers!

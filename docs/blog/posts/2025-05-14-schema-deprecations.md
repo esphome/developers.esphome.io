@@ -57,3 +57,6 @@ If you are a maintainer of `external_components` that use these constants, pleas
 - [esphome/esphome#8774](https://github.com/esphome/esphome/pull/8774)
 - [esphome/esphome#8775](https://github.com/esphome/esphome/pull/8775)
 - [esphome/esphome#8784](https://github.com/esphome/esphome/pull/8784)
+- [esphome/esphome#8785](https://github.com/esphome/esphome/pull/8785)
+- [esphome/esphome#8786](https://github.com/esphome/esphome/pull/8786)
+- [esphome/esphome#8788](https://github.com/esphome/esphome/pull/8788)

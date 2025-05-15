@@ -1,0 +1,8 @@
+{
+  "origins": [
+    "https://developers.esphome.io"
+  ],
+  "originsRegex": [
+    "http://localhost:[0-9]+"
+  ]
+}

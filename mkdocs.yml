@@ -8,6 +8,7 @@ edit_uri: edit/main/docs/
 
 theme:
   name: material
+  custom_dir: overrides
   features:
     - navigation.instant
     - navigation.path
@@ -48,11 +49,11 @@ markdown_extensions:
 
 plugins:
   - blog
-  - privacy
   - search
 
 hooks:
   - hooks/copyright.py
+  - hooks/comments-toc.py
 
 nav:
   - Home: index.md

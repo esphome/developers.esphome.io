@@ -2,6 +2,7 @@
 date: 2025-02-19
 authors: 
   - kbx81
+comments: true
 ---
 
 # About the removal of support for custom components

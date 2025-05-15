@@ -2,6 +2,7 @@
 date: 2025-05-14
 authors: 
   - jesserockz
+comments: true
 ---
 
 # `*.*_SCHEMA` deprecations

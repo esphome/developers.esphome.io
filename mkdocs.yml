@@ -53,6 +53,7 @@ plugins:
 
 hooks:
   - hooks/copyright.py
+  - hooks/comments-toc.py
 
 nav:
   - Home: index.md

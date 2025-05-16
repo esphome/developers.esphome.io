@@ -56,7 +56,8 @@ In general, we try to avoid use of external libraries.
 
 #### C++
 
-- Components **must** use the provided abstractions like `sensor`, `switch`, etc.
+- Components **must** use the provided abstractions like `sensor`, `switch`, etc. and should inherit from either
+  `Component` or `PollingComponent`.
 - Components should **not** directly access other components -- for example, to publish to MQTT topics.
 - Components are required to dump their configuration using `ESP_LOGCONFIG` in the `dump_config()` method. This method
   is used **exclusively** to **print values** determined during `setup()` -- nothing more.
@@ -77,6 +78,7 @@ In general, we try to avoid use of external libraries.
 
 #### General
 
+- All sensors must be *optional* in the configuration.
 - Avoid "hard-coding" values -- use constants instead. In particular:
     - Any literal string used more than once should be defined as a constant.
     - Constants should be used in C++ as much as possible to aid with readability. For example, it's easier to

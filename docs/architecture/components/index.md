@@ -182,7 +182,7 @@ ESPHome has a mechanism to run a final validation step after all of the configur
 individually valid. This final validation gives an instance of a component the ability to check the configuration of
 any other components and potentially fail the validation stage if an important dependent configuration does not match.
 
-For example many components that rely on `uart` can use the `FINAL_VALIDATE_SCHEMA` to ensure that the `tx_pin` and/or
+For example, many components that rely on `uart` can use the `FINAL_VALIDATE_SCHEMA` to ensure that the `tx_pin` and/or
 `rx_pin` are configured.
 
 ## C++ component structure
@@ -287,14 +287,21 @@ In addition, for `PollingComponent`:
 - `update()`: This method is called at an interval defined in the user's YAML configuration. For many components, the
   interval defaults to 60 seconds, but this may be overridden by the user to fit their use case.
 
-In general, code (particularly in `loop()` and/or `update()`)
-[must not block](http://localhost:8001/contributing/code/#esphome-specific-idiosyncrasies).
+!!!warning
+    Code in these methods (and elsewhere) [must not block](/contributing/code/#c).
 
 ### Component-specific methods
 
-Most components need to define "setter" methods since it's common to have at least one configuration variable which
-must be set in order to configure the component. In `ExampleComponent`, we have three such variables: "foo", "bar" and
-"baz". [As mentioned earlier](#code-generation), these methods are the same methods referred from within the `to_code`
-function in Python; the values contained in the user's YAML configuration are passed through to these setter methods as
-they are placed into the generated `main.cpp` file produced by ESPHome's code generation (codegen). It's important to
-note that **these methods will be called (and, thus, variables set) *before* the `setup()` method is called.**
+- "Setter" methods: it's common to have at least one configuration variable which must be defined by the user in order
+  to configure a component/platform. In `ExampleComponent` (as above), we have three such variables: "foo", "bar" and
+  "baz". [As mentioned earlier](#code-generation), these methods are the same methods referred from within the
+  `to_code` function in Python; the values contained in the user's YAML configuration are passed through to these setter
+  methods as they are placed into the generated `main.cpp` file produced by ESPHome's code generation (codegen). It's
+  important to note that **these methods will be called (and, thus, variables set) *before* the `setup()` method is called.**
+
+## Going further
+
+- To help you get started, we have a number of ["starter" components](https://github.com/esphome/starter-components).
+- We encourage you to have a look at other [components](https://github.com/esphome/esphome/tree/dev/esphome/components)
+  within ESPHome; it's often easiest to take something which already exists and modify it to fit your needs.
+- If you're looking for information on a specific component type, see the navigation tree on the left.

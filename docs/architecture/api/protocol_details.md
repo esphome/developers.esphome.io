@@ -60,10 +60,12 @@ The Noise protocol provides encrypted, authenticated communication using the [No
    - Indicator: 0x01
    - Encrypted payload size: 16-bit unsigned, big-endian
 
+
 2. **Encrypted Payload**:
    - Message type: 16-bit unsigned, big-endian (encrypted)
    - Data length: 16-bit unsigned, big-endian (encrypted)
    - Protocol buffer data
+
 
 3. **MAC** (16 bytes)
 
@@ -229,6 +231,8 @@ This decodes to:
 Handshake errors can occur during different phases:
 
 1. **CLIENT_HELLO phase**: Bad indicator or packet length
+
+
 2. **HANDSHAKE phase**: Authentication failures, MAC failures, protocol errors
 
 When these errors occur, the server sends an explicit rejection message using the format above, then transitions to the FAILED state.
@@ -336,8 +340,14 @@ No handshake is required for the plaintext protocol - it transitions directly to
 ### Message Format
 
 1. **Indicator**: 0x00 (1 byte)
+
+
 2. **Payload Size**: VarInt encoding of payload size (unsigned)
+
+
 3. **Message Type**: VarInt encoding of the 16-bit message type (unsigned)
+
+
 4. **Payload**: Protocol buffer data
 
 ### Buffer Layout
@@ -455,19 +465,23 @@ Hex: 00 06 08 12 04 08 96 42 10
 
 1. **Integer Types**: All size and type fields are unsigned integers
 
+
 2. **Endianness**:
 
    - Noise protocol: All multi-byte values use big-endian encoding
 
    - Plaintext protocol: Uses [VarInt encoding](https://protobuf.dev/programming-guides/encoding/) (Protocol Buffers standard)
 
+
 3. **Buffer Alignment**: Both protocols ensure payload data starts at predictable offsets for efficient processing
+
 
 4. **Error Handling**:
 
    - Invalid frame indicators or sizes should immediately close the connection
 
    - For Noise protocol specific errors (handshake failures, decryption errors, etc.), see the [Noise Protocol](#noise-protocol) section above
+
 
 5. **Maximum Sizes**:
 

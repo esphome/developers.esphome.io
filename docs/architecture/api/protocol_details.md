@@ -362,25 +362,26 @@ Where:
 
 The plaintext protocol dynamically calculates the optimal header position to minimize unused padding:
 
-1. **Payload Size Computation**: The payload size includes only the actual protobuf data bytes, not the header components. This differs from the Noise protocol which includes type and length in its data length field.
+#### Payload Size Computation
+The payload size includes only the actual protobuf data bytes, not the header components. This differs from the Noise protocol which includes type and length in its data length field.
 
-2. **VarInt Length Determination**: Based on the value being encoded:
+#### VarInt Length Determination
+Based on the value being encoded:
+- Values 0-127: 1 byte
+- Values 128-16,383: 2 bytes
+- Values 16,384-2,097,151: 3 bytes
+- And so on (each additional byte adds 7 bits of capacity)
 
-   - Values 0-127: 1 byte
-   - Values 128-16,383: 2 bytes
-   - Values 16,384-2,097,151: 3 bytes
-   - And so on (each additional byte adds 7 bits of capacity)
+#### Header Offset Calculation
+The header is positioned as late as possible in the 6-byte padding area:
+- Total header length = 1 (indicator) + payload size varint + message type varint
+- Offset = 6 - total header length
+- This ensures minimal unused bytes at the beginning of the buffer
 
-3. **Header Offset Calculation**: The header is positioned as late as possible in the 6-byte padding area:
-
-   - Total header length = 1 (indicator) + payload size varint + message type varint
-   - Offset = 6 - total header length
-   - This ensures minimal unused bytes at the beginning of the buffer
-
-4. **Dynamic Positioning**: As message sizes vary, the header position adjusts accordingly:
-
-   - Small messages use offsets of 3-5 (leaving 3-5 unused bytes)
-   - Large messages can use offset 0 (utilizing all padding bytes)
+#### Dynamic Positioning
+As message sizes vary, the header position adjusts accordingly:
+- Small messages use offsets of 3-5 (leaving 3-5 unused bytes)
+- Large messages can use offset 0 (utilizing all padding bytes)
 
 This dynamic positioning maximizes buffer efficiency while maintaining a fixed pre-allocation size.
 
@@ -415,21 +416,20 @@ Hex: 00 06 08 12 04 08 96 42 10
 
 ## Implementation Notes
 
-1. **Integer Types**: All size and type fields are unsigned integers
+### Integer Types
+All size and type fields are unsigned integers
 
-2. **Endianness**:
+### Endianness
+- Noise protocol: All multi-byte values use big-endian encoding
+- Plaintext protocol: Uses [VarInt encoding](https://protobuf.dev/programming-guides/encoding/) (Protocol Buffers standard)
 
-   - Noise protocol: All multi-byte values use big-endian encoding
-   - Plaintext protocol: Uses [VarInt encoding](https://protobuf.dev/programming-guides/encoding/) (Protocol Buffers standard)
+### Buffer Alignment
+Both protocols ensure payload data starts at predictable offsets for efficient processing
 
-3. **Buffer Alignment**: Both protocols ensure payload data starts at predictable offsets for efficient processing
+### Error Handling
+- Invalid frame indicators or sizes should immediately close the connection
+- For Noise protocol specific errors (handshake failures, decryption errors, etc.), see the [Noise Protocol](#noise-protocol) section above
 
-4. **Error Handling**:
-
-   - Invalid frame indicators or sizes should immediately close the connection
-   - For Noise protocol specific errors (handshake failures, decryption errors, etc.), see the [Noise Protocol](#noise-protocol) section above
-
-5. **Maximum Sizes**:
-
-   - Message types: 0-65,535 (16-bit unsigned)
-   - Frame/data sizes: up to 2^32-1 bytes (varint can encode up to 64-bit values, but practically limited by memory)
+### Maximum Sizes
+- Message types: 0-65,535 (16-bit unsigned)
+- Frame/data sizes: up to 2^32-1 bytes (varint can encode up to 64-bit values, but practically limited by memory)

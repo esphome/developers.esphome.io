@@ -78,7 +78,7 @@ In general, we try to avoid use of external libraries.
 
 #### General
 
-- All sensors must be *optional* in the configuration.
+- All entities must be *optional* in the configuration.
 - Avoid "hard-coding" values -- use constants instead. In particular:
     - Any literal string used more than once should be defined as a constant.
     - Constants should be used in C++ as much as possible to aid with readability. For example, it's easier to

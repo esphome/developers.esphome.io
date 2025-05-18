@@ -73,6 +73,11 @@ nav:
     - Core: architecture/core.md
     - Components:
       - Overview: architecture/components/index.md
+      - Common hardware interfaces:
+        - GPIO: architecture/components/gpio.md
+        - I2C: architecture/components/i2c.md
+        - SPI: architecture/components/spi.md
+        - Serial (UART): architecture/components/uart.md
       - Alarm control panel: architecture/components/alarm_control_panel.md
       - Binary sensor: architecture/components/binary_sensor.md
       - Button: architecture/components/button.md

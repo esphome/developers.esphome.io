@@ -52,18 +52,16 @@ The Noise protocol provides encrypted, authenticated communication using the [No
 
 ### Message Format
 
-1. **Unencrypted Header** (3 bytes):
-   - Indicator: 0x01
-   - Encrypted payload size: 16-bit unsigned, big-endian
+#### Unencrypted Header (3 bytes)
+- Indicator: 0x01
+- Encrypted payload size: 16-bit unsigned, big-endian
 
+#### Encrypted Payload
+- Message type: 16-bit unsigned, big-endian (encrypted)
+- Data length: 16-bit unsigned, big-endian (encrypted)
+- Protocol buffer data
 
-2. **Encrypted Payload**:
-   - Message type: 16-bit unsigned, big-endian (encrypted)
-   - Data length: 16-bit unsigned, big-endian (encrypted)
-   - Protocol buffer data
-
-
-3. **MAC** (16 bytes)
+#### MAC (16 bytes)
 
 ### Data Type Summary
 

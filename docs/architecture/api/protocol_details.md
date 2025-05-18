@@ -5,7 +5,9 @@ This document describes the low-level protocol formats used by the ESPHome API, 
 ## Overview
 
 The ESPHome API supports two protocol variants:
+
 1. **Noise Protocol**: Encrypted communication using the Noise protocol framework
+
 2. **Plaintext Protocol**: Unencrypted communication with variable-length encoding
 
 Both protocols use protocol buffers for message serialization but differ in their framing and transport layer.
@@ -13,18 +15,22 @@ Both protocols use protocol buffers for message serialization but differ in thei
 ## Common Elements
 
 ### Message Types
+
 - Message types are encoded as 16-bit unsigned values (two bytes)
 - Split into `type_high` (upper byte) and `type_low` (lower byte)
 - Allows for 65,536 different message types (0-65535)
 
 ### VarInt Encoding
+
 Variable-length integer encoding follows the [Protocol Buffers VarInt specification](https://protobuf.dev/programming-guides/encoding/):
+
 - Each byte has a continuation bit (MSB)
 - 7 bits of data per byte
 - Least significant bits first
 - Always encodes unsigned values
 
 Size ranges:
+
 - 1 byte: 0-127
 - 2 bytes: 128-16,383
 - 3 bytes: 16,384-2,097,151
@@ -34,22 +40,27 @@ Size ranges:
 ## Noise Protocol
 
 ### Overview
+
 The Noise protocol provides encrypted, authenticated communication using the [Noise XX handshake pattern](https://www.noiseprotocol.org/noise.html#interactive-handshake-patterns-fundamental).
 
 ### Frame Structure
+
 ```
 [Indicator][Encrypted Size][Encrypted Payload][MAC]
     1 byte      2 bytes         Variable      16 bytes
 ```
 
 ### Message Format
+
 1. **Unencrypted Header** (3 bytes):
    - Indicator: 0x01
    - Encrypted payload size: 16-bit unsigned, big-endian
+
 2. **Encrypted Payload**:
    - Message type: 16-bit unsigned, big-endian (encrypted)
    - Data length: 16-bit unsigned, big-endian (encrypted)
    - Protocol buffer data
+
 3. **MAC** (16 bytes)
 
 ### Data Type Summary
@@ -63,6 +74,7 @@ The Noise protocol provides encrypted, authenticated communication using the [No
 | Data | bytes | Variable | - | Protocol buffer payload, encrypted |
 
 ### Buffer Layout
+
 ```
 Position:  [0] [1] [2] [3] [4] [5] [6] [7]  ...  [N-15] ... [N]
 Content:   Ind ES₁ ES₂ MT₁ MT₂ DL₁ DL₂ [Payload Data] [MAC-16-bytes]
@@ -70,6 +82,7 @@ Content:   Ind ES₁ ES₂ MT₁ MT₂ DL₁ DL₂ [Payload Data] [MAC-16-bytes]
 ```
 
 Where:
+
 - `Ind`: Indicator byte (0x01 for Noise)
 - `ES₁/ES₂`: Encrypted payload size (16-bit unsigned, big-endian)
 - `MT₁/MT₂`: Message type (16-bit unsigned, big-endian, encrypted)
@@ -78,11 +91,11 @@ Where:
 - `MAC`: 16-byte authentication tag
 
 ### Encryption Details
+
 - Uses ChaCha20-Poly1305 AEAD cipher
 - Encrypts: message type + data length + payload
 - The encrypted size field in the header is NOT encrypted
 - MAC provides authentication for the entire encrypted payload
-
 
 ### State Machine
 
@@ -120,6 +133,7 @@ stateDiagram-v2
 ```
 
 States:
+
 1. **INITIALIZE**: Initial state, waiting for init() to be called
 2. **CLIENT_HELLO**: Waiting for client hello message
 3. **SERVER_HELLO**: Sending server hello with device info
@@ -140,6 +154,7 @@ SERVER_HELLO format:
 ```
 
 Example SERVER_HELLO:
+
 ```
 Hex: 01 00 1C 01 65 73 70 68 6F 6D 65 00 31 32 3A 33 34 3A 35 36 3A 37 38 3A 39 41 3A 42 43 00
      ^  ^^^^^ ^  ^--------node------^ ^  ^-----------------MAC address--------------------^ ^
@@ -150,6 +165,7 @@ Hex: 01 00 1C 01 65 73 70 68 6F 6D 65 00 31 32 3A 33 34 3A 35 36 3A 37 38 3A 39 
 ```
 
 This decodes to:
+
 - Frame indicator: 0x01
 - Frame size: 0x001C (28 bytes)
 - Protocol: 0x01 (always)
@@ -165,6 +181,7 @@ Handshake rejection format:
 ```
 
 Example handshake rejection:
+
 ```
 Hex: 01 00 17 01 48 61 6E 64 73 68 61 6B 65 20 4D 41 43 20 66 61 69 6C 75 72 65
      ^  ^^^^^ ^  ^----------------------Error message------------------------^
@@ -175,6 +192,7 @@ Hex: 01 00 17 01 48 61 6E 64 73 68 61 6B 65 20 4D 41 43 20 66 61 69 6C 75 72 65
 ```
 
 This decodes to:
+
 - Frame indicator: 0x01
 - Frame size: 0x0017 (23 bytes)
 - Error flag: 0x01 (failure)
@@ -190,6 +208,7 @@ Handshake errors can occur during different phases:
 When these errors occur, the server sends an explicit rejection message using the format above, then transitions to the FAILED state.
 
 Actual handshake error messages sent:
+
 - "Bad indicator byte" - Invalid frame indicator
 - "Bad handshake packet len" - Packet too large for handshake phase
 - "Empty handshake message" - Received empty handshake frame
@@ -198,6 +217,7 @@ Actual handshake error messages sent:
 - "Handshake error" - Generic handshake failure
 
 For post-handshake errors (during encrypted data exchange):
+
 - MAC verification failures close the connection immediately
 - Invalid frame structure closes the connection immediately
 - No error messages are sent for these failures to prevent information leakage
@@ -205,10 +225,12 @@ For post-handshake errors (during encrypted data exchange):
 ### Wire Format Example
 
 Sending a temperature reading (value: 23.5°C):
+
 ```
 Hex: 01 00 0E 00 08 00 06 12 04 08 96 42 10 B4 46
      [C H A C H A 2 0 - P O L Y  M A C - 1 6 bytes]
 ```
+
 - `01`: Noise indicator
 - `00 0E`: Encrypted size (14 bytes, big-endian unsigned)
 - Encrypted payload (before encryption):
@@ -220,6 +242,7 @@ Hex: 01 00 0E 00 08 00 06 12 04 08 96 42 10 B4 46
 ## Plaintext Protocol
 
 ### Overview
+
 The plaintext protocol uses variable-length encoding to minimize overhead for unencrypted communication.
 
 ### State Machine
@@ -244,6 +267,7 @@ stateDiagram-v2
 ```
 
 States:
+
 1. **INITIALIZE**: Initial state, waiting for init() to be called
 2. **DATA**: Ready for data exchange (no handshake required)
 3. **CLOSED**: Connection closed normally
@@ -252,6 +276,7 @@ States:
 No handshake is required for the plaintext protocol - it transitions directly to the DATA state after initialization.
 
 ### Frame Structure
+
 ```
 [Indicator][Payload Size VarInt][Message Type VarInt][Payload]
     1 byte       1-3 bytes           1-2 bytes       Variable
@@ -267,6 +292,7 @@ No handshake is required for the plaintext protocol - it transitions directly to
 | Data | bytes | Variable | - | Protocol buffer payload |
 
 ### Message Format
+
 1. **Indicator**: 0x00 (1 byte)
 2. **Payload Size**: VarInt encoding of payload size (unsigned)
 3. **Message Type**: VarInt encoding of the 16-bit message type (unsigned)
@@ -277,6 +303,7 @@ No handshake is required for the plaintext protocol - it transitions directly to
 The plaintext protocol dynamically adjusts the header position to minimize padding:
 
 #### Small Messages (header length = 3 bytes)
+
 ```
 Position:  [0] [1] [2] [3] [4] [5] [6] ...
 Content:   XX  XX  XX  Ind FSz MTp [Payload]
@@ -285,6 +312,7 @@ Content:   XX  XX  XX  Ind FSz MTp [Payload]
 ```
 
 #### Medium Messages (header length = 4 bytes)
+
 ```
 Position:  [0] [1] [2] [3] [4] [5] [6] ...
 Content:   XX  XX  Ind FS₁ FS₂ MTp [Payload]
@@ -293,6 +321,7 @@ Content:   XX  XX  Ind FS₁ FS₂ MTp [Payload]
 ```
 
 #### Large Messages (header length = 6 bytes)
+
 ```
 Position:  [0] [1] [2] [3] [4] [5] [6] ...
 Content:   Ind FS₁ FS₂ FS₃ MT₁ MT₂ [Payload]
@@ -301,6 +330,7 @@ Content:   Ind FS₁ FS₂ FS₃ MT₁ MT₂ [Payload]
 ```
 
 Where:
+
 - `Ind`: Indicator byte (0x00 for plaintext)
 - `FSz/FS₁/FS₂/FS₃`: Frame size varint (unsigned)
 - `MTp/MT₁/MT₂`: Message type varint (unsigned)
@@ -332,24 +362,27 @@ This dynamic positioning maximizes buffer efficiency while maintaining a fixed p
 ### Wire Format Example
 
 Same temperature reading:
+
 ```
 Hex: 00 06 08 12 04 08 96 42 10
 ```
+
 - `00`: Plaintext indicator
 - `06`: Payload size (6 bytes, varint unsigned)
 - `08`: Message type 8 (varint unsigned)
 - `12 04 08 96 42 10`: Protocol buffer data
 
-
 ## Performance Considerations
 
 ### Noise Protocol
+
 - Fixed 23-byte overhead (7 header + 16 MAC)
 - Constant-time header construction
 - Higher CPU usage for encryption
 - Better for security-sensitive applications
 
 ### Plaintext Protocol
+
 - Variable 3-5 byte overhead (depending on sizes)
 - Dynamic header positioning
 - Lower CPU usage
@@ -358,15 +391,17 @@ Hex: 00 06 08 12 04 08 96 42 10
 ## Implementation Notes
 
 1. **Integer Types**: All size and type fields are unsigned integers
+
 2. **Endianness**:
    - Noise protocol: All multi-byte values use big-endian encoding
    - Plaintext protocol: Uses [VarInt encoding](https://protobuf.dev/programming-guides/encoding/) (Protocol Buffers standard)
+
 3. **Buffer Alignment**: Both protocols ensure payload data starts at predictable offsets for efficient processing
+
 4. **Error Handling**:
    - Invalid frame indicators or sizes should immediately close the connection
    - For Noise protocol specific errors (handshake failures, decryption errors, etc.), see the [Noise Protocol](#noise-protocol) section above
+
 5. **Maximum Sizes**:
    - Message types: 0-65,535 (16-bit unsigned)
    - Frame/data sizes: up to 2^32-1 bytes (varint can encode up to 64-bit values, but practically limited by memory)
-
-

@@ -45,11 +45,16 @@ theme:
 markdown_extensions:
   - admonition
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
 
 plugins:
   - blog
   - search
+  - mermaid2
 
 hooks:
   - hooks/copyright.py
@@ -90,5 +95,7 @@ nav:
       - Time: architecture/components/time.md
       - Touchscreen: architecture/components/touchscreen.md
       - Valve: architecture/components/valve.md
-    - API: architecture/api/index.md
+    - API:
+      - Overview: architecture/api/index.md
+      - Protocol Details: architecture/api/protocol_details.md
   - Blog: blog/index.md

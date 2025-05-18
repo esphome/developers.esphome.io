@@ -307,16 +307,17 @@ No handshake is required for the plaintext protocol - it transitions directly to
 
 ### Message Format
 
-1. **Indicator**: 0x00 (1 byte)
+#### Indicator
+0x00 (1 byte)
 
+#### Payload Size
+VarInt encoding of payload size (unsigned)
 
-2. **Payload Size**: VarInt encoding of payload size (unsigned)
+#### Message Type
+VarInt encoding of the 16-bit message type (unsigned)
 
-
-3. **Message Type**: VarInt encoding of the 16-bit message type (unsigned)
-
-
-4. **Payload**: Protocol buffer data
+#### Payload
+Protocol buffer data
 
 ### Buffer Layout
 

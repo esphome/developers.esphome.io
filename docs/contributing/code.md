@@ -61,6 +61,10 @@ In general, we try to avoid use of external libraries.
 - Components should **not** directly access other components -- for example, to publish to MQTT topics.
 - Components are required to dump their configuration using `ESP_LOGCONFIG` in the `dump_config()` method. This method
   is used **exclusively** to **print values** determined during `setup()` -- nothing more.
+- If your component/platform needs to track time, use `App.get_loop_component_start_time()` instead of `millis()`.
+  Reading the hardware is slow; many components/platforms repeatedly checking the hardware slows down the main loop.
+  This method instead returns the start time of the current iteration of the main application loop, which is sufficient
+  for most time-tracking needs.
 - Code in `loop()`, `update()` and `setup()` **must not block**. Because ESPHome uses a single-threaded loop for all
   components, if your component blocks, it will delay the whole loop, negatively impacting other components. This can
   result in a variety of problems such as network connections being lost. As such:

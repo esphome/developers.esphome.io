@@ -23,13 +23,6 @@ Given that this component will use--and consequently depend on--I2C, we must add
 ESPHome to understand this requirement and generate an error if it is not met.
 
 ```python
-CONF_I2C_ADDR = 0x01
-```
-
-All I2C devices will have at least one address which the I2C device responds to. This is configured here.
-Note that some components do not use a constant here and instead hard-code the address below.
-
-```python
 empty_i2c_component_ns = cg.esphome_ns.namespace("empty_i2c_component")
 EmptyI2CComponent = empty_i2c_component_ns.class_(
     "EmptyI2CComponent", cg.Component, i2c.I2CDevice
@@ -44,8 +37,8 @@ CONFIG_SCHEMA = ...
 ```
 
 This defines the configuration schema for the component as discussed [here](index.md#configuration-validation).
-In particular, note that the schema is extended with `.extend(i2c.i2c_device_schema(CONF_I2C_ADDR))` since this is an
-I2C component/platform.
+In particular, note that the schema is extended with `.extend(i2c.i2c_device_schema(0x01))` since this is an I2C
+component/platform. The `0x01` value is the default I2C address for the device to be used by this component/platform.
 
 Finally, in the `to_code` function, we have:
 

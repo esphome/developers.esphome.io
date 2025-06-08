@@ -71,7 +71,6 @@ nav:
   - Architecture:
     - Overview: architecture/overview.md
     - Core: architecture/core.md
-    - Logging Best Practices: architecture/logging.md
     - Components:
       - Overview: architecture/components/index.md
       - Common hardware interfaces:
@@ -104,4 +103,5 @@ nav:
     - API:
       - Overview: architecture/api/index.md
       - Protocol Details: architecture/api/protocol_details.md
+    - Logging Best Practices: architecture/logging.md
   - Blog: blog/index.md

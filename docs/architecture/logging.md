@@ -26,6 +26,7 @@ For devices with many sensors or components, this can result in thousands of net
 ### Flash Memory Impact
 
 Each logging call also consumes flash memory:
+
 - Format strings are stored in flash
 - Each function call adds to binary size
 - Repeated similar format strings waste space

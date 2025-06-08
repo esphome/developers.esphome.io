@@ -17,6 +17,7 @@ Each `ESP_LOG*` call in ESPHome results in:
 5. **Network transmission** - Sent over WiFi/Ethernet to connected clients
 
 For devices with many sensors or components, this can result in thousands of network packets each time a client connects, causing:
+
 - Network congestion
 - Delayed log streaming
 - Potential timeouts in Home Assistant entity discovery
@@ -47,7 +48,7 @@ void MyComponent::dump_config() {
 }
 ```
 
-This generates 5 separate network packets for a single component. With 100 sensors, this becomes 500+ packets just for configuration dumps.
+This generates 5 separate network packets for a single component. With 100 sensors, this becomes 500+ packets every time a client connects.
 
 ### The Solution: Combine Related Log Messages
 
@@ -73,6 +74,7 @@ This reduces 5 packets to 1, an 80% reduction!
 ### Best Practices for Combined Logging
 
 **Important**: The default log buffer is 512 bytes. This limit applies to the total formatted message size, not the number of lines. When combining log messages:
+
 - Each `\n` only adds 1 byte
 - Consider the length of substituted values (e.g., `%s` might expand to 20+ characters for long strings)
 - The log header (timestamp, level, tag) uses approximately 30 bytes

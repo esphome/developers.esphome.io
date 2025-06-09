@@ -2,7 +2,9 @@
 
 ## Overview
 
-Logging is an essential part of ESPHome components for debugging and monitoring. However, it's important to understand that logging has performance implications, especially in networked environments. This guide covers best practices for efficient logging in ESPHome components.
+Logging is an essential part of ESPHome for both debugging and monitoring. It's important to understand that logging
+has performance implications, especially in networked environments. This guide covers best practices for efficient
+logging in ESPHome components and platforms.
 
 ## Understanding Logger Overhead
 
@@ -16,7 +18,8 @@ Each `ESP_LOG*` call in ESPHome results in:
 4. **Network packet creation** - The log message is packaged for transmission
 5. **Network transmission** - Sent over WiFi/Ethernet to connected clients
 
-For devices with many sensors or components, this can result in thousands of network packets each time a client connects, causing:
+For devices with many sensors or components, this can result in thousands of network packets each time a client
+connects, causing:
 
 - Network congestion
 - Delayed log streaming
@@ -27,13 +30,56 @@ For devices with many sensors or components, this can result in thousands of net
 
 Each logging call also consumes flash memory:
 
-- Format strings are stored in flash
-- Each function call adds to binary size
-- Repeated similar format strings waste space
+- Each unique (format) string will consume dedicated space in flash
+- Each function call:
+    - Adds to binary size
+    - Requires processing time
+
+Embedded devices have limited flash memory available; inefficient use of logging results in significant amounts of
+wasted space and time.
+
+#### Minimizing your component's/platform's flash memory footprint
+
+- Do not use the component/platform name in log messages -- it's redundant because `TAG` already identifies the running 
+  component/platform.
+- Keep messages short and concise; avoid extra words which do not ease debugging.
+- **Do not:**
+    - repeat similar strings.
+    - explain troubleshooting steps or ask questions.
+    - include punctuation unless necessary; each message appears on a new line. For example, a period (`.`) or
+      exclamation point (`!`) at the end of every message does not help with debugging and only wastes space.
+
+#### Log Message Examples
+
+```cpp
+static const char *const TAG = "neat_temp_sensor.sensor";
+// Bad:
+// - Redundant platform name in message
+// - Repeating strings with only minor differences
+// - Unnecessary text/characters and punctuation
+ESP_LOGD(TAG, "Enabling neat_temp_sensor communication.");
+// ...
+ESP_LOGD(TAG, "Disabling neat_temp_sensor communication.");
+// ...
+ESP_LOGE(TAG, "I2C error during reading of neat_temp_sensor values! Is the sensor connected?");
+```
+
+```cpp
+static const char *const TAG = "neat_temp_sensor.sensor";
+// Good:
+// - TAG identifies the component/platform
+// - Short messages which may be shared by many components/platforms
+ESP_LOGD(TAG, "Enabling");
+// ...
+ESP_LOGD(TAG, "Disabling");
+// ...
+ESP_LOGE(TAG, "Communication failed");
+```
 
 ## Configuration Logging (`ESP_LOGCONFIG`)
 
-Configuration logging dumps the current component configuration. This is particularly important to optimize as it runs every time an API client connects (e.g., Home Assistant, ESPHome Dashboard, or `esphome logs`).
+Configuration logging dumps the current component/platform configuration. This is particularly important to optimize
+as it runs every time an API client connects (for example: Home Assistant, ESPHome Device Builder or `esphome logs`).
 
 ### The Problem
 
@@ -49,7 +95,8 @@ void MyComponent::dump_config() {
 }
 ```
 
-This generates 5 separate network packets for a single component. With 100 sensors, this becomes 500+ packets every time a client connects.
+This generates five separate network packets for a single component. With 100 sensors, this becomes 500+ packets every
+time a client connects.
 
 ### The Solution: Combine Related Log Messages
 
@@ -70,14 +117,15 @@ void MyComponent::dump_config() {
 }
 ```
 
-This reduces 5 packets to 1, an 80% reduction!
+This reduces five packets to one, an 80% reduction!
 
 ### Best Practices for Combined Logging
 
-**Important**: The default log buffer is 512 bytes. This limit applies to the total formatted message size, not the number of lines. When combining log messages:
+**Important**: The default log buffer is 512 bytes. This limit applies to the total formatted message size, not the
+number of lines. When combining log messages:
 
-- Each `\n` only adds 1 byte
-- Consider the length of substituted values (e.g., `%s` might expand to 20+ characters for long strings)
+- Each `\n` adds only one byte
+- Consider the length of substituted values (for example, `%s` might expand to 20+ characters/bytes for long strings)
 - The log header (timestamp, level, tag) uses approximately 30 bytes
 - Most combined ESP_LOGCONFIG calls stay well under this limit, even with 8-10 lines
 

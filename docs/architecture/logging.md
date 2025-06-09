@@ -36,7 +36,7 @@ Each logging call also consumes flash memory:
 Embedded devices have limited flash memory available; inefficient use of logging results in significant amounts of
 wasted space and time.
 
-#### Minimizing your component's/platform's flash memory footprint
+#### Minimizing Impact
 
 - Do not use the component/platform name in log messages -- it's redundant because `TAG` already identifies the running 
   component/platform.
@@ -47,32 +47,38 @@ wasted space and time.
     - include punctuation unless necessary; each message appears on a new line. For example, a period (`.`) or
       exclamation point (`!`) at the end of every message does not help with debugging and only wastes space.
 
-#### Log Message Examples
+#### Examples
 
-```cpp
-static const char *const TAG = "neat_temp_sensor.sensor";
-// Bad:
-// - Redundant platform name in message
-// - Repeating strings with only minor differences
-// - Unnecessary text/characters and punctuation
-ESP_LOGD(TAG, "Enabling neat_temp_sensor communication.");
-// ...
-ESP_LOGD(TAG, "Disabling neat_temp_sensor communication.");
-// ...
-ESP_LOGE(TAG, "I2C error during reading of neat_temp_sensor values! Is the sensor connected?");
-```
+!!! failure "Bad"
 
-```cpp
-static const char *const TAG = "neat_temp_sensor.sensor";
-// Good:
-// - TAG identifies the component/platform
-// - Short messages which may be shared by many components/platforms
-ESP_LOGD(TAG, "Enabling");
-// ...
-ESP_LOGD(TAG, "Disabling");
-// ...
-ESP_LOGE(TAG, "Communication failed");
-```
+    ```cpp
+    static const char *const TAG = "neat_temp_sensor.sensor";
+    // ...
+    ESP_LOGD(TAG, "Enabling neat_temp_sensor communication.");
+    // ...
+    ESP_LOGD(TAG, "Disabling neat_temp_sensor communication.");
+    // ...
+    ESP_LOGE(TAG, "I2C error during reading of neat_temp_sensor values! Is the sensor connected?");
+    ```
+
+    - Redundant platform name in messages
+    - Long, repeating strings with only minor differences
+    - Unnecessary text/characters and punctuation
+
+!!! success "Good"
+
+    ```cpp
+    static const char *const TAG = "neat_temp_sensor.sensor";
+    // ...
+    ESP_LOGD(TAG, "Enabling");
+    // ...
+    ESP_LOGD(TAG, "Disabling");
+    // ...
+    ESP_LOGE(TAG, "Communication failed");
+    ```
+
+    - Short messages which may be shared by many components/platforms
+    - TAG identifies the component/platform
 
 ## Configuration Logging (`ESP_LOGCONFIG`)
 

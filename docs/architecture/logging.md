@@ -31,9 +31,7 @@ connects, causing:
 Each logging call also consumes flash memory:
 
 - Each unique (format) string will consume dedicated space in flash
-- Each function call:
-    - Adds to binary size
-    - Requires processing time
+- Each function call adds to binary size
 
 Embedded devices have limited flash memory available; inefficient use of logging results in significant amounts of
 wasted space and time.

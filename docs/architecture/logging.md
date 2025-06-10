@@ -3,8 +3,9 @@
 ## Overview
 
 Logging is an essential part of ESPHome for both debugging and monitoring. It's important to understand that logging
-has performance implications, especially in networked environments. This guide covers best practices for efficient
-logging in ESPHome components and platforms.
+has performance implications, especially in networked environments.
+
+This guide covers best practices for efficient logging in ESPHome components and platforms.
 
 ## Understanding Logger Overhead
 
@@ -125,8 +126,12 @@ This reduces five packets to one, an 80% reduction!
 
 ### Best Practices for Combined Logging
 
-**Important**: The default log buffer is 512 bytes. This limit applies to the total formatted message size, not the
-number of lines. When combining log messages:
+!!! important
+    The default log buffer is 512 bytes.
+    
+    This limit applies to the _total formatted message size_, not the number of lines.
+
+When combining log messages:
 
 - Each `\n` adds only one byte
 - Consider the length of substituted values (for example, `%s` might expand to 20+ characters/bytes for long strings)

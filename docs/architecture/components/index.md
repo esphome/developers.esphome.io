@@ -203,6 +203,12 @@ Given the example Python code above, let's consider the following C++ code:
     void setup() override;
     void loop() override;
     void dump_config() override;
+
+    // Optional shutdown methods
+    void on_shutdown() override;
+    bool teardown() override;
+    void on_powerdown() override;
+
     void set_foo(bool foo) { this->foo_ = foo;}
     void set_bar(std::string bar) { this->bar_ = bar;}
     void set_baz(int baz) { this->baz_ = baz;}
@@ -243,6 +249,32 @@ Given the example Python code above, let's consider the following C++ code:
     ESP_LOGCONFIG(TAG, "  baz = %i", this->baz_);
   }
 
+  void ExampleComponent::on_shutdown() {
+    // Optional: Start shutdown process
+    // For example, send a disconnect message but don't close connections yet
+    ESP_LOGI(TAG, "Starting shutdown");
+  }
+
+  bool ExampleComponent::teardown() {
+    // Optional: Finish any pending operations
+    // Return false if more time is needed, true when done
+    // This might be called multiple times until it returns true
+
+    // Note: Log messages here will likely only go to serial console
+    // as network connections are being closed. Avoid excessive logging
+    // to prevent slowing down the shutdown process.
+    return true;
+  }
+
+  void ExampleComponent::on_powerdown() {
+    // Optional: Power down hardware after all teardowns are complete
+    // This is called last, after all components have finished teardown
+
+    // Note: At this point, network connections are closed. Log messages
+    // will only appear on serial console. Keep logging minimal to avoid
+    // delaying shutdown.
+  }
+
   }  // namespace example_component
   }  // namespace esphome
   ```
@@ -264,13 +296,30 @@ a new measurement/reading.
 
 ### Common methods
 
-There are four methods `Component` defines which all components typically implement. They are as follows:
+There are several methods `Component` defines which components typically implement. They are as follows:
+
+#### Lifecycle methods (in order of execution)
 
 - `setup()`: This method is called once as ESPHome starts up to perform initialization of the component. This may mean
   simply initializing some memory/variables or performing a series of read/write calls to look for and initialize
   some (sensor, display, etc.) hardware connected via some bus (I2C, SPI, serial/UART, one-wire, etc.).
 - `loop()`: This method is called at each iteration of ESPHome's main application loop. Typically this is every 16
   milliseconds, but there may be some variance as other components consume cycles to perform their own tasks.
+
+##### Shutdown sequence
+When the device shuts down or reboots, these methods are called in order:
+
+- `on_safe_shutdown()`: Called first for critical cleanup operations that must happen before any other shutdown procedures.
+- `on_shutdown()`: Called to initiate shutdown. Components should start their shutdown process here (e.g., send 
+  disconnect messages, stop accepting new connections) but should NOT power down hardware or close connections yet.
+- `teardown()`: Called repeatedly to allow components to finish their shutdown operations gracefully. This is where
+  connections are closed and buffers are flushed. Returns `true` when teardown is complete, or `false` if more time 
+  is needed. The system will call this repeatedly (with a timeout) until all components return `true`.
+- `on_powerdown()`: Called after all components have completed their teardown. This is the appropriate place to
+  power down hardware, put chips into sleep mode, or turn off power supplies.
+
+#### Other important methods
+
 - `dump_config()`: This method is called as-needed to "dump" the device's current configuration. Typically this happens
   once after booting and then each time a new client connects to monitor logs (assuming logging is enabled). Note
   that this method is to be used **only** to dump configuration values determined during `setup()`; this method is

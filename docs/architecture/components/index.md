@@ -258,7 +258,7 @@ Given the example Python code above, let's consider the following C++ code:
   bool ExampleComponent::teardown() {
     // Optional: Finish any pending operations
     // Return false if more time is needed, true when done
-    // This might be called multiple times until it returns true
+    // This will be called multiple times until it returns true or timeout is reached
 
     // Note: Log messages here will likely only go to serial console
     // as network connections are being closed. Avoid excessive logging

@@ -187,7 +187,7 @@ For example, many components that rely on `uart` can use the `FINAL_VALIDATE_SCH
 
 ## C++ component structure
 
-Given the example Python code above, let's consider the following C++ code.
+Given the example Python code above, let's consider the following C++ code:
 
 ### Minimal component example
 

@@ -310,16 +310,19 @@ There are several methods `Component` defines which components typically impleme
 ESPHome has two shutdown modes:
 
 **Safe shutdown** (used for OTA updates, deep sleep, and graceful reboots):
+
 1. `on_safe_shutdown()`: Called first for critical cleanup operations
 2. `on_shutdown()`: Called to initiate shutdown (send disconnect messages, stop accepting new connections)
 3. `teardown()`: Called repeatedly to gracefully close connections and flush buffers. Returns `true` when complete or `false` if more time is needed
 4. `on_powerdown()`: Called after all teardowns complete to power down hardware
 
 **Forced reboot** (used for crashes, watchdog resets, or `App.reboot()`):
+
 1. `on_shutdown()`: Called to attempt minimal cleanup
 2. System restarts immediately (no teardown or powerdown)
 
-Method details:
+**Method details:**
+
 - `on_safe_shutdown()`: Only called during safe shutdowns. Used for critical operations that must happen before 
   any other shutdown procedures. Not called during forced reboots or crashes.
 - `on_shutdown()`: Always called when possible. Components should start their shutdown process here (e.g., send 

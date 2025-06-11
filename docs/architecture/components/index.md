@@ -311,7 +311,7 @@ In addition, for `PollingComponent`:
 
 ## Additional optional methods
 
-For components that need to handle shutdown gracefully (e.g., network connections, hardware cleanup), ESPHome provides additional lifecycle methods:
+For components that need to handle shutdown gracefully (such as network connections or hardware cleanup), ESPHome provides additional lifecycle methods:
 
 ### Shutdown sequence
 ESPHome has two shutdown modes:

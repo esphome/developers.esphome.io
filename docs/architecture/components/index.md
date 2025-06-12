@@ -189,6 +189,10 @@ For example, many components that rely on `uart` can use the `FINAL_VALIDATE_SCH
 
 Given the example Python code above, let's consider the following C++ code:
 
+### Minimal component example
+
+This represents the minimum required code to implement a component in ESPHome:
+
 - **`example_component.h:`**
   ```cpp
   #pragma once
@@ -203,6 +207,7 @@ Given the example Python code above, let's consider the following C++ code:
     void setup() override;
     void loop() override;
     void dump_config() override;
+
     void set_foo(bool foo) { this->foo_ = foo;}
     void set_bar(std::string bar) { this->bar_ = bar;}
     void set_baz(int baz) { this->baz_ = baz;}
@@ -264,23 +269,23 @@ a new measurement/reading.
 
 ### Common methods
 
-There are four methods `Component` defines which all components typically implement. They are as follows:
+There are several methods `Component` defines which components typically implement. They are as follows:
+
+#### Lifecycle methods (in order of execution)
 
 - `setup()`: This method is called once as ESPHome starts up to perform initialization of the component. This may mean
   simply initializing some memory/variables or performing a series of read/write calls to look for and initialize
   some (sensor, display, etc.) hardware connected via some bus (I2C, SPI, serial/UART, one-wire, etc.).
 - `loop()`: This method is called at each iteration of ESPHome's main application loop. Typically this is every 16
   milliseconds, but there may be some variance as other components consume cycles to perform their own tasks.
+
+#### Other important methods
+
 - `dump_config()`: This method is called as-needed to "dump" the device's current configuration. Typically this happens
   once after booting and then each time a new client connects to monitor logs (assuming logging is enabled). Note
   that this method is to be used **only** to dump configuration values determined during `setup()`; this method is
   not permitted to contain any other types of calls to (for example) perform bus reads and/or writes. We require that
   this method is implemented for all components.
-- `get_setup_priority()`: This method is called to determine the component's setup priority. This is used specifically
-  to ensure components are initialized in an appropriate order. For example, an I2C sensor cannot be initialized before
-  the I2C bus is initialized; therefore, for I2C sensors, this must return a value indicating that it is to be
-  initialized _only after_ (I2C) busses are initialized. See `setup_priority` in `esphome/core/component.h` for
-  commonly-used values.
 
 In addition, for `PollingComponent`:
 
@@ -298,6 +303,84 @@ In addition, for `PollingComponent`:
   `to_code` function in Python; the values contained in the user's YAML configuration are passed through to these setter
   methods as they are placed into the generated `main.cpp` file produced by ESPHome's code generation (codegen). It's
   important to note that **these methods will be called (and, thus, variables set) *before* the `setup()` method is called.**
+
+## Additional optional methods
+
+- `get_setup_priority()`: This method is called to determine the component's setup priority. This is used specifically
+  to ensure components are initialized in an appropriate order. For example, an I2C sensor cannot be initialized before
+  the I2C bus is initialized; therefore, for I2C sensors, this must return a value indicating that it is to be
+  initialized _only after_ (I2C) busses are initialized. See `setup_priority` in `esphome/core/component.h` for
+  commonly-used values.
+
+For components that need to handle shutdown gracefully (such as network connections or hardware cleanup), ESPHome provides additional lifecycle methods:
+
+### Shutdown sequence
+ESPHome has two shutdown modes:
+
+**Safe shutdown** (used for OTA updates, deep sleep, and graceful reboots):
+
+1. `on_safe_shutdown()`: Called first for critical cleanup operations
+2. `on_shutdown()`: Called to initiate shutdown (send disconnect messages, stop accepting new connections)
+3. `teardown()`: Called repeatedly to gracefully close connections and flush buffers. Returns `true` when complete or `false` if more time is needed
+4. `on_powerdown()`: Called after all teardowns complete to power down hardware
+
+**Forced reboot** (used for crashes, watchdog resets, or `App.reboot()`):
+
+1. `on_shutdown()`: Called to attempt minimal cleanup
+2. System restarts immediately (no teardown or powerdown)
+
+**Method details:**
+
+- `on_safe_shutdown()`: Only called during safe shutdowns. Used for critical operations that must happen before
+  any other shutdown procedures. Not called during forced reboots or crashes.
+- `on_shutdown()`: Always called when possible. Components should start their shutdown process here (e.g., send
+  disconnect messages, stop accepting new connections) but should NOT power down hardware or close connections yet.
+- `teardown()`: Only called during safe shutdowns. This is where connections are closed and buffers are flushed.
+  The system will call this repeatedly (with a timeout) until all components return `true`.
+- `on_powerdown()`: Only called during safe shutdowns after all components have completed their teardown. This is
+  the appropriate place to power down hardware, put chips into sleep mode, or turn off power supplies.
+
+### Implementation
+
+```cpp
+float ExampleComponent::get_setup_priority() const {
+  // Return the setup priority of this component
+  // Higher values mean this component will be set up later
+  return setup_priority::DATA;
+}
+
+void ExampleComponent::on_safe_shutdown() {
+  // Optional: Critical cleanup operations for safe shutdowns only
+  // This is called first, before any other shutdown procedures
+  ESP_LOGI(TAG, "Safe shutdown initiated");
+}
+
+void ExampleComponent::on_shutdown() {
+  // Optional: Start shutdown process
+  // For example, send a disconnect message but don't close connections yet
+  ESP_LOGI(TAG, "Starting shutdown");
+}
+
+bool ExampleComponent::teardown() {
+  // Optional: Finish any pending operations
+  // Return false if more time is needed, true when done
+  // This will be called multiple times until it returns true or timeout is reached
+
+  // Note: Log messages here will likely only go to serial console
+  // as network connections are being closed. Avoid excessive logging
+  // to prevent slowing down the shutdown process.
+  return true;
+}
+
+void ExampleComponent::on_powerdown() {
+  // Optional: Power down hardware after all teardowns are complete
+  // This is called last, after all components have finished teardown
+
+  // Note: At this point, network connections are closed. Log messages
+  // will only appear on serial console. Keep logging minimal to avoid
+  // delaying shutdown.
+}
+```
 
 ## Going further
 

@@ -286,11 +286,6 @@ There are several methods `Component` defines which components typically impleme
   that this method is to be used **only** to dump configuration values determined during `setup()`; this method is
   not permitted to contain any other types of calls to (for example) perform bus reads and/or writes. We require that
   this method is implemented for all components.
-- `get_setup_priority()`: This method is called to determine the component's setup priority. This is used specifically
-  to ensure components are initialized in an appropriate order. For example, an I2C sensor cannot be initialized before
-  the I2C bus is initialized; therefore, for I2C sensors, this must return a value indicating that it is to be
-  initialized _only after_ (I2C) busses are initialized. See `setup_priority` in `esphome/core/component.h` for
-  commonly-used values.
 
 In addition, for `PollingComponent`:
 
@@ -310,6 +305,12 @@ In addition, for `PollingComponent`:
   important to note that **these methods will be called (and, thus, variables set) *before* the `setup()` method is called.**
 
 ## Additional optional methods
+
+- `get_setup_priority()`: This method is called to determine the component's setup priority. This is used specifically
+  to ensure components are initialized in an appropriate order. For example, an I2C sensor cannot be initialized before
+  the I2C bus is initialized; therefore, for I2C sensors, this must return a value indicating that it is to be
+  initialized _only after_ (I2C) busses are initialized. See `setup_priority` in `esphome/core/component.h` for
+  commonly-used values.
 
 For components that need to handle shutdown gracefully (such as network connections or hardware cleanup), ESPHome provides additional lifecycle methods:
 

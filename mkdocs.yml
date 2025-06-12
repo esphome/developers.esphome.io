@@ -9,6 +9,7 @@ edit_uri: edit/main/docs/
 theme:
   name: material
   custom_dir: overrides
+  favicon: images/favicon.ico
   features:
     - navigation.instant
     - navigation.path
@@ -24,6 +25,7 @@ theme:
     - content.code.annotate
     - content.tooltips
     - toc.follow
+  logo: images/logo.svg
 
   palette:
     # Palette toggle for light mode
@@ -78,28 +80,7 @@ nav:
         - I2C: architecture/components/i2c.md
         - SPI: architecture/components/spi.md
         - Serial (UART): architecture/components/uart.md
-      - Alarm control panel: architecture/components/alarm_control_panel.md
-      - Binary sensor: architecture/components/binary_sensor.md
-      - Button: architecture/components/button.md
-      - Climate: architecture/components/climate.md
-      - Cover: architecture/components/cover.md
-      - Display: architecture/components/display.md
-      - Event: architecture/components/event.md
-      - Fan: architecture/components/fan.md
-      - Light: architecture/components/light.md
-      - Lock: architecture/components/lock.md
-      - Media player: architecture/components/media_player.md
-      - Number: architecture/components/number.md
-      - Output: architecture/components/output.md
-      - Select: architecture/components/select.md
-      - Sensor: architecture/components/sensor.md
-      - Speaker: architecture/components/speaker.md
-      - Switch: architecture/components/switch.md
-      - Text: architecture/components/text.md
-      - Text sensor: architecture/components/text_sensor.md
-      - Time: architecture/components/time.md
-      - Touchscreen: architecture/components/touchscreen.md
-      - Valve: architecture/components/valve.md
+      - Automations: architecture/components/automations.md
     - API:
       - Overview: architecture/api/index.md
       - Protocol Details: architecture/api/protocol_details.md

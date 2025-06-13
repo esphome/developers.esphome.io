@@ -104,4 +104,7 @@ nav:
       - Overview: architecture/api/index.md
       - Protocol Details: architecture/api/protocol_details.md
     - Logging Best Practices: architecture/logging.md
+    - CI:
+      - Overview: architecture/ci/index.md
+      - Tests: architecture/ci/component_tests.md
   - Blog: blog/index.md

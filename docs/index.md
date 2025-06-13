@@ -28,6 +28,7 @@ All project code and documentation is hosted on [GitHub](https://github.com):
 
 - [Component architecture](architecture/components)
 - [API](architecture/api)
+- [CI](architecture/ci)
 
 ## Contributing
 

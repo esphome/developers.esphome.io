@@ -43,4 +43,6 @@ to be able to use it now.
 With these points in mind, we are officially sunsetting support for IDF 4.x in ESPHome. If you have kept your
 project(s) back on IDF 4.x, you can continue to use versions of ESPHome prior to the July 2025 release, but you won't
 be able to upgrade beyond that version. We encourage everybody to move to IDF 5.x -- specifically, in the June release,
-we have switched the default IDF version to 5.3.2.
+we have switched the default IDF version to 5.3.2. In addition, we'd like to call out that we are working to accelerate
+the adoption of new IDF versions; this helps us add support for new Espressif microcontrollers more quickly than we've
+been able to in the past.

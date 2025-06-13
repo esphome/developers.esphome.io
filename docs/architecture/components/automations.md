@@ -96,7 +96,7 @@ Finally, we have the `to_code` function for the component itself, just as discus
 
 The C++ class for this example component is quite simple.
 
-```c
+```cpp
 class EmptyAutomation : public Component { ... };
 ```
 
@@ -116,7 +116,7 @@ In addition to the component's class, additional classes which implement the var
 - `EmptyAutomationCondition`
 - `StateTrigger`
 
-```c
+```cpp
 template<typename... Ts> class EmptyAutomationSetStateAction : public Action<Ts...> {
  public:
   explicit EmptyAutomationSetStateAction(EmptyAutomation *ea) : ea_(ea) {}
@@ -151,7 +151,7 @@ In this particular component:
 - The condition accepts an additional parameter which determines whether it will test for the "off" or "on" state,
 allowing it to be reused for both conditions (`component_off` and `component_on`).
 
-```c
+```cpp
 class StateTrigger : public Trigger<bool> {
  public:
   explicit StateTrigger(EmptyAutomation *parent) {

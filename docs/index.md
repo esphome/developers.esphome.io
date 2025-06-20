@@ -23,6 +23,7 @@ All project code and documentation is hosted on [GitHub](https://github.com):
 
 - [Set up your development environment](/contributing/development-environment)
 - [Architectural overview](/architecture/overview)
+- [Starter components](https://github.com/esphome/starter-components)
 
 ## Going further
 

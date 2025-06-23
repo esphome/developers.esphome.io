@@ -117,17 +117,18 @@ git push -u origin my-new-feature
 Once you've pushed your branch, if you wish, you can
 [submit your work for integration into ESPHome](submitting-your-work.md).
 
-# Testing Development Changes on Windows
+???+ # Testing Development Changes on Windows
 
-On Windows, One way to test changes is by creating a branch in your remote fork of the main ESPHome GitHub repo,
-and then installing it just like "installing ESPHome Manually" section with the below command:
-Here, username and branch is your username and ESPHome fork branch name respectively on Github.
+    On Windows, One way to test changes is by creating a branch in your remote fork of the main ESPHome GitHub repo,
+    and then installing it just like [Installing ESPHome Manually](https://esphome.io/guides/installing_esphome) with the below command:
 
-```bash
-pip install --pre https://github.com/username/esphome/archive/branch.zip
-```
-OR
-```bash
-pip install -U git+https://github.com/username/esphome.git@branch --force-reinstall
-```
-The `--force-reinstall` flag is important for testing small changes!
+    Here, username and branch is your username and ESPHome fork branch name respectively on Github.
+
+    ```bash
+    pip install --pre https://github.com/username/esphome/archive/branch.zip
+    ```
+    OR
+    ```bash
+    pip install -U git+https://github.com/username/esphome.git@branch --force-reinstall
+    ```
+    The `--force-reinstall` flag is important for testing small changes!

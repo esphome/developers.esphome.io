@@ -121,12 +121,13 @@ Once you've pushed your branch, if you wish, you can
 
 On Windows, One way to test changes is by creating a branch in your remote fork of the main ESPHome GitHub repo,
 and then installing it just like "installing ESPHome Manually" section with the below command:
+Here, username and branch is your username and ESPHome fork branch name respectively on Github.
 
 ```bash
-pip install --pre https://github.com/username/esphome/archive/patch-2.zip
+pip install --pre https://github.com/username/esphome/archive/branch.zip
 ```
 OR
 ```bash
-pip install -U git+https://github.com/username/esphome.git@patch-2 --force-reinstall
+pip install -U git+https://github.com/username/esphome.git@branch --force-reinstall
 ```
-The `--force-reinstall` flag is important!
+The `--force-reinstall` flag is important for testing small changes!

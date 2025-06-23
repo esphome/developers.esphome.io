@@ -19,7 +19,7 @@ theme:
     - search.suggest
     - search.highlight
 
-    # - content.action.edit
+    - content.action.edit
     - content.code.copy
     - content.code.select
     - content.code.annotate
@@ -67,27 +67,27 @@ hooks:
 nav:
   - Home: index.md
   - Contributing:
-    - Development environment: contributing/development-environment.md
-    - Submitting your work: contributing/submitting-your-work.md
-    - Contributing:
-      - Code: contributing/code.md
-      - Documentation: contributing/docs.md
+      - Development environment: contributing/development-environment.md
+      - Submitting your work: contributing/submitting-your-work.md
+      - Contributing:
+          - Code: contributing/code.md
+          - Documentation: contributing/docs.md
   - Architecture:
-    - Overview: architecture/overview.md
-    - Core: architecture/core.md
-    - Components:
-      - Overview: architecture/components/index.md
-      - Common hardware interfaces:
-        - GPIO: architecture/components/gpio.md
-        - I2C: architecture/components/i2c.md
-        - SPI: architecture/components/spi.md
-        - Serial (UART): architecture/components/uart.md
-      - Automations: architecture/components/automations.md
-    - API:
-      - Overview: architecture/api/index.md
-      - Protocol Details: architecture/api/protocol_details.md
-    - Logging Best Practices: architecture/logging.md
-    - CI:
-      - Overview: architecture/ci/index.md
-      - Tests: architecture/ci/component_tests.md
+      - Overview: architecture/overview.md
+      - Core: architecture/core.md
+      - Components:
+          - Overview: architecture/components/index.md
+          - Common hardware interfaces:
+              - GPIO: architecture/components/gpio.md
+              - I2C: architecture/components/i2c.md
+              - SPI: architecture/components/spi.md
+              - Serial (UART): architecture/components/uart.md
+          - Automations: architecture/components/automations.md
+      - API:
+          - Overview: architecture/api/index.md
+          - Protocol Details: architecture/api/protocol_details.md
+      - Logging Best Practices: architecture/logging.md
+      - CI:
+          - Overview: architecture/ci/index.md
+          - Tests: architecture/ci/component_tests.md
   - Blog: blog/index.md

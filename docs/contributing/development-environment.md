@@ -119,8 +119,8 @@ Once you've pushed your branch, if you wish, you can
 
 ???+ Windows
 
-    # Testing Development Changes on Windows
-
+    ## Testing Development Changes on Windows
+    
     On Windows, One way to test changes is by creating a branch in your remote fork of the main ESPHome GitHub repo,
     and then installing it just like [Installing ESPHome Manually](https://esphome.io/guides/installing_esphome) with the below command:
 

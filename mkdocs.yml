@@ -57,6 +57,8 @@ plugins:
   - blog
   - search
   - mermaid2
+  - rss:
+      match_path: blog/posts/.*
 
 hooks:
   - hooks/copyright.py

@@ -125,7 +125,7 @@ Once you've pushed your branch, if you wish, you can
 
     - Create a branch in your remote fork of the main ESPHome GitHub repo
     - Install from your fork in the same manner you would
-[install ESPHome manually](https://esphome.io/guides/installing_esphome) but with one of the following commands:
+      [install ESPHome manually](https://esphome.io/guides/installing_esphome) but with one of the following commands:
 
         ```bash
         pip install --pre https://github.com/username/esphome/archive/branch.zip

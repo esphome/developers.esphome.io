@@ -7,8 +7,8 @@ In short, ESPHome is set up to use a Python virtual environment.
 This guide will walk you through the steps to set up an environment you can use for development.
 
 !!!note
-    These instructions that follow apply for Linux and macOS. Windows users can still develop ESPHome and its
-    components, but the process is slightly different and not covered (yet) in this guide.
+    The instructions that follow apply for Linux and macOS. Windows users can still develop ESPHome and its
+    components, but the process is slightly different and covered at the bottom of this guide.
 
 ## Requirements
 
@@ -116,3 +116,25 @@ git push -u origin my-new-feature
 
 Once you've pushed your branch, if you wish, you can
 [submit your work for integration into ESPHome](submitting-your-work.md).
+
+???+ Windows
+
+    ## Testing Development Changes on Windows
+    
+    To test changes when using Windows:
+
+    - Create a branch in your remote fork of the main ESPHome GitHub repo
+    - Install from your fork in the same manner you would
+      [install ESPHome manually](https://esphome.io/guides/installing_esphome) but with one of the following commands:
+
+        ```bash
+        pip install --pre https://github.com/username/esphome/archive/branch.zip
+        ```
+        OR
+        ```bash
+        pip install -U git+https://github.com/username/esphome.git@branch --force-reinstall
+        ```
+
+    Note that `username` and `branch` are (respectively) your GitHub username and branch name in your ESPHome fork on Github.
+
+    The `--force-reinstall` flag is important for testing changes!

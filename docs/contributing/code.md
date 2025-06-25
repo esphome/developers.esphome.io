@@ -85,6 +85,19 @@ In general, we try to avoid use of external libraries.
       well-known `set_timeout` method is also available; this can be a handy alternative to implementing a state
       machine.
 
+#### Components/platforms and entities
+
+- Components/platforms should pass data from hardware directly through to the respective entities presented in the
+  front end (Home Assistant, MQTT, web, etc.). If the raw data requires grooming, this should be left to the user to do
+  by way of the various types of filters available
+  ([sensor](https://esphome.io/components/sensor/#sensor-filters),
+  [binary sensor](https://esphome.io/components/binary_sensor/#binary-sensor-filters),
+  [text sensor](https://esphome.io/components/text_sensor/#text-sensor-filters)).
+- Components/platforms should facilitate the creation of entities only when there is a corresponding hardware feature
+  which the entity may control. Put another way, in general, do not introduce platforms which allow tuning
+  component/platform behavior when there is no corresponding feature implemented in the hardware the
+  component/platform is for.
+
 #### General
 
 - All entities must be *optional* in the configuration.

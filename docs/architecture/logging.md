@@ -115,10 +115,7 @@ void MyComponent::dump_config() {
                 "  Update Interval: %ums\n"
                 "  Samples: %d\n"
                 "  Mode: %s",
-                this->address_,
-                this->update_interval_,
-                this->samples_,
-                this->get_mode_str());
+                this->address_, this->update_interval_, this->samples_, this->get_mode_str());
 }
 ```
 

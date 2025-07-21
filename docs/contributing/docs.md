@@ -20,6 +20,14 @@ If you're not familiar with rST, see [rST syntax](#rst-syntax) for a quick prime
     - Dependent components (Instead, include a sentence explaining the dependency and a link to the dependency's
       documentation)
 - Pin numbers used in examples should be the string `GPIOXX` -- not a specific pin number.
+- When adding (a) new component(s)/platform(s), be sure to update the [main index page](https://esphome.io/components/)
+  appropriately:
+    - Insert your new component/platform _alphabetically_ into the relevant list(s) -- do **not** just append to the
+      end of any given component/platform list.
+    - If you need an image for your new component/platform, use our
+      [component image generator](https://github.com/esphome/component-image-generator). You can run this in a
+      container locally to generate the image or summon our bot to do so by adding a comment to your PR in the
+      `esphome-docs` repository: `@esphomebot generate image MyNewComponent`
 - If a component/platform is used exclusively/primarily on a single specific board (perhaps with dedicated pin
   numbers), a complete configuration for the component/platform on that specific board may be included as an example
   _at the end of the document._ This example must be clearly identified as being for that specific hardware and it may

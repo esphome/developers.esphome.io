@@ -59,6 +59,8 @@ In general, we try to avoid use of external libraries.
 - Components **must** use the provided abstractions like `sensor`, `switch`, etc. and should inherit from either
   `Component` or `PollingComponent`.
 - Components should **not** directly access other components -- for example, to publish to MQTT topics.
+- Use of `static` variables within component/platform classes is not permitted, as this is likely to cause problems
+  when multiple instances of the component/platform are created.
 - Components are required to dump their configuration using `ESP_LOGCONFIG` in the `dump_config()` method. This method
   is used **exclusively** to **print values** determined during `setup()` -- nothing more.
 - For time tracking, use `App.get_loop_component_start_time()` rather than `millis()`. Hardware time reads are slow

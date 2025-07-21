@@ -85,13 +85,29 @@ here are some tips:
   time commenting on/correcting your PR because you didn't name variables correctly or didn't prefix member variable
   accesses with `this->`, it wastes time we could be using to review other PRs which *do* follow the standards.
 - If you wish to take on a big project, such as refactoring a substantial section of the codebase or integrating
-  another open source project with ESPHome, please discuss this with us on [Discord](https://discord.gg/KhAMKrd) or
+  another open source project with ESPHome, please discuss this with us on [Discord](https://esphome.io/chat) or
   [create a discussion on GitHub](https://github.com/esphome/esphome/discussions) **before** you do all the work and
   attempt to submit a massive PR.
 - If you are not sure about how you should proceed with some changes, **please**
-  [discuss it with us on Discord](https://discord.gg/KhAMKrd) **before** you go do a bunch of work that we can't (for
+  [discuss it with us on Discord](https://esphome.io/chat) **before** you go do a bunch of work that we can't (for
   whatever reason) accept...and then you have to go back and re-do it all to get your PR merged. It's easier to make
   corrections early-on -- and we want to help you!
+
+#### How to approach large submissions
+
+If you have a (very) large amount of code (thousands of lines) you want to submit:
+
+- [Discuss it with us on Discord](https://esphome.io/chat) **before** you begin the work.
+- **Carefully plan a way to break the work into a series of smaller changes** which can be submitted independently of
+  each other. For example, consider a piece of sensor hardware which provides measurements of seven different
+  environmental parameters and can be connected via either I2C or SPI; the work might be broken into separate PRs for:
+    - Implementing the base "hub" component
+    - Extending the base for both I2C and SPI connectivity
+    - Adding the various sensor platforms to make available the data the sensor reports
+- It's reasonable to submit all the PRs at once, but, if you do so, be sure to:
+    - Link them together in the PR descriptions so that reviewers can follow the work.
+    - Indicate the order in which the PRs should be reviewed and/or merged, if relevant.
+    - Minimize (the potential for) conflicts as much as reasonably possible.
 
 ## Can I Help Review PRs?
 

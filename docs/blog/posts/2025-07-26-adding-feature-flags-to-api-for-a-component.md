@@ -1,12 +1,12 @@
 # Adding Feature Flags to API for Component
 
 In an effort to provide maximum API flexibility while minimizing the Component Signature, it is now recommended that a
-feature_flags attribute is defined in the <Component>Info rather than individual supports_* attributes.
+feature_flags attribute is defined in the [Component]Info rather than individual supports_* attributes.
 Discussion below is based on adding feature_flags without attempting to deprecate existing supports_* attributes.
 All examples are adding feature_flags to media_player component.
 
 ## esphome/aioesphomeapi/aioesphomeapi/model.py
-Add the <Component>MediaPlayerEntityFeature bitshift enumeration.
+Add the [Component]EntityFeature bitshift enumeration.
 Note: MediaPlayerEntityFeature is originally defined in home-assistant/core/homeassistant/components/media_player/const.py
 and that is why it is not using x << y definitions.
 ```
@@ -37,7 +37,7 @@ class MediaPlayerEntityFeature(enum.IntFlag):
     MEDIA_ENQUEUE = 2097152
     SEARCH_MEDIA = 4194304
 ```
-Add the feature_flags attribute to the <Component>Info and add a compatability method.
+Add the feature_flags attribute to the [Component]Info and add a compatability method.
 Note: the APIVersion must be the current APIVersion at the time of merge into development, so APIVersion(1,11) must be the correct values.
 Note: below code was implemented with other changes therefore the extra if statment "if self.feature_flags > flags:".
 ```
@@ -69,7 +69,7 @@ class MediaPlayerInfo(EntityInfo):
 ```
 ## esphome/aioesphomeapi/aioesphomeapi/api.proto
 
-Update the ListEntities<Component>Response to include the new attribute.
+Update the ListEntities[Component]Response to include the new attribute.
 
 ```
 message ListEntitiesMediaPlayerResponse {
@@ -79,7 +79,7 @@ message ListEntitiesMediaPlayerResponse {
 }
 ```
 ## esphome/aioesphomeapi/tests/test_model.py
-Add <Component>MediaPlayerEntityFeature as an import from model.
+Add [Component]MediaPlayerEntityFeature as an import from model.
 Add the new attribute to the existing tests.
 ```
 def test_media_player_supported_format_convert_list() -> None:
@@ -147,7 +147,7 @@ message ListEntitiesMediaPlayerResponse {
 }
 ```
 ## esphome/esphome/components/api/api_connection.cpp
-Update the try_send_<component>_info method to set the feature_flags value.
+Update the try_send_[Component]_info method to set the feature_flags value.
 ```
 uint16_t APIConnection::try_send_media_player_info(EntityBase *entity, APIConnection *conn, uint32_t remaining_size,
                                                    bool is_single) {
@@ -158,8 +158,8 @@ uint16_t APIConnection::try_send_media_player_info(EntityBase *entity, APIConnec
   ...
 }
 ```
-## esphome/esphome/components/**/<component>.h
-Add the <Component>Feature enumeration.
+## esphome/esphome/components/**/[Component].h
+Add the [Component]Feature enumeration.
 ```
 enum MediaPlayerEntityFeature : uint32_t {
   PAUSE = 1,
@@ -208,7 +208,7 @@ class MediaPlayerTraits {
   ...
 };
 ```
-## home-assistant/core/homeassistant/components/esphome/<component>.py
+## home-assistant/core/homeassistant/components/esphome/[Component].py
 Update the _on_static_info_update to use method feature_flags_compat.
 ```
     def _on_static_info_update(self, static_info: EntityInfo) -> None:
@@ -220,7 +220,7 @@ Update the _on_static_info_update to use method feature_flags_compat.
             MediaPlayerInfo, static_info
         ).supported_formats
 ```
-## home-assistant/core/tests/components/esphome/test_<component>.py
+## home-assistant/core/tests/components/esphome/test_[Component].py
 Update Tests as needed, for MediaPlayer anytime the supports_pause is set, also set
 the feature_flags to the correct value.
 ```

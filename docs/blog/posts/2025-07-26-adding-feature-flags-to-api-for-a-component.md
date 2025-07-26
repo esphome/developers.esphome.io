@@ -1,3 +1,9 @@
+---
+date: 2025-07-26
+authors: 
+  - rwrozelle
+---
+
 # Adding Feature Flags to API for Component
 
 In an effort to provide maximum API flexibility while minimizing the Component Signature, it is now recommended that a

@@ -14,38 +14,37 @@ All examples are adding feature_flags to media_player component.
 ## esphome/aioesphomeapi/aioesphomeapi/model.py
 Add the [Component]EntityFeature bitshift enumeration.
 Note: MediaPlayerEntityFeature is originally defined in home-assistant/core/homeassistant/components/media_player/const.py
-and that is why it is not using x << y definitions.
+and converted to using x << y definitions for clarity.
 ```
 class MediaPlayerEntityFeature(enum.IntFlag):
     """Supported features of the media player entity."""
 
-    PAUSE = 1
-    SEEK = 2
-    VOLUME_SET = 4
-    VOLUME_MUTE = 8
-    PREVIOUS_TRACK = 16
-    NEXT_TRACK = 32
+    PAUSE = 1 << 0
+    SEEK = 1 << 1
+    VOLUME_SET = 1 << 2
+    VOLUME_MUTE = 1 << 3
+    PREVIOUS_TRACK = 1 << 4
+    NEXT_TRACK = 1 << 5
 
-    TURN_ON = 128
-    TURN_OFF = 256
-    PLAY_MEDIA = 512
-    VOLUME_STEP = 1024
-    SELECT_SOURCE = 2048
-    STOP = 4096
-    CLEAR_PLAYLIST = 8192
-    PLAY = 16384
-    SHUFFLE_SET = 32768
-    SELECT_SOUND_MODE = 65536
-    BROWSE_MEDIA = 131072
-    REPEAT_SET = 262144
-    GROUPING = 524288
-    MEDIA_ANNOUNCE = 1048576
-    MEDIA_ENQUEUE = 2097152
-    SEARCH_MEDIA = 4194304
+    TURN_ON = 1 << 7
+    TURN_OFF = 1 << 8
+    PLAY_MEDIA = 1 << 9
+    VOLUME_STEP = 1 << 10
+    SELECT_SOURCE = 1 << 11
+    STOP = 1 << 12
+    CLEAR_PLAYLIST = 1 << 13
+    PLAY = 1 << 14
+    SHUFFLE_SET = 1 << 15
+    SELECT_SOUND_MODE = 1 << 16
+    BROWSE_MEDIA = 1 << 17
+    REPEAT_SET = 1 << 18
+    GROUPING = 1 << 19
+    MEDIA_ANNOUNCE = 1 << 20
+    MEDIA_ENQUEUE = 1 << 21
+    SEARCH_MEDIA = 1 << 22
 ```
 Add the feature_flags attribute to the [Component]Info and add a compatability method.
 Note: the APIVersion must be the current APIVersion at the time of merge into development, so APIVersion(1,11) must be the correct values.
-Note: below code was implemented with other changes therefore the extra if statment "if self.feature_flags > flags:".
 ```
 class MediaPlayerInfo(EntityInfo):
     ...
@@ -64,14 +63,9 @@ class MediaPlayerInfo(EntityInfo):
             if self.supports_pause:
                 flags |= MediaPlayerEntityFeature.PAUSE | MediaPlayerEntityFeature.PLAY
 
-            # APIVersion 1.10, but with feature_flags added to MediaPlayer
-            if self.feature_flags > flags:
-                return self.feature_flags
-            else:
-                return flags
+            return flags
 
         return self.feature_flags
-
 ```
 ## esphome/aioesphomeapi/aioesphomeapi/api.proto
 
@@ -168,29 +162,29 @@ uint16_t APIConnection::try_send_media_player_info(EntityBase *entity, APIConnec
 Add the [Component]Feature enumeration.
 ```
 enum MediaPlayerEntityFeature : uint32_t {
-  PAUSE = 1,
-  SEEK = 2,
-  VOLUME_SET = 4,
-  VOLUME_MUTE = 8,
-  PREVIOUS_TRACK = 16,
-  NEXT_TRACK = 32,
+  PAUSE = 1 << 0,
+  SEEK = 1 << 1,
+  VOLUME_SET = 1 << 2,
+  VOLUME_MUTE = 1 << 3,
+  PREVIOUS_TRACK = 1 << 4,
+  NEXT_TRACK = 1 << 5,
 
-  TURN_ON = 128,
-  TURN_OFF = 256,
-  PLAY_MEDIA = 512,
-  VOLUME_STEP = 1024,
-  SELECT_SOURCE = 2048,
-  STOP = 4096,
-  CLEAR_PLAYLIST = 8192,
-  PLAY = 16384,
-  SHUFFLE_SET = 32768,
-  SELECT_SOUND_MODE = 65536,
-  BROWSE_MEDIA = 131072,
-  REPEAT_SET = 262144,
-  GROUPING = 524288,
-  MEDIA_ANNOUNCE = 1048576,
-  MEDIA_ENQUEUE = 2097152,
-  SEARCH_MEDIA = 4194304,
+  TURN_ON = 1 << 7,
+  TURN_OFF = 1 << 8,
+  PLAY_MEDIA = 1 << 9,
+  VOLUME_STEP = 1 << 10,
+  SELECT_SOURCE = 1 << 11,
+  STOP = 1 << 12,
+  CLEAR_PLAYLIST = 1 << 13,
+  PLAY = 1 << 14,
+  SHUFFLE_SET = 1 << 15,
+  SELECT_SOUND_MODE = 1 << 16,
+  BROWSE_MEDIA = 1 << 17,
+  REPEAT_SET = 1 << 18,
+  GROUPING = 1 << 19,
+  MEDIA_ANNOUNCE = 1 << 20,
+  MEDIA_ENQUEUE = 1 << 21,
+  SEARCH_MEDIA = 1 << 22,
 };
 ```
 Add the get_feature_flags.
@@ -205,9 +199,6 @@ class MediaPlayerTraits {
              MediaPlayerEntityFeature::VOLUME_MUTE | MediaPlayerEntityFeature::MEDIA_ANNOUNCE;
     if (this->get_supports_pause()) {
       flags |= MediaPlayerEntityFeature::PAUSE | MediaPlayerEntityFeature::PLAY;
-    }
-    if (this->get_supports_turn_off_on()) {
-      flags |= MediaPlayerEntityFeature::TURN_OFF | MediaPlayerEntityFeature::TURN_ON;
     }
     return flags;
   }

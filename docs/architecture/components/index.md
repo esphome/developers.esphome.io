@@ -636,7 +636,6 @@ To debug loop control issues:
 
 ### See Also
 
-- [Scheduling Functions](../../contributing/code.md#scheduling-functions) - Alternative timing mechanisms
 - Source: [`esphome/core/component.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.h) and [`esphome/core/component.cpp`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.cpp)
 
 ## Going further

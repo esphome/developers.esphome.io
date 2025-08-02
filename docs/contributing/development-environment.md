@@ -132,9 +132,14 @@ Once you've pushed your branch, if you wish, you can
         ```
         OR
         ```bash
-        pip install -U git+https://github.com/username/esphome.git@branch --force-reinstall
+        pip install git+https://github.com/username/esphome.git@branch
         ```
 
     Note that `username` and `branch` are (respectively) your GitHub username and branch name in your ESPHome fork on Github.
 
-    The `--force-reinstall` flag is important for testing changes!
+    For testing frequent changes to the repo that doesn't involve version number changes,
+    A subsequent pip update can be performed using flags `--no-deps` along with `--force-reinstall` like so:
+    ```bash
+        pip install git+https://github.com/username/esphome.git@branch --no-deps --force-reinstall
+    ```
+    This will ensure that pip only compiles and reinstalls esphome and not its dependencies.

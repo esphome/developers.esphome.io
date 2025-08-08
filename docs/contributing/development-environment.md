@@ -19,7 +19,7 @@ This guide will walk you through the steps to set up an environment you can use 
 !!!note
     ESPHome's code and documentation is hosted on [GitHub](https://github.com); we use this to collaborate on all
     changes.
-    
+
     As a deep-dive into how `git` and [GitHub](https://github.com) works is beyond the scope of this documentation,
     we'll assume that you're already familiar with these tools and just walk through the basic steps required to get
     started.
@@ -120,8 +120,13 @@ Once you've pushed your branch, if you wish, you can
 ???+ Windows
 
     ## Testing Development Changes on Windows
-    
-    To test changes when using Windows:
+
+    **In the examples below:**
+
+    - `username` is your GitHub username.
+    - `branch` is the branch name you've used for your work.
+
+    **To test changes when using Windows:**
 
     - Create a branch in your remote fork of the main ESPHome GitHub repo
     - Install from your fork in the same manner you would
@@ -132,9 +137,14 @@ Once you've pushed your branch, if you wish, you can
         ```
         OR
         ```bash
-        pip install -U git+https://github.com/username/esphome.git@branch --force-reinstall
+        pip install git+https://github.com/username/esphome.git@branch
         ```
 
-    Note that `username` and `branch` are (respectively) your GitHub username and branch name in your ESPHome fork on Github.
+    - To test changes to the repo without modifying version numbers, a subsequent pip update can be performed using
+      flags `--no-deps` along with `--force-reinstall` as follows:
 
-    The `--force-reinstall` flag is important for testing changes!
+        ```bash
+        pip install git+https://github.com/username/esphome.git@branch --no-deps --force-reinstall
+        ```
+
+        This will ensure that pip only compiles and reinstalls ESPHome and not its dependencies.

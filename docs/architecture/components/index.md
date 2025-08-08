@@ -276,8 +276,9 @@ There are several methods `Component` defines which components typically impleme
 - `setup()`: This method is called once as ESPHome starts up to perform initialization of the component. This may mean
   simply initializing some memory/variables or performing a series of read/write calls to look for and initialize
   some (sensor, display, etc.) hardware connected via some bus (I2C, SPI, serial/UART, one-wire, etc.).
-- `loop()`: This method is called at each iteration of ESPHome's main application loop. Typically this is every 16
-  milliseconds, but there may be some variance as other components consume cycles to perform their own tasks.
+- `loop()`: This method is called at each iteration of ESPHome's main application loop. The loop runs approximately 
+  every 7ms (~7000 times per minute), but there may be some variance as other components consume cycles to perform 
+  their own tasks. Components can dynamically control their participation in the main loop (see [Component Loop Control](advanced.md#component-loop-control) in the Advanced Topics page).
 
 #### Other important methods
 
@@ -381,6 +382,10 @@ void ExampleComponent::on_powerdown() {
   // delaying shutdown.
 }
 ```
+
+## Advanced Topics
+
+For more advanced component development topics, including Component Loop Control which allows components to dynamically enable or disable their participation in the main loop for performance optimization, see the [Advanced Topics](advanced.md) page.
 
 ## Going further
 

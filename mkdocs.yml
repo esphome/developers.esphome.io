@@ -83,6 +83,7 @@ nav:
               - SPI: architecture/components/spi.md
               - Serial (UART): architecture/components/uart.md
           - Automations: architecture/components/automations.md
+          - Advanced Topics: architecture/components/advanced.md
       - API:
           - Overview: architecture/api/index.md
           - Protocol Details: architecture/api/protocol_details.md

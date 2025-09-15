@@ -208,14 +208,32 @@ Runtime logging affects the ongoing operation of your component:
 
 ### 1. Use Appropriate Log Levels
 
+We have macros to log messages at the following log levels:
+
 ```cpp
-ESP_LOGVV(TAG, "Detailed trace info");     // VERY_VERBOSE - Usually compiled out
-ESP_LOGV(TAG, "Verbose information");      // VERBOSE - Detailed logging
-ESP_LOGD(TAG, "Debug information");        // DEBUG - For development
-ESP_LOGI(TAG, "Informational message");    // INFO - Important events
-ESP_LOGW(TAG, "Warning condition");        // WARNING - Potential issues
-ESP_LOGE(TAG, "Error occurred");           // ERROR - Definite problems
+ESP_LOGVV(TAG, "Detailed trace info");   // VERY_VERBOSE - Usually compiled out
+ESP_LOGV(TAG, "Verbose information");    // VERBOSE - Detailed logging for troubleshooting/commissioning
+ESP_LOGD(TAG, "Debug information");      // DEBUG - For development
+ESP_LOGI(TAG, "Informational message");  // INFO - Important user-facing events
+ESP_LOGW(TAG, "Warning condition");      // WARNING - Potential issues
+ESP_LOGE(TAG, "Error occurred");         // ERROR - Definite problems/unexpected behavior
 ```
+
+In general, use:
+
+- `ESP_LOGVV` to log detailed technical information, such as the content of data packets/messages being processed
+  and/or processing state/status.
+- `ESP_LOGV` to log messages that don't normally need to be seen but may add value when troubleshooting or
+  preparing/commissioning a new device/configuration.
+- `ESP_LOGD` to log messages that are necessary for normal use; we try to use it sparingly as, when it's too noisy, it
+  becomes difficult to spot these and/or other important messages. Note that, as a project, we abuse this log level a
+  bit; it's normally more verbose than "very verbose" but it is instead ESPHome's default log level and we treat it
+  accordingly.
+- `ESP_LOGI` to log information that a non-tech-savvy user might want to see; this log level should not contain any
+  technical detail that a normal, non-developer human would not be able to make sense of at a glance.
+- `ESP_LOGW` when something potentially bad happened, but we can likely continue without any real issues.
+- `ESP_LOGE` when something really bad happened and we cannot continue and/or unexpected behavior is likely to be the
+  result of the failure.
 
 ### 2. Avoid Logging in Tight Loops
 

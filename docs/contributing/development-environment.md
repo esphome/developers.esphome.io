@@ -59,8 +59,13 @@ This will create a Python virtual environment and install various other requirem
 To use the virtual environment, you need to activate it. This needs to be done for each new terminal session and is
 done by running:
 
+Linux/macOS:
 ```bash
 source venv/bin/activate
+```
+Windows (PowerShell):
+```powershell
+venv\Scripts\Activate
 ```
 
 ## Run `esphome`

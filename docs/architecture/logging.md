@@ -208,7 +208,7 @@ Runtime logging affects the ongoing operation of your component:
 
 ### 1. Use Appropriate Log Levels
 
-We have macros to log messages at the following log levels
+We have macros to log messages at the following log levels:
 
 ```cpp
 ESP_LOGVV(TAG, "Detailed trace info");   // VERY_VERBOSE - Usually compiled out

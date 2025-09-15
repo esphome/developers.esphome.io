@@ -12,7 +12,7 @@ This guide will walk you through the steps to set up an environment you can use 
 
 ## Requirements
 
-- Python 3.10 or newer
+- Python 3.11 or newer
 - `pip` (Python package manager)
 - Familiarity with `git` and GitHub
 

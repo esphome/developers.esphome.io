@@ -41,7 +41,7 @@ Size ranges:
 
 ### Overview
 
-The Noise protocol provides encrypted, authenticated communication using the [Noise XX handshake pattern](https://www.noiseprotocol.org/noise.html#interactive-handshake-patterns-fundamental).
+The Noise protocol provides encrypted, authenticated communication using the [Noise NNpsk0 handshake pattern](https://www.noiseprotocol.org/noise.html#interactive-handshake-patterns-fundamental).
 
 ### Frame Structure
 
@@ -140,7 +140,7 @@ States:
 
 3. **SERVER_HELLO**: Sending server hello with device info
 
-4. **HANDSHAKE**: Performing Noise XX handshake exchange
+4. **HANDSHAKE**: Performing Noise NNpsk0 handshake exchange
 
 5. **DATA**: Handshake complete, ready for encrypted data exchange
 

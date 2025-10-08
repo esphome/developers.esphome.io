@@ -168,7 +168,7 @@ If the config value is not set, then we do not call the setter function.
 - `CODEOWNERS`: A list of GitHub usernames that are responsible for this component. `script/build_codeowners.py` will
   update the `CODEOWNERS` file.
 - `DEPENDENCIES`: A list of components that this component depends on. If these components are not present in the
-   configuration, validation will fail and the user will be shown an error.
+   configuration, or loaded by another component, validation will fail and the user will be shown an error.
 - `MULTI_CONF`: If set to `True`, the user can use this component multiple times in their configuration. If set to a
   number, the user can use this component that number of times.
 - `MULTI_CONF_NO_DEFAULT`: This is a special flag that allows the component to be auto-loaded without an instance of

@@ -153,3 +153,12 @@ Once you've pushed your branch, if you wish, you can
         ```
 
         This will ensure that pip only compiles and reinstalls ESPHome and not its dependencies.
+
+    - If `uv` is installed, which can be done using `pip install uv`, it massively simplifies the above process.
+      UV automagically takes care of all the checks using just one command:
+
+        ```bash
+        uv pip install git+https://github.com/username/esphome.git@branch --system
+        ```
+
+        The `--system` flag is only necessary when running Python on Windows.

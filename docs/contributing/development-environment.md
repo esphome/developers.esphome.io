@@ -151,6 +151,7 @@ Once you've pushed your branch, if you wish, you can
         ```bash
         pip install git+https://github.com/username/esphome.git@branch --no-deps --force-reinstall
         ```
+
         This will ensure that pip only compiles and reinstalls ESPHome and not its dependencies.
 
     - If `uv` is installed, which can be done using `pip install uv`, it massively simplifies the above process.

@@ -161,4 +161,4 @@ Once you've pushed your branch, if you wish, you can
         uv pip install git+https://github.com/username/esphome.git@branch --system
         ```
 
-        The --system flag is only needed for python on Windows installation.
+        The `--system` flag is only necessary when running Python on Windows.

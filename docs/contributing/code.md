@@ -80,16 +80,19 @@ class ClimateDevice : public Component {
 class Buffer {
  public:
   void resize(size_t new_size) {
-    delete[] this->data_;
-    this->data_ = new uint8_t[new_size];
-    this->size_ = new_size;  // Must stay in sync!
+    auto new_data = std::make_unique<uint8_t[]>(new_size);
+    if (this->data_) {
+      std::memcpy(new_data.get(), this->data_.get(), std::min(this->size_, new_size));
+    }
+    this->data_ = std::move(new_data);
+    this->size_ = new_size;  // Must stay in sync with data_
   }
 
  private:
   // These MUST stay synchronized - making them private prevents:
   //   this->size_ = 1000;  // But data_ is still old allocation - buffer overflow!
-  uint8_t *data_{nullptr};
-  size_t size_{0};
+  std::unique_ptr<uint8_t[]> data_;
+  size_t size_{0};  // Must match allocated size of data_
 };
 ```
 

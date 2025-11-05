@@ -41,39 +41,37 @@ We use the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide
 ##### Example: Pointer lifetime safety
 
 ```cpp
-class SelectComponent : public Component {
+class ClimateDevice : public Component {
  public:
-  void set_options(std::vector<const char *> options) {
-    this->options_ = std::move(options);
+  void set_custom_fan_modes(std::initializer_list<const char *> modes) {
+    this->custom_fan_modes_ = modes;
+    this->active_custom_fan_mode_ = nullptr;  // Reset when modes change
   }
 
-  void set_selected_option(const char *option) {
-    // Find the matching option in our valid list
-    for (const char *valid_option : this->options_) {
-      if (strcmp(valid_option, option) == 0) {
-        // Store pointer to OUR string, not the incoming temporary!
-        this->current_option_ = valid_option;
-        return;
+  bool set_custom_fan_mode(const char *mode) {
+    // Find mode in supported list and store that pointer (not the input pointer)
+    for (const char *valid_mode : this->custom_fan_modes_) {
+      if (strcmp(valid_mode, mode) == 0) {
+        this->active_custom_fan_mode_ = valid_mode;
+        return true;
       }
     }
+    return false;  // Mode not in supported list
   }
 
  protected:
   // Protected: Simple state that derived classes can safely access
   bool has_state_{false};
 
-  // Controlled access for derived classes
-  const char *get_current_option_() const { return this->current_option_; }
-
  private:
-  // Private: Pointer that MUST point to valid option in options_ vector
-  const char *current_option_{nullptr};
-  std::vector<const char *> options_;
+  // Private: Pointer that MUST point to entry in custom_fan_modes_ vector
+  std::vector<const char *> custom_fan_modes_;  // Pointers to string literals in flash
+  const char *active_custom_fan_mode_{nullptr};
 };
 
-// If current_option_ was protected, a derived class could do:
-//   this->current_option_ = some_temporary_string;  // Use-after-free bug!
-// By making it private, we enforce that it always points to a valid options_ entry.
+// If active_custom_fan_mode_ was protected, a derived class could do:
+//   this->active_custom_fan_mode_ = some_temporary_string;  // Use-after-free bug!
+// By making it private, we enforce it always points to a valid custom_fan_modes_ entry.
 ```
 
 ##### Example: Invariant coupling

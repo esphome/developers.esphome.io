@@ -36,7 +36,9 @@ We use the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide
 - Wrap lines in all files at no more than 120 characters. This makes reviewing PRs faster and easier. Exceptions
   should be made only for lines where wrapping them would result in a syntax issue.
 
-#### Example: When to use `private` vs `protected`
+#### When to use `private` vs `protected`
+
+##### Example: Pointer lifetime safety
 
 ```cpp
 class SelectComponent : public Component {
@@ -74,7 +76,7 @@ class SelectComponent : public Component {
 // By making it private, we enforce that it always points to a valid options_ entry.
 ```
 
-#### Example: Invariant coupling
+##### Example: Invariant coupling
 
 ```cpp
 class Buffer {

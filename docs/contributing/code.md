@@ -16,15 +16,85 @@ We use the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide
 - Function, method and variable names are `lower_snake_case`
 - Class/struct/enum names should be `UpperCamelCase`
 - Constants should be `UPPER_SNAKE_CASE`
-- Fields should be `protected` and `lower_snake_case_with_trailing_underscore_` (DO NOT use `private`)
+- Fields should be `lower_snake_case_with_trailing_underscore_` and:
+    - **Prefer `protected`** for most fields to allow extensibility and testing
+    - **Use `private`** for true implementation details, especially when direct access could lead to bugs:
+        - **Pointer lifetime issues**: When a setter validates and stores a safe pointer from a known list (e.g., storing
+          `current_option_` pointer that must point to an entry in `options_` vector, not a temporary string)
+        - **Invariant coupling**: When multiple fields must stay synchronized (e.g., `data_` and `size_` must always match)
+        - **Resource management**: When a setter performs cleanup/registration (e.g., unregistering old sensor before
+          storing new one)
+    - Provide `protected` accessor methods when derived classes need controlled access to `private` members
 - It's preferred to use long variable/function names over short and non-descriptive ones.
 - All uses of class members and member functions should be prefixed with `this->` to distinguish them from global
   functions/variables.
 - Use two spaces, not tabs.
-- Using `#define` is discouraged and should be replaced with constants or enums (if appropriate).
+- Using `#define` for constants is discouraged and should be replaced with `const` variables or enums. Use `#define` only for:
+    - Conditional compilation (`#ifdef`, `#ifndef`)
+    - Compile-time sizes calculated during Python code generation (e.g., `cg.add_define("MAX_SERVICES", count)` for `std::array` sizing)
 - Use `using type_t = int;` instead of `typedef int type_t;`
 - Wrap lines in all files at no more than 120 characters. This makes reviewing PRs faster and easier. Exceptions
   should be made only for lines where wrapping them would result in a syntax issue.
+
+#### When to use `private` vs `protected`
+
+##### Example: Pointer lifetime safety
+
+```cpp
+class ClimateDevice : public Component {
+ public:
+  void set_custom_fan_modes(std::initializer_list<const char *> modes) {
+    this->custom_fan_modes_ = modes;
+    this->active_custom_fan_mode_ = nullptr;  // Reset when modes change
+  }
+
+  bool set_custom_fan_mode(const char *mode) {
+    // Find mode in supported list and store that pointer (not the input pointer)
+    for (const char *valid_mode : this->custom_fan_modes_) {
+      if (strcmp(valid_mode, mode) == 0) {
+        this->active_custom_fan_mode_ = valid_mode;
+        return true;
+      }
+    }
+    return false;  // Mode not in supported list
+  }
+
+ protected:
+  // Protected: Simple state that derived classes can safely access
+  bool has_state_{false};
+
+ private:
+  // Private: Pointer that MUST point to entry in custom_fan_modes_ vector
+  std::vector<const char *> custom_fan_modes_;  // Pointers to string literals in flash
+  const char *active_custom_fan_mode_{nullptr};
+};
+
+// If active_custom_fan_mode_ was protected, a derived class could do:
+//   this->active_custom_fan_mode_ = some_temporary_string;  // Use-after-free bug!
+// By making it private, we enforce it always points to a valid custom_fan_modes_ entry.
+```
+
+##### Example: Invariant coupling
+
+```cpp
+class Buffer {
+ public:
+  void resize(size_t new_size) {
+    auto new_data = std::make_unique<uint8_t[]>(new_size);
+    if (this->data_) {
+      std::memcpy(new_data.get(), this->data_.get(), std::min(this->size_, new_size));
+    }
+    this->data_ = std::move(new_data);
+    this->size_ = new_size;  // Must stay in sync with data_
+  }
+
+ private:
+  // These MUST stay synchronized - making them private prevents:
+  //   this->size_ = 1000;  // But data_ is still old allocation - buffer overflow!
+  std::unique_ptr<uint8_t[]> data_;
+  size_t size_{0};  // Must match allocated size of data_
+};
+```
 
 ### Use of external libraries
 

@@ -315,14 +315,6 @@ correctly. Breaking changes must be:
 
     For core and base entity classes, all `public` members are considered stable API.
 
-When developing components:
-
-- **Prefer `protected` over `public`** for internal methods to signal they're not stable APIs
-- **Document** public methods that users should rely on in the esphome.io documentation
-- **Use clear naming** to distinguish between stable APIs and internal helpers (e.g., `internal_do_something_()`)
-- **Mark methods as `private`** when they should never be accessed externally (see
-  [field visibility guidelines](#when-to-use-private-vs-protected))
-
 ### C++ Deprecation Process
 
 When you need to make a C++ breaking change:
@@ -436,14 +428,6 @@ to stop working.
     configuration schemas are guaranteed stable. Python code in `esphome/core/` that is actively used by existing core
     components is considered stable API. Python code that is not called by any core component is internal implementation
     and may change at any time.
-
-When developing Python code:
-
-- **Use clear names** for configuration constants
-- **Add comprehensive validation** to catch user errors early
-- **Provide helpful error messages** when validation fails
-- **Document all user-facing config keys** in esphome-docs
-- **Keep implementation details internal** (use `_private_function()` naming for helpers)
 
 ### Python Deprecation Process
 

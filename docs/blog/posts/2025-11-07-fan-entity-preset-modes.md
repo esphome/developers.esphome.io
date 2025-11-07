@@ -14,7 +14,7 @@ ESPHome 2025.11.0 introduces a memory optimization to the `Fan` entity class tha
 ## Background
 
 **[PR #11483](https://github.com/esphome/esphome/pull/11483): Store Preset Modes in Flash**
-Changes preset mode storage from `std::set<std::string>` (heap, alphabetically sorted) to `std::vector<const char*>` (flash, preserves YAML order). Saves at least 24 bytes overhead (more for longer strings) plus ~70+ bytes with preset modes. Strings move from heap to flash memory. This is particularly important for ESP8266 devices with limited heap.
+Changes preset mode storage from `std::set<std::string>` (heap, alphabetically sorted) to `std::vector<const char*>` (flash, preserves YAML order). Saves ~80 bytes for the `std::set` structure plus at least 24 bytes overhead per preset (more for longer strings). Strings move from heap to flash memory. This is particularly important for ESP8266 devices with limited heap.
 
 ## What's Changing
 

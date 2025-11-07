@@ -73,7 +73,7 @@ const FixedVector<const char *> &types = event->get_event_types();
 - **Breaking change:** `get_event_types()` now returns `const FixedVector<const char *> &` instead of `std::set<std::string>`
 - **Breaking change:** `last_event_type` is now private - use `get_last_event_type()` accessor instead
 - Most components already pass string literal initializer lists like `{"button_press", "button_release"}` which continue to work
-- Setter accepts initializer_list, FixedVector, or std::vector of const char * (same as Select options pattern)
+- Setter accepts `initializer_list`, `FixedVector`, or `std::vector` of `const char *` (same as Select options pattern)
 - Loop variables must change from `const std::string &` to `const char *`
 - Event type comparisons must use `strcmp()` instead of `==` operator
 - No core ESPHome components needed changes (all used initializer list syntax)

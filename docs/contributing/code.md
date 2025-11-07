@@ -349,7 +349,10 @@ class MySensor : public Component {
   void set_filter_mode(FilterMode mode) { this->filter_mode_ = mode; }
 
   // Deprecated method - kept for backward compatibility
-  [[deprecated("Use set_filter_mode() instead. Will be removed in ESPHome 2026.6.0")]]
+  // ESPDEPRECATED(message, when_deprecated)
+  //   message: Description of what to use instead and when it will be removed
+  //   when_deprecated: Version when the deprecation was added (not when it will be removed)
+  ESPDEPRECATED("Use set_filter_mode() instead. Will be removed in ESPHome 2026.6.0", "2025.12.0")
   void set_mode(int mode) {
     ESP_LOGW(TAG, "set_mode() is deprecated and will be removed in ESPHome 2026.6.0. Use set_filter_mode() instead");
     this->set_filter_mode(static_cast<FilterMode>(mode));
@@ -386,6 +389,9 @@ Unlike C++, most Python code in ESPHome is **internal implementation** unless ex
 !!!example "Python API Example"
     ```python
     # In esphome/components/my_component/__init__.py
+    import esphome.codegen as cg
+    import esphome.config_validation as cv
+    from esphome.const import CONF_ID
 
     # PUBLIC - documented configuration schema
     CONF_CUSTOM_PARAM = "custom_param"

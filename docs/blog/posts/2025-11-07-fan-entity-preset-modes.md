@@ -14,7 +14,7 @@ ESPHome 2025.11.0 introduces a memory optimization to the `Fan` entity class tha
 ## Background
 
 **[PR #11483](https://github.com/esphome/esphome/pull/11483): Store Preset Modes in Flash**
-Changes preset mode storage from `std::set<std::string>` (heap, alphabetically sorted) to `std::vector<const char*>` (flash, preserves YAML order). Saves at least 24 bytes overhead (more for longer strings) plus ~70+ bytes with preset modes. Strings move from heap to flash memory.
+Changes preset mode storage from `std::set<std::string>` (heap, alphabetically sorted) to `std::vector<const char*>` (flash, preserves YAML order). Saves at least 24 bytes overhead (more for longer strings) plus ~70+ bytes with preset modes. Strings move from heap to flash memory. This is particularly important for ESP8266 devices with limited heap.
 
 ## What's Changing
 
@@ -139,7 +139,7 @@ if (it != this->preset_modes_.end()) {
 }
 ```
 
-**Note:** `std::find_if` is cleaner but adds STL template overhead. For ESP8266 devices with tight flash constraints, prefer the manual loop approach.
+**Note:** `std::find_if` is cleaner but adds STL template overhead. For ESP8266 devices with tight flash constraints, prefer the manual loop approach. For typical fan preset counts (3-6 items), linear search performance is negligible and the simpler approach is fine.
 
 ### 5. Remove Unnecessary Includes
 
@@ -270,6 +270,8 @@ class MyFan : public fan::Fan {
   }
 };
 ```
+
+**Important:** The `preset_strings_` member must outlive `preset_modes_` and never be resized or modified after the pointers are assigned, as this would invalidate the pointers in `preset_modes_`. `FixedVector` guarantees this by allocating all storage upfront with `init()` and never reallocating.
 
 ## Timeline
 

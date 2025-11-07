@@ -432,8 +432,10 @@ to stop working.
 ### Python User Expectations
 
 !!!warning "External Components"
-    External components that rely on ESPHome's internal Python API may break between releases. Only documented
-    configuration schemas and explicitly public Python APIs are guaranteed stable.
+    External components that rely on ESPHome's Python implementation may break between releases. Only documented
+    configuration schemas are guaranteed stable. Python code in `esphome/core/` that is actively used by existing core
+    components is considered stable API. Python code that is not called by any core component is internal implementation
+    and may change at any time.
 
 When developing Python code:
 

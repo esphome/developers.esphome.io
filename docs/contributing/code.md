@@ -485,36 +485,49 @@ CONFIG_SCHEMA = cv.Schema({
 ```
 
 ```python
-# Example: Deprecating a schema constant (with removal date comment)
+# Example: Deprecating a configuration key with value transformation (based on ethernet component)
 import logging
 _LOGGER = logging.getLogger(__name__)
 
-# Internal schema (preferred approach)
-def my_component_schema(class_: cg.MockObjClass = MyComponent):
-    return cv.Schema({
-        cv.GenerateID(): cv.declare_id(class_),
-        # ... config options
-    })
+CONF_OLD_MODE = "clk_mode"
+CONF_CLK = "clk"
+CONF_MODE = "mode"
+CONF_PIN = "pin"
 
-# Remove before 2026.6.0
-def deprecated_schema_constant(config):
-    """Warn users about deprecated schema constant usage."""
-    type_name = "unknown"
-    if (id := config.get(CONF_ID)) is not None and isinstance(id, core.ID):
-        type_name = str(id.type).split("::", maxsplit=1)[0]
-    _LOGGER.warning(
-        "Using `my_component.MY_COMPONENT_SCHEMA` is deprecated and will be removed in ESPHome 2026.6.0. "
-        "Please use `my_component.my_component_schema(...)` instead. "
-        "If you are seeing this, report an issue to the external_component author and ask them to update it. "
-        "See: https://developers.esphome.io/blog/YYYY/MM/DD/schema-deprecations/ (example URL). "
-        "Component using this schema: %s",
-        type_name,
-    )
+# Map old values to new format
+OLD_MODE_MAPPING = {
+    "GPIO0_IN": ("CLK_EXT_IN", 0),
+    "GPIO0_OUT": ("CLK_OUT", 0),
+    "GPIO16_OUT": ("CLK_OUT", 16),
+    "GPIO17_OUT": ("CLK_OUT", 17),
+}
+
+CLK_SCHEMA = cv.Schema({
+    cv.Required(CONF_MODE): cv.enum({"CLK_EXT_IN", "CLK_OUT"}, upper=True),
+    cv.Required(CONF_PIN): cv.int_,
+})
+
+def validate_config(config):
+    # Remove before 2026.6.0
+    if CONF_OLD_MODE in config:
+        _LOGGER.warning(
+            "The 'clk_mode' option is deprecated and will be removed in ESPHome 2026.6.0. "
+            "Please update your configuration to use 'clk' instead."
+        )
+        mode_info = OLD_MODE_MAPPING[config[CONF_OLD_MODE]]
+        config[CONF_CLK] = {CONF_MODE: mode_info[0], CONF_PIN: mode_info[1]}
+        del config[CONF_OLD_MODE]
+    elif CONF_CLK not in config:
+        raise cv.Invalid("'clk' is a required option for this component.")
     return config
 
-# Deprecated constant kept for backward compatibility
-MY_COMPONENT_SCHEMA = my_component_schema(MyComponent)
-MY_COMPONENT_SCHEMA.add_extra(deprecated_schema_constant)
+CONFIG_SCHEMA = cv.All(
+    cv.Schema({
+        cv.Optional(CONF_OLD_MODE): cv.enum(OLD_MODE_MAPPING, upper=True),  # Deprecated
+        cv.Optional(CONF_CLK): CLK_SCHEMA,  # New format
+    }),
+    validate_config
+)
 ```
 
 !!!tip "Deprecation Best Practices"

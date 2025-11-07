@@ -9,7 +9,7 @@ comments: true
 
 The core automation framework (actions, triggers, and conditions) has been optimized to use const references instead of pass-by-value for parameter passing. This reduces memory allocations by 83% in the automation execution path.
 
-This is a **breaking change** for external components with custom actions or conditions. The change is live in ESPHome **2025.11.0** (released around November 19, 2025).
+This is a **breaking change** for external components with custom actions or conditions in **ESPHome 2025.11.0 and later**.
 
 ## What needs to change
 
@@ -53,7 +53,25 @@ note: candidate is: 'void MyAction::play(const Ts& ...)'
 ```bash
 # Find actions/conditions that need updating
 grep -rn "void play(Ts\.\.\. \w\+) override" your_component/
+grep -rn "void play_complex(Ts\.\.\. \w\+) override" your_component/
 grep -rn "bool check(Ts\.\.\. \w\+) override" your_component/
+```
+
+## Supporting multiple ESPHome versions
+
+If your external component needs to support both old and new ESPHome versions:
+
+```cpp
+// Use version guards for compatibility
+#if ESPHOME_VERSION_CODE >= VERSION_CODE(2025, 11, 0)
+  void play(const Ts&... x) override {
+    // Implementation
+  }
+#else
+  void play(Ts... x) override {
+    // Implementation
+  }
+#endif
 ```
 
 ## Why this change

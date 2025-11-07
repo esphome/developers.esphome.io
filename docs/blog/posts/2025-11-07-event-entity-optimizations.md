@@ -68,6 +68,7 @@ const FixedVector<const char *> &types = event->get_event_types();
 ## Who This Affects
 
 **Event Type Changes (PR #11767) - External components need updates:**
+
 - **Breaking change:** `set_event_types()` now requires `const char *` strings (string literals)
 - **Breaking change:** `get_event_types()` now returns `const FixedVector<const char *> &` instead of `std::set<std::string>`
 - **Breaking change:** `last_event_type` is now private - use `get_last_event_type()` accessor instead
@@ -282,9 +283,9 @@ For typical event use cases (1-5 event types):
 
 - **ESPHome 2025.11.0 (November 2025):**
   - Both optimizations active in same release
-  - [PR #11463](https://github.com/esphome/esphome/pull/11463): std::set → FixedVector<std::string> (merged)
-  - [PR #11767](https://github.com/esphome/esphome/pull/11767): FixedVector<std::string> → FixedVector<const char *> (in progress)
-  - External components only need to migrate once (from std::set<std::string> to FixedVector<const char *>)
+  - [PR #11463](https://github.com/esphome/esphome/pull/11463): `std::set<std::string>` → `FixedVector<std::string>`
+  - [PR #11767](https://github.com/esphome/esphome/pull/11767): `FixedVector<std::string>` → `FixedVector<const char *>`
+  - External components only need to migrate once (from `std::set<std::string>` to `FixedVector<const char *>`)
 
 ## Finding Code That Needs Updates
 

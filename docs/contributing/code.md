@@ -232,16 +232,20 @@ generation can access them. These are implementation details, not stable interfa
     If `set_update_interval` is documented on esphome.io, changing its signature is a breaking change. However,
     `set_internal_buffer_size` can be changed or removed freely since it's not documented.
 
-#### For Core and Base Entity Classes
+#### For Core, Base Entity Classes, and API Component
 
-For core functionality and base entity classes (like `Component`, `Sensor`, `BinarySensor`, `Switch`, etc.),
-**all `public` C++ members are considered part of the public API**.
+For core functionality, base entity classes (like `Component`, `Sensor`, `BinarySensor`, `Switch`, etc.), and the
+`api` component, **all `public` C++ members are considered part of the public API**.
 
-- **Public API**: Any `public` method or member in core classes or base entity classes
+- **Public API**: Any `public` method or member in core classes, base entity classes, and the `api` component
 - **Internal Implementation**: Only `protected` and `private` members
+- **Exception**: Methods in the `api` component that are exclusively called by Python codegen (typically configuration
+  setters) follow the component rules, not the stricter API rules
 
-This stricter definition exists because these classes form the foundation that all components build upon, and many
-users create custom components that inherit from or interact with these base classes.
+This stricter definition exists because:
+- These classes form the foundation that all components build upon
+- Many users create custom components that inherit from or interact with these base classes
+- The `api` component is used by external components to interact with the ESPHome native API
 
 !!!example "Core Example"
     ```cpp

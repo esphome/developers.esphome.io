@@ -353,10 +353,7 @@ class MySensor : public Component {
   //   message: Description of what to use instead and when it will be removed
   //   when_deprecated: Version when the deprecation was added (not when it will be removed)
   ESPDEPRECATED("Use set_filter_mode() instead. Will be removed in ESPHome 2026.6.0", "2025.12.0")
-  void set_mode(int mode) {
-    ESP_LOGW(TAG, "set_mode() is deprecated and will be removed in ESPHome 2026.6.0. Use set_filter_mode() instead");
-    this->set_filter_mode(static_cast<FilterMode>(mode));
-  }
+  void set_mode(int mode) { this->set_filter_mode(static_cast<FilterMode>(mode)); }
 
  protected:
   FilterMode filter_mode_;

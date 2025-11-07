@@ -48,12 +48,11 @@ const char *current = my_select->current_option();
 
 This affects **external components** that:
 
-- Implement custom Select entities in C++
+- Manually call `set_options()` on SelectTraits in C++ code (Python code generation already uses the correct syntax)
 - Access the `.state` member of Select objects
-- Call `set_options()` on SelectTraits
 - Iterate over or compare select options
 
-Standard YAML configurations are **not affected** and require no changes.
+**Standard YAML configurations are not affected** - Python code generation already produces initializer lists, so no YAML changes are needed. This only impacts external components that create select entities entirely in C++.
 
 ## Migration Guide
 

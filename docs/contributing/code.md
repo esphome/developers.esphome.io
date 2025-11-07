@@ -247,7 +247,7 @@ This stricter definition exists because:
 - Many users create custom components that inherit from or interact with these base classes
 - The `api` component is used by external components to interact with the ESPHome native API
 
-!!!example "Core Example"
+!!!example "Core and API Component Examples"
     ```cpp
     // In esphome/core/component.h
     class Component {
@@ -259,10 +259,22 @@ This stricter definition exists because:
      protected:
       CallbackManager<void()> *defer_;  // INTERNAL - can change
     };
+
+    // In esphome/components/api/api_server.h
+    class APIServer : public Component {
+     public:
+      void send_log_message(/* ... */);      // PUBLIC API - used by external components
+      bool is_connected();                   // PUBLIC API - used by external components
+      void set_port(uint16_t port);          // INTERNAL - only called by Python codegen
+
+     protected:
+      uint16_t port_;                        // INTERNAL - can change
+    };
     ```
 
-    Any change to the `public` methods in `Component` is a breaking change because users and components rely on this
-    interface.
+    Any change to the `public` methods in `Component` or public methods like `send_log_message()` in `APIServer`
+    is a breaking change because users and components rely on these interfaces. However, `set_port()` is only
+    called by Python codegen, so it follows component rules and can be changed.
 
 ### What Constitutes a C++ Breaking Change?
 

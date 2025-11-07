@@ -13,13 +13,25 @@ ESPHome 2025.11.0 introduces memory optimizations to the `Light` entity class th
 
 ## Background
 
+### Motivation
+
+Light components are among the most commonly used in ESPHome, and their memory footprint directly impacts available heap for runtime operations. On ESP8266 devices with only ~40KB of usable heap, every optimization matters:
+
+- **Effect names** were stored as `std::string` objects on the heap, consuming allocation overhead (typically 24+ bytes) plus the string data for each effect
+- **Color mode sets** used `std::set<ColorMode>` with red-black tree structure, consuming ~80 bytes of base overhead plus additional overhead for each member (2-4 modes typical)
+- Light components often have multiple effects (5-10 common) and support several color modes, making this overhead multiply across each light entity
+
+Moving effect names to flash and color modes to a 2-byte bitmask frees heap memory for runtime operations like network buffers, API operations, and component state. The bitmask also provides much faster O(1) lookups compared to the red-black tree's more expensive O(log n) operations.
+
+### Changes
+
 Two optimization PRs improved Light entity memory usage:
 
 **[PR #11487](https://github.com/esphome/esphome/pull/11487): Store Effect Names in Flash**
-Changes effect name storage from `std::string` (heap) to `const char*` (flash). Saves string allocation overhead plus string data for each effect. This is particularly important for ESP8266 devices with limited heap.
+Changes effect name storage from `std::string` (heap) to `const char*` (flash). Saves string allocation overhead plus string data for each effect.
 
 **[PR #11348](https://github.com/esphome/esphome/pull/11348): Use Bitmask for Color Modes**
-Changes color mode storage from `std::set<ColorMode>` (red-black tree on heap) to `ColorModeMask` (uint16_t bitmask). Saves ~586 bytes of red-black tree overhead. This is particularly important for ESP8266 devices with limited heap.
+Changes color mode storage from `std::set<ColorMode>` (red-black tree on heap) to `ColorModeMask` (uint16_t bitmask, 2 bytes). Saves ~80 bytes of base `std::set` overhead plus per-member overhead. Provides much faster O(1) lookups.
 
 ## What's Changing
 
@@ -278,6 +290,16 @@ auto effect = new MyEffect(name);  // Array destroyed!
 ```
 
 ## ColorModeMask Details
+
+### Performance Benefits
+
+`ColorModeMask` uses a 2-byte (uint16_t) bitmask instead of a red-black tree:
+
+- **Memory**: 2 bytes vs ~80 bytes base overhead + per-member overhead
+- **Lookup speed**: O(1) single bitwise AND operation vs O(log n) tree traversal
+- **Cache efficiency**: Fits in CPU cache vs pointer chasing through tree nodes
+
+For typical light use cases (2-4 color modes, frequent lookups), this provides significant performance and memory improvements.
 
 ### Iterator Support
 

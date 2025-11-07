@@ -39,7 +39,7 @@ Event type storage has been optimized through two PRs to eliminate memory overhe
 - Eliminates std::string heap allocations (~24 bytes overhead + content per event type)
 - **ESP32**: Event type strings stored in flash (ROM), freeing heap
 - **ESP8266**: Event type strings in rodata section (still RAM, but eliminates std::string overhead)
-- Uses FixedVector<const char *> (same as Select entity pattern - returned by const reference, never by value)
+- Uses `FixedVector<const char *>` (same as Select entity pattern - returned by const reference, never by value)
 
 **Combined result:** Event types changed from `std::set<std::string>` → `FixedVector<const char *>`
 
@@ -110,7 +110,7 @@ std::set<std::string> types = {"button_press", "button_release"};
 event->set_event_types(types);  // Deleted overload, no longer supported
 ```
 
-**Note:** Accepts initializer list, FixedVector<const char *>, or std::vector<const char *>. Same pattern as Select options.
+**Note:** Accepts initializer list, `FixedVector<const char *>`, or `std::vector<const char *>`. Same pattern as Select options.
 
 ### 3. Update Getter Usage (Required If You Call get_event_types())
 
@@ -258,7 +258,7 @@ class MyEvent : public event::Event {
 };
 ```
 
-## FixedVector<const char *> Benefits
+## `FixedVector<const char *>` Benefits
 
 For typical event use cases (1-5 event types):
 

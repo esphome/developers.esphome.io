@@ -234,17 +234,20 @@ generation can access them. These are implementation details, not stable interfa
 
 #### For Core, Base Entity Classes, and API Component
 
-For core functionality, base entity classes (like `Component`, `Sensor`, `BinarySensor`, `Switch`, etc.), and the
-`api` component, **all `public` C++ members are considered part of the public API**.
+For core functionality (anything in `esphome/core/`), base entity classes (like `Component`, `Sensor`, `BinarySensor`,
+`Switch`, etc.), and the `api` component, **all `public` C++ members are considered part of the public API**.
 
-- **Public API**: Any `public` method or member in core classes, base entity classes, and the `api` component
+- **Public API**: Any `public` method or member in:
+  - Core classes (`esphome/core/` directory)
+  - Base entity classes
+  - The `api` component
 - **Internal Implementation**: Only `protected` and `private` members
 - **Exception**: Methods in the `api` component that are exclusively called by Python codegen (typically configuration
   setters) follow the component rules, not the stricter API rules
 
 This stricter definition exists because:
 - These classes form the foundation that all components build upon
-- Many users create custom components that inherit from or interact with these base classes
+- Many users create external components that inherit from or interact with these base classes
 - The `api` component is used by external components to interact with the ESPHome native API
 
 !!!example "Core and API Component Examples"
@@ -278,7 +281,7 @@ This stricter definition exists because:
 
 ### What Constitutes a C++ Breaking Change?
 
-A breaking change is any modification that could cause existing custom C++ components to stop compiling or behaving
+A breaking change is any modification that could cause existing external components to stop compiling or behaving
 correctly. Breaking changes must be:
 
 1. **Documented** in the PR description (which generates release notes)
@@ -307,7 +310,7 @@ correctly. Breaking changes must be:
 ### C++ User Expectations
 
 !!!warning "Use at Your Own Risk"
-    Users are free to use any `public` C++ method in their custom components, but only documented APIs are guaranteed
+    Users are free to use any `public` C++ method in their external components, but only documented APIs are guaranteed
     to remain stable. Undocumented public methods in components may change or be removed at any time without notice.
 
     For core and base entity classes, all `public` members are considered stable API.

@@ -232,25 +232,27 @@ generation can access them. These are implementation details, not stable interfa
     If `set_update_interval` is documented on esphome.io, changing its signature is a breaking change. However,
     `set_internal_buffer_size` can be changed or removed freely since it's not documented.
 
-#### For Core, Base Entity Classes, and API Component
+#### For Core, Base Entity Classes, and Components with Global Accessors
 
 For core functionality (anything in `esphome/core/`), base entity classes (like `Component`, `Sensor`, `BinarySensor`,
-`Switch`, etc.), and the `api` component, **all `public` C++ members are considered part of the public API**.
+`Switch`, etc.), and components accessible via global accessors, **all `public` C++ members are considered part of the
+public API**.
 
 - **Public API**: Any `public` method or member in:
   - Core classes (`esphome/core/` directory)
   - Base entity classes
-  - The `api` component
+  - Components with global accessors (e.g., `global_api_server`, `global_preferences`, `global_voice_assistant`,
+    `global_bluetooth_proxy`)
 - **Internal Implementation**: Only `protected` and `private` members
-- **Exception**: Methods in the `api` component that are exclusively called by Python codegen (typically configuration
-  setters) follow the component rules, not the stricter API rules
+- **Exception**: Methods that are exclusively called by Python codegen (typically configuration setters) are not public
+  API, even in components with global accessors
 
 This stricter definition exists because:
 - These classes form the foundation that all components build upon
 - Many users create external components that inherit from or interact with these base classes
-- The `api` component is used by external components to interact with the ESPHome native API
+- Global accessors explicitly expose components for use by other components, making them part of the public contract
 
-!!!example "Core and API Component Examples"
+!!!example "Core and Global Accessor Examples"
     ```cpp
     // In esphome/core/component.h
     class Component {
@@ -266,18 +268,20 @@ This stricter definition exists because:
     // In esphome/components/api/api_server.h
     class APIServer : public Component {
      public:
-      void send_log_message(/* ... */);      // PUBLIC API - used by external components
-      bool is_connected();                   // PUBLIC API - used by external components
+      void send_log_message(/* ... */);      // PUBLIC API - used via global_api_server
+      bool is_connected();                   // PUBLIC API - used via global_api_server
       void set_port(uint16_t port);          // INTERNAL - only called by Python codegen
 
      protected:
       uint16_t port_;                        // INTERNAL - can change
     };
+
+    extern APIServer *global_api_server;  // Global accessor exposes this component
     ```
 
     Any change to the `public` methods in `Component` or public methods like `send_log_message()` in `APIServer`
-    is a breaking change because users and components rely on these interfaces. However, `set_port()` is only
-    called by Python codegen, so it follows component rules and can be changed.
+    is a breaking change because external components access these via global accessors. However, `set_port()` is
+    only called by Python codegen, so it can be changed.
 
 ### What Constitutes a C++ Breaking Change?
 

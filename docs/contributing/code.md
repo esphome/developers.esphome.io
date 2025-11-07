@@ -243,9 +243,9 @@ public API**.
   - Base entity classes
   - Components with global accessors (e.g., `global_api_server`, `global_preferences`, `global_voice_assistant`,
     `global_bluetooth_proxy`)
-- **Internal Implementation**: Only `protected` and `private` members
+- **Internal Implementation**: `protected` and `private` members (including in components with global accessors)
 - **Exception**: Methods that are exclusively called by Python codegen (typically configuration setters) are not public
-  API, even in components with global accessors
+  API, even if marked `public` in components with global accessors
 
 This stricter definition exists because:
 - These classes form the foundation that all components build upon
@@ -323,7 +323,7 @@ correctly. Breaking changes must be:
 
 When you need to make a C++ breaking change:
 
-1. **Add a deprecation warning** using compile-time warnings or runtime logs (if possible—see note below)
+1. **Add a deprecation warning** using compile-time warnings or runtime logs (when possible—see compatibility window note)
 2. **Maintain the old behavior** alongside the new for 6 months when possible (note: for C++ changes, maintaining
    backward compatibility is not always possible, especially for signature changes or refactorings)
 3. **Document the migration path** in the PR description (which generates release notes) and code comments
@@ -490,7 +490,7 @@ import logging
 _LOGGER = logging.getLogger(__name__)
 
 # Internal schema (preferred approach)
-def my_component_schema(class_: MockObjClass = MyComponent):
+def my_component_schema(class_: cg.MockObjClass = MyComponent):
     return cv.Schema({
         cv.GenerateID(): cv.declare_id(class_),
         # ... config options
@@ -506,7 +506,7 @@ def deprecated_schema_constant(config):
         "Using `my_component.MY_COMPONENT_SCHEMA` is deprecated and will be removed in ESPHome 2026.6.0. "
         "Please use `my_component.my_component_schema(...)` instead. "
         "If you are seeing this, report an issue to the external_component author and ask them to update it. "
-        "See: https://developers.esphome.io/blog/2025/05/14/_schema-deprecations/. "
+        "See: https://developers.esphome.io/blog/YYYY/MM/DD/schema-deprecations/ (example URL). "
         "Component using this schema: %s",
         type_name,
     )
@@ -539,6 +539,9 @@ MY_COMPONENT_SCHEMA.add_extra(deprecated_schema_constant)
 
     For simple component changes, the PR description is usually sufficient. The PR description will be used to
     generate release notes, so ensure it includes clear migration instructions for any breaking changes.
+
+    Blog posts should be submitted to the [developers.esphome.io](https://github.com/esphome/developers.esphome.io)
+    repository in the `docs/blog/posts/` directory.
 
 ### Breaking Changes Checklist
 

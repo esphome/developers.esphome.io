@@ -16,7 +16,7 @@ ESPHome 2025.11.0 introduces significant optimizations to the `Select` entity cl
 Two related PRs optimize the Select entity class:
 
 **[PR #11623](https://github.com/esphome/esphome/pull/11623): Index-Based Operations**
-Refactors Select to use indices internally instead of strings, eliminating redundant string storage and operations. The public `state` member is deprecated and will be removed in ESPHome 2026.5.0 (6-month migration window). This saves ~32 bytes per SelectCall operation immediately, and will save at least 28 bytes per Select instance after the deprecated `.state` member is removed (more for longer option strings).
+Refactors Select to use indices internally instead of strings, eliminating redundant string storage and operations. The public `state` member is deprecated and will be removed in ESPHome 2026.5.0 (6-month migration window). This saves ~32 bytes per SelectCall operation immediately, and will save at least 28 bytes per Select instance after the deprecated `.state` member is removed (28 bytes std::string overhead + string length).
 
 **[PR #11514](https://github.com/esphome/esphome/pull/11514): Store Options in Flash**
 Changes option storage from heap-allocated `std::vector<std::string>` to flash-stored `FixedVector<const char*>`. Real device measurements show 164-7428 bytes saved, scaling with the total number of options across all select entities. More selects or more options per select means greater savings.
@@ -127,7 +127,7 @@ lambda: 'return id(my_select).state == "option1";'
 # NEW - required after 2026.5.0, use strcmp()
 lambda: 'return strcmp(id(my_select).current_option(), "option1") == 0;'
 
-# Or convert to std::string if you prefer == operator
+# Or convert to std::string if you prefer == operator (less efficient)
 lambda: 'return std::string(id(my_select).current_option()) == "option1";'
 ```
 

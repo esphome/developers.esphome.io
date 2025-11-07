@@ -196,6 +196,394 @@ In general, we try to avoid use of external libraries.
 Please be sure your work is consistent with the standards outlined above before
 [submitting your work for integration into ESPHome](submitting-your-work.md).
 
+## Public API and Breaking Changes
+
+Understanding what constitutes ESPHome's "public API" is crucial for maintaining backward compatibility and
+managing user expectations. This section covers both C++ and Python APIs, and how to handle breaking changes.
+
+### What is Considered Public C++ API?
+
+ESPHome distinguishes between different scopes of what constitutes the public C++ API:
+
+#### For Components
+
+For individual components (sensors, switches, displays, etc.), **only features documented in the user-facing
+documentation at [esphome.io](https://esphome.io)** are considered part of the public C++ API.
+
+- **Public API**: Any method, property, or behavior that is documented in the component's documentation page
+- **Internal Implementation**: Everything else, even if technically `public` in C++
+
+**Why the distinction?** Many C++ members are marked `public` purely for technical reasons—typically so Python code
+generation can access them. These are implementation details, not stable interfaces.
+
+!!!example "Component Example"
+    ```cpp
+    // In a sensor component
+    class MySensorComponent : public PollingComponent, public sensor::Sensor {
+     public:
+      void set_update_interval(uint32_t interval);  // Documented in esphome.io - PUBLIC API
+      void set_internal_buffer_size(size_t size);   // Not documented - INTERNAL, may change
+
+     protected:
+      size_t buffer_size_{256};  // Internal implementation detail
+    };
+    ```
+
+    If `set_update_interval` is documented on esphome.io, changing its signature is a breaking change. However,
+    `set_internal_buffer_size` can be changed or removed freely since it's not documented.
+
+#### For Core and Base Entity Classes
+
+For core functionality and base entity classes (like `Component`, `Sensor`, `BinarySensor`, `Switch`, etc.),
+**all `public` C++ members are considered part of the public API**.
+
+- **Public API**: Any `public` method or member in core classes or base entity classes
+- **Internal Implementation**: Only `protected` and `private` members
+
+This stricter definition exists because these classes form the foundation that all components build upon, and many
+users create custom components that inherit from or interact with these base classes.
+
+!!!example "Core Example"
+    ```cpp
+    // In esphome/core/component.h
+    class Component {
+     public:
+      virtual void setup();           // PUBLIC API - cannot change signature
+      virtual void loop();            // PUBLIC API - cannot change signature
+      void set_timeout(/* ... */);    // PUBLIC API - cannot change signature
+
+     protected:
+      CallbackManager<void()> *defer_;  // INTERNAL - can change
+    };
+    ```
+
+    Any change to the `public` methods in `Component` is a breaking change because users and components rely on this
+    interface.
+
+### What Constitutes a C++ Breaking Change?
+
+A breaking change is any modification that could cause existing custom C++ components to stop compiling or behaving
+correctly. Breaking changes must be:
+
+1. **Documented** in the PR description (which generates release notes)
+2. **Justified** with clear reasoning for why the change is necessary
+3. **Accompanied** by deprecation warnings when possible (for gradual migration)
+
+#### C++ Breaking Changes Include
+
+- Changing the signature of a documented/public method
+- Removing a documented public method
+- Changing the behavior of a documented feature in an incompatible way
+- Renaming public classes or methods from core/base entity classes
+- Changing virtual method signatures that components override
+- Removing public methods from core/base entity classes
+- Changing the inheritance hierarchy of core/base classes
+
+#### Not C++ Breaking Changes
+
+- Refactoring internal implementation details
+- Changing `protected` or `private` members
+- Removing undocumented public methods from components (though a deprecation notice is courteous)
+- Adding new public methods (as long as they don't conflict with existing usage)
+- Adding new optional parameters with default values
+- Adding new virtual methods with default implementations
+
+### C++ User Expectations
+
+!!!warning "Use at Your Own Risk"
+    Users are free to use any `public` C++ method in their custom components, but only documented APIs are guaranteed
+    to remain stable. Undocumented public methods in components may change or be removed at any time without notice.
+
+    For core and base entity classes, all `public` members are considered stable API.
+
+When developing components:
+
+- **Prefer `protected` over `public`** for internal methods to signal they're not stable APIs
+- **Document** public methods that users should rely on in the esphome.io documentation
+- **Use clear naming** to distinguish between stable APIs and internal helpers (e.g., `internal_do_something_()`)
+- **Mark methods as `private`** when they should never be accessed externally (see
+  [field visibility guidelines](#when-to-use-private-vs-protected))
+
+### C++ Deprecation Process
+
+When you need to make a C++ breaking change:
+
+1. **Add a deprecation warning** using compile-time warnings or runtime logs (if possible—see note below)
+2. **Maintain the old behavior** alongside the new for 6 months when possible (note: for C++ changes, maintaining
+   backward compatibility is not always possible, especially for signature changes or refactorings)
+3. **Document the migration path** in the PR description (which generates release notes) and code comments
+4. **Update all internal usage** to use the new API
+
+!!!note "C++ Compatibility Window"
+    ESPHome aims to maintain backward compatibility for 6 months when possible. However, some C++ breaking changes
+    cannot maintain backward compatibility:
+
+    - **Signature changes**: Changes to virtual method signatures, template parameters, or function signatures
+    - **Deep refactorings**: Architectural changes that affect the class hierarchy or design patterns
+    - **Resource constraints**: When the old design uses excessive RAM/flash and requires a complete redesign
+
+    In these cases, a clean break is necessary. Skip the deprecation warning and clearly document the breaking change
+    with migration examples in the PR description.
+
+```cpp
+// Example: Deprecating a method
+// Remove before 2026.6.0
+class MySensor : public Component {
+ public:
+  // New method
+  void set_filter_mode(FilterMode mode) { this->filter_mode_ = mode; }
+
+  // Deprecated method - kept for backward compatibility
+  [[deprecated("Use set_filter_mode() instead. Will be removed in ESPHome 2026.6.0")]]
+  void set_mode(int mode) {
+    ESP_LOGW(TAG, "set_mode() is deprecated and will be removed in ESPHome 2026.6.0. Use set_filter_mode() instead");
+    this->set_filter_mode(static_cast<FilterMode>(mode));
+  }
+
+ protected:
+  FilterMode filter_mode_;
+};
+```
+
+### What is Considered Public Python API?
+
+The Python side of ESPHome handles configuration validation and C++ code generation. Understanding what constitutes
+the public Python API is important for maintaining compatibility with user configurations and external components.
+
+#### Configuration Schema
+
+**All configuration options documented at [esphome.io](https://esphome.io)** are considered part of the public Python
+API. This includes:
+
+- **Configuration keys**: Any YAML key that appears in documentation (e.g., `update_interval`, `pin`, `name`)
+- **Configuration validators**: Expected types, ranges, and validation behavior for config values
+- **Configuration structure**: Nesting requirements, required vs optional keys
+- **Platform names**: The names used to reference components (e.g., `sensor.dht`, `switch.gpio`)
+
+#### Python Functions and Classes
+
+Unlike C++, most Python code in ESPHome is **internal implementation** unless explicitly documented:
+
+- **Public API**: Only functions and classes documented in developer documentation or explicitly intended for use by
+  external components
+- **Internal Implementation**: All other Python code, even if not prefixed with underscore
+
+!!!example "Python API Example"
+    ```python
+    # In esphome/components/my_component/__init__.py
+
+    # PUBLIC - documented configuration schema
+    CONF_CUSTOM_PARAM = "custom_param"
+
+    CONFIG_SCHEMA = cv.Schema({
+        cv.GenerateID(): cv.declare_id(MyComponent),
+        cv.Required(CONF_CUSTOM_PARAM): cv.int_,  # PUBLIC - documented config key
+    })
+
+    async def to_code(config):
+        # INTERNAL - can change implementation
+        var = cg.new_Pvariable(config[CONF_ID])
+        cg.add(var.set_custom_param(config[CONF_CUSTOM_PARAM]))
+    ```
+
+### What Constitutes a Python Breaking Change?
+
+A Python breaking change is any modification that could cause existing user YAML configurations or external components
+to stop working.
+
+#### Python Breaking Changes Include
+
+- Removing a documented configuration key
+- Renaming a documented configuration key
+- Changing validation requirements (e.g., making optional key required, tightening accepted value ranges)
+- Changing default values in ways that alter behavior
+- Removing a platform or component
+- Changing the generated C++ code in ways that break documented C++ API
+- Changing configuration inheritance (e.g., removing schema extensions)
+
+#### Not Python Breaking Changes
+
+- Refactoring internal Python functions
+- Changing how code generation works internally (as long as output behavior is preserved)
+- Renaming internal Python variables or helper functions
+- Optimizing configuration validation (as long as validation behavior is unchanged)
+- Adding new optional configuration keys
+- Adding new components or platforms
+
+### Python User Expectations
+
+!!!warning "External Components"
+    External components that rely on ESPHome's internal Python API may break between releases. Only documented
+    configuration schemas and explicitly public Python APIs are guaranteed stable.
+
+When developing Python code:
+
+- **Use clear names** for configuration constants
+- **Add comprehensive validation** to catch user errors early
+- **Provide helpful error messages** when validation fails
+- **Document all user-facing config keys** in esphome-docs
+- **Keep implementation details internal** (use `_private_function()` naming for helpers)
+
+### Python Deprecation Process
+
+When you need to make a Python breaking change:
+
+1. **Add a deprecation warning** during configuration validation
+2. **Maintain backward compatibility** for 6 months when possible
+3. **Document the migration path** clearly in warnings and the PR description (which generates release notes)
+4. **Update all examples** in esphome-docs to use the new configuration format
+
+!!!note "Python Compatibility Window"
+    ESPHome aims to maintain backward compatibility for Python/configuration changes for 6 months. Python changes
+    are generally easier to maintain backward compatibility for compared to C++, so deprecation periods should be
+    provided whenever possible.
+
+```python
+# Example: Deprecating a configuration key
+import logging
+_LOGGER = logging.getLogger(__name__)
+
+CONF_OLD_KEY = "old_key"
+CONF_NEW_KEY = "new_key"
+
+def validate_config(config):
+    if CONF_OLD_KEY in config:
+        _LOGGER.warning(
+            "'%s' is deprecated and will be removed in ESPHome 2026.6.0. "
+            "Please use '%s' instead. "
+            "See migration guide: https://developers.esphome.io/blog/...",
+            CONF_OLD_KEY,
+            CONF_NEW_KEY
+        )
+        # Provide automatic migration
+        if CONF_NEW_KEY not in config:
+            config[CONF_NEW_KEY] = config[CONF_OLD_KEY]
+    return config
+
+# During deprecation period (6 months) - keep both keys
+CONFIG_SCHEMA = cv.Schema({
+    cv.Optional(CONF_OLD_KEY): cv.string,  # Still accepted but deprecated
+    cv.Optional(CONF_NEW_KEY): cv.string,
+}).add_extra(validate_config)
+
+# After deprecation period - remove old key and make cv.invalid to give clear error
+# CONFIG_SCHEMA = cv.Schema({
+#     cv.Optional(CONF_OLD_KEY): cv.invalid(
+#         f"'{CONF_OLD_KEY}' has been replaced by '{CONF_NEW_KEY}'"
+#     ),
+#     cv.Required(CONF_NEW_KEY): cv.string,
+# })
+```
+
+```python
+# Example: Deprecating a schema constant (with removal date comment)
+import logging
+_LOGGER = logging.getLogger(__name__)
+
+# Internal schema (preferred approach)
+def my_component_schema(class_: MockObjClass = MyComponent):
+    return cv.Schema({
+        cv.GenerateID(): cv.declare_id(class_),
+        # ... config options
+    })
+
+# Remove before 2026.6.0
+def deprecated_schema_constant(config):
+    """Warn users about deprecated schema constant usage."""
+    type_name = "unknown"
+    if (id := config.get(CONF_ID)) is not None and isinstance(id, core.ID):
+        type_name = str(id.type).split("::", maxsplit=1)[0]
+    _LOGGER.warning(
+        "Using `my_component.MY_COMPONENT_SCHEMA` is deprecated and will be removed in ESPHome 2026.6.0. "
+        "Please use `my_component.my_component_schema(...)` instead. "
+        "If you are seeing this, report an issue to the external_component author and ask them to update it. "
+        "See: https://developers.esphome.io/blog/2025/05/14/_schema-deprecations/. "
+        "Component using this schema: %s",
+        type_name,
+    )
+    return config
+
+# Deprecated constant kept for backward compatibility
+MY_COMPONENT_SCHEMA = my_component_schema(MyComponent)
+MY_COMPONENT_SCHEMA.add_extra(deprecated_schema_constant)
+```
+
+!!!tip "Deprecation Best Practices"
+    - Always include a "Remove before YYYY.MM.0" comment at the deprecation site
+    - Calculate the removal date as 6 months from the deprecation merge date
+    - Include in the warning message:
+        - What is deprecated
+        - What to use instead
+        - When it will be removed (version number)
+        - A link to migration documentation (blog post or developers docs, if applicable)
+        - For external components: guidance to report to component author
+    - Provide automatic migration when possible
+    - Keep the old behavior working during the deprecation period
+
+!!!note "When to Write a Blog Post"
+    Blog posts are required for:
+
+    - **Significant architectural changes** (e.g., changes to the build system, code generation, or core runtime)
+    - **Changes to core functions** that affect multiple components
+    - **Significant changes to core entity classes** (`Component`, `Sensor`, `BinarySensor`, `Switch`, etc.)
+    - **Breaking changes that affect many users** or external components
+
+    For simple component changes, the PR description is usually sufficient. The PR description will be used to
+    generate release notes, so ensure it includes clear migration instructions for any breaking changes.
+
+### Breaking Changes Checklist
+
+Before making a breaking change (C++ or Python), ensure you:
+
+- [ ] Have a clear justification for why the change is necessary (e.g., excessive RAM usage, architectural improvement)
+- [ ] Have explored non-breaking alternatives
+- [ ] Added deprecation warnings in the current release (if possible)
+- [ ] Documented the migration path clearly in the PR description
+- [ ] Included migration instructions in the PR description (they will be used to generate release notes)
+- [ ] Updated all internal usage to the new API
+- [ ] Updated esphome-docs examples and documentation
+- [ ] Tested that existing configurations still work (for deprecations)
+- [ ] Considered the impact on external components
+- [ ] Written a blog post (if the change affects core functions, core entity classes, or represents a significant architectural change)
+
+### PR Description Template for Breaking Changes
+
+When submitting a PR with breaking changes, structure your description to include:
+
+1. **Summary Section** - High-level overview of the change and migration timeline
+2. **Justification** - Why the breaking change is necessary (RAM savings, architectural improvement, etc.)
+3. **Breaking Changes Section** - Clear statement of what will break and when
+4. **Migration Guide** - Concrete before/after examples for each affected use case:
+   - YAML lambda examples
+   - C++ external component examples
+   - Common patterns (callbacks, logging, comparisons, etc.)
+5. **Timeline** - Specific version when deprecated code will be removed
+6. **Backward Compatibility** - What still works during the deprecation period
+7. **Components Updated** - List of components already migrated (if applicable)
+
+!!!example "Breaking Change with Deprecation Period"
+    See [PR #11623](https://github.com/esphome/esphome/pull/11623) - `select` refactor to index-based operations:
+
+    - Clearly documents the 6-month migration window
+    - Provides concrete before/after code examples
+    - Lists all affected components
+    - Explains the resource constraint justification (28-32 bytes RAM per instance)
+    - Shows deprecation warnings users will see
+    - Includes migration patterns for YAML, C++, callbacks, and logging
+    - Maintains backward compatibility during deprecation period
+
+!!!example "Clean Break (No Deprecation)"
+    See [PR #11466](https://github.com/esphome/esphome/pull/11466) - `climate` migration to `FiniteSetMask`:
+
+    - **Why no deprecation:** Changing from `std::set<EnumType>` to `FiniteSetMask<T>` requires signature changes
+      that cannot maintain backward compatibility
+    - Clear justification: ~440 bytes heap + significant flash savings per climate entity
+    - Comprehensive migration guide with before/after examples
+    - Mechanical find-replace patterns for external components
+    - Quantified benefits: Flash, heap, and O(1) vs O(log n) performance improvements
+    - Should have a blog post (affects core entity class)
+    - All existing YAML configurations continue to work (C++ API change only)
+
 ## Running CI checks locally
 
 You can run the lint and GitHub Actions checks via a docker image:

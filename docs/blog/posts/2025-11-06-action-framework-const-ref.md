@@ -60,9 +60,7 @@ grep -rn "bool check(Ts\.\.\. \w\+) override" your_component/
 
 Previously, the automation framework made **6 copies** of every argument as it passed through the call chain. For `std::string` arguments (like logger messages), this meant 6 heap allocations per trigger event.
 
-The change eliminates these copies:
-- **Flash:** -356 bytes (eliminated copy constructor templates)
-- **Runtime:** 83% fewer heap allocations
+The change eliminates these copies, resulting in **83% fewer heap allocations** at runtime.
 
 ## No logic changes required
 

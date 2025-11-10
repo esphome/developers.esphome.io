@@ -199,8 +199,7 @@ This represents the minimum required code to implement a component in ESPHome:
 
   #include "esphome/core/component.h"
 
-  namespace esphome {
-  namespace example_component {
+  namespace esphome::example_component {
 
   class ExampleComponent : public Component {
   public:
@@ -217,8 +216,7 @@ This represents the minimum required code to implement a component in ESPHome:
     int baz_{0};
   };
 
-  }  // namespace example_component
-  }  // namespace esphome
+  }  // namespace esphome::example_component
   ```
 
 - **`example_component.cpp:`**
@@ -226,8 +224,7 @@ This represents the minimum required code to implement a component in ESPHome:
   #include "esphome/core/log.h"
   #include "example_component.h"
 
-  namespace esphome {
-  namespace example_component {
+  namespace esphome::example_component {
 
   static const char *TAG = "example_component.component";
 
@@ -248,8 +245,7 @@ This represents the minimum required code to implement a component in ESPHome:
     ESP_LOGCONFIG(TAG, "  baz = %i", this->baz_);
   }
 
-  }  // namespace example_component
-  }  // namespace esphome
+  }  // namespace esphome::example_component
   ```
 
 This represents the minimum required code to implement a component in ESPHome. While most of it is likely reasonably

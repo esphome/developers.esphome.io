@@ -253,6 +253,58 @@ To debug loop control issues:
 
 3. Use the Logger component's async support as a reference implementation
 
-### See Also
+## Waking the Main Loop from Background Threads
 
-- Source: [`esphome/core/component.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.h) and [`esphome/core/component.cpp`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.cpp)
+For components that receive events in background threads/FreeRTOS tasks (BLE callbacks, network events, platform callbacks, etc.) and need low-latency processing, use `App.wake_loop_threadsafe()` to immediately wake the main loop instead of waiting 0-16ms for the next select() timeout.
+
+**Platform Support:** ESP32 (ESP-IDF) and LibreTiny only.
+
+### Setup
+
+Add socket dependency in your component's `__init__.py`:
+
+```python
+AUTO_LOAD = ["socket"]
+
+from esphome.components import socket
+
+async def to_code(config):
+    # Enable wake support
+    socket.require_wake_loop_threadsafe()
+```
+
+### Usage
+
+Call from background thread/FreeRTOS task context (not ISR context):
+
+```cpp
+#include "esphome/core/application.h"
+
+void MyComponent::background_callback(Event event) {
+  this->pending_events_.push_back(event);
+
+  // Only wake for time-critical events
+  if (event.is_time_critical()) {
+#if defined(USE_SOCKET_SELECT_SUPPORT) && defined(USE_WAKE_LOOP_THREADSAFE)
+    App.wake_loop_threadsafe();
+#endif
+  }
+}
+```
+
+**When to wake:**
+- Interactive events (user pairing, passkey requests) - need immediate response
+- Time-critical operations - latency matters for correctness
+- Low-frequency events - won't cause wake storms
+
+**When NOT to wake:**
+- High-frequency events (scan results, RSSI reads) - avoid socket churning
+- Non-time-critical operations - can wait for next loop iteration
+- Events that batch well - queue multiple before processing
+
+**Important:** Only call from FreeRTOS task context, not from ISR handlers (not ISR-safe).
+
+## See Also
+
+- Component Loop Control: [`esphome/core/component.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.h) and [`esphome/core/component.cpp`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.cpp)
+- Wake Loop Threadsafe: PR [#11681](https://github.com/esphome/esphome/pull/11681)

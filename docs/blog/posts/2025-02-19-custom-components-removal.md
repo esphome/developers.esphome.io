@@ -11,6 +11,8 @@ ESPHome's "custom component" mechanism was a holdover from Home Assistant's feat
 [external components](https://esphome.io/components/external_components) and offered a way to "hack in" support for
 devices which were not officially supported by ESPHome.
 
+<!-- more -->
+
 ## Why were custom components removed?
 
 There are several reasons for this change.

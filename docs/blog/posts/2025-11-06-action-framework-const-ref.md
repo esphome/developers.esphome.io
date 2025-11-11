@@ -11,6 +11,8 @@ The core automation framework (actions, triggers, and conditions) has been optim
 
 This is a **breaking change** for external components with custom actions or conditions in **ESPHome 2025.11.0 and later**.
 
+<!-- more -->
+
 ## What needs to change
 
 External components must update their action/condition method signatures to use const references:

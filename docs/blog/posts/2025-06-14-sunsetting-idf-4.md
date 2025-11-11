@@ -10,6 +10,8 @@ comments: true
 At the beginning of this year, we made the transition from IDF 4.4 to IDF 5.1; this was a major upgrade and many
 changes were necessary within ESPHome to achieve this.
 
+<!-- more -->
+
 A long-standing (but largely undocumented -- until now) rule of the project is that we only support one major version
 of [ESP-IDF](https://github.com/espressif/esp-idf) at a time. While it's technically _possible_ to support multiple
 major versions, doing so introduces some significant challenges:

@@ -9,6 +9,8 @@ comments: true
 
 In order to align all of the top level platform components (listed below), we are deprecating the `*_SCHEMA` constants that are present. Some examples are `SENSOR_SCHEMA`, `SWITCH_SCHEMA` and so on.
 
+<!-- more -->
+
 Each entity platform component has a matching `*_schema(...)` function which takes the class type and common schema defaults as arguments. There are plenty of examples in the ESPHome codebase of these.
 
 This will become a breaking change in ESPHome **2025.11.0**, set to release around the 19th of November 2025. The breaking PRs will be merged right after the 2025.10.0 release goes out around the 15th of October 2025.

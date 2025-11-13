@@ -224,7 +224,7 @@ switch:
 
 ### Configuration variables
 
-When documenting configuration options, use this format:
+When documenting configuration variables, use this format:
 
 ```markdown
 ## Configuration variables
@@ -234,7 +234,7 @@ When documenting configuration options, use this format:
 - **mode** (*Optional*, string): Mode selection. One of `auto`, `manual`. Defaults to `auto`.
 ```
 
-Use bold for required parameters and italic for optional ones.
+Use **bold** for required variables and _italic_ for optional variables.
 
 ### Images
 

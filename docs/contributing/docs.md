@@ -6,14 +6,12 @@ Our documentation can always be improved. We rely on contributions from our user
 example, spelling/grammar mistakes) or if you want to share your awesome new setup, we encourage you to submit a pull
 request (PR).
 
-The ESPHome documentation is built using [Sphinx](http://www.sphinx-doc.org) and uses
-[reStructuredText](http://docutils.sourceforge.net/rst.html) for all source (`.rst`) files.
-
-If you're not familiar with rST, see [rST syntax](#rst-syntax) for a quick primer.
+The ESPHome documentation uses [Markdown](https://www.markdownguide.org/) for all source (`.md`) files. If you're not
+familiar with Markdown, see [Markdown syntax](#markdown-syntax) for a quick primer.
 
 ## Documentation guidelines
 
-- Use the English language (duh...)
+- Use the English language
 - Documentation for any given component/platform should contain a **minimal** example for the component/platform.
   In the example, **do not include:**
     - Optional configuration variables
@@ -54,9 +52,9 @@ You may also find that page helpful to read.
 At the bottom of each page in the docs, there is an "Edit this page on GitHub" link. Click this link and you'll see
 something like this:
 
-![A screenshot of an rST file opened in GitHub, with the edit button circled](/images/ghedit_1.png)
+![A screenshot of a Markdown file opened in GitHub, with the edit button circled](/images/ghedit_1.png)
 
-Click the edit button to start making changes. If you're unsure about syntax, see our [quick primer](#rst-syntax).
+Click the edit button to start making changes. If you're unsure about syntax, see our [quick primer](#markdown-syntax).
 
 Once you've made your changes, give them a useful name and click "Propose changes". At this point, you've made the
 changes to your own personal copy of the docs in GitHub, but you still need to submit them to us.
@@ -83,8 +81,8 @@ If you see the red ❌, there is at least one error preventing your pull request
 
 ![Log messages showing reason for failed build](/images/ghedit_ci_logs.png)
 
-In this example, you need to go to line 136 of `pzemac.rst` and adjust the number of `===` so that it completely
-underlines the section heading.
+In this example, you would need to fix the reported error in your Markdown file (such as a linting issue or
+formatting problem).
 
 Once you make that change, the pull request will be tested & built again; ideally, this time where will be no remaining
 errors. If, however, more errors are discovered, simply repeat the process above to correct them.
@@ -108,67 +106,58 @@ errors. If, however, more errors are discovered, simply repeat the process above
 
     This way, you don't have to install the dependencies to build the documentation.
 
-To check your documentation changes locally, you first need install Sphinx (with **Python 3**).
+To check your documentation changes locally, you can build the documentation using the provided build tools.
+Check the `esphome-docs` repository for current build instructions, as the build system is being updated.
+
+Traditionally, this involved running:
 
 ```bash
-# in ESPHome-Docs repo:
-pip install -r requirements.txt
-```
-
-Then, use the provided Makefile to build the changes and start a live-updating web server:
-
-```bash
-# Start web server on port 8000
+# in esphome-docs repo:
 make live-html
 ```
 
-## rST syntax
+This will start a live-reloading web server, typically at `http://localhost:8000`.
 
-Here's a quick RST primer:
+## Markdown syntax
 
-Title hierarchy is based on order of occurrence, not on type of character used to underline it. For consistency, we
-adhere to the following order:
+Here's a quick Markdown primer for the ESPHome documentation:
+
+### Frontmatter
+
+Every documentation page should start with YAML frontmatter (this is standard across most static site generators):
+
+```yaml
+---
+title: "Page Title"
+description: "Short description for meta tags and search"
+---
+```
+
+The `title` field is typically used as the page's H1 heading, so you may not need to include an H1 (`#`) in your
+Markdown content depending on the site generator configuration.
 
 ### Headers
 
-You can write titles like this:
+Use hash marks (`#`) for section headers. Start with H2 (`##`) since the page title comes from frontmatter:
 
-```rst
-My Title
-========
-```
+```markdown
+## Configuration
 
-and section headers like this:
+### Advanced Options
 
-```rst
-My Section
-----------
-```
-
-and sub-section headers like this:
-
-```rst
-My Sub-section
-**************
-```
-
-and sub-sub-section headers like this:
-
-```rst
-My Sub-sub-section
-^^^^^^^^^^^^^^^^^^
+#### Specific Setting
 ```
 
 !!! note
-    - The length of the bar below the text **must** match the title text length.
     - Section titles should use Title Case.
+    - The page title (H1) is defined in the frontmatter `title` field, not in the Markdown content.
 
 ### Links
 
-Create a link to an external resource (for example: https://www.google.com) like this:
+Create a link to an external resource like this:
 
-```rst
-`Google.com <https://www.google.com>`__
+```markdown
+[Google.com](https://www.google.com)
 ```
 
 [Google.com](https://www.google.com)
@@ -177,48 +166,53 @@ Create a link to an external resource (for example: https://www.google.com) like
     Referral links are only permitted if they provide a direct benefit to the ESPHome project.
     This policy applies to all official ESPHome documentation and websites.
 
-### References
+### Internal references
 
-To reference another document, use the `:doc:` and `:ref:` roles (references are set up globally
-and can be used between documents):
+To reference other documentation pages, use standard Markdown links:
 
-```rst
-.. _my-reference-label:
-
-Section to cross-reference
---------------------------
-
-See :ref:`my-reference-label`, also see :doc:`/components/switch/gpio`.
-:doc:`Using custom text </components/switch/gpio>`.
+```markdown
+[ESP32 BLE Tracker](/components/esp32_ble_tracker/)
+[WiFi](/components/wifi)
+[sensors](/components/sensor/)
 ```
 
-See [Supported Microcontrollers](https://esphome.io/components/#devices), also see
-[GPIO Switch](https://esphome.io/components/switch/gpio).
-[Using custom text](https://esphome.io/components/switch/gpio).
+To link to a specific section using anchors:
+
+```markdown
+[Installation section](/guides/getting_started#installation)
+```
+
+Headers automatically create anchor IDs by converting them to lowercase and replacing spaces with hyphens.
+
+To create a custom named anchor, use Hugo shortcodes:
+
+```markdown
+{{< anchor "anchor" >}}
+```
 
 ### Inline code
 
-To have text appear `like this`, use double backticks:
+To have text appear `like this`, use single backticks:
 
-```rst
-To have text appear ``like this``, use double backticks.
+```markdown
+To have text appear `like this`, use single backticks.
 ```
 
-To have text appear `like this`, use double backticks.
+To have text appear `like this`, use single backticks.
 
 ### Code blocks
 
-To show a sample configuration file, use the `code-block` directive:
+To show a sample configuration file, use fenced code blocks with triple backticks and a language identifier:
 
-```rst
-.. code-block:: yaml
-
-    # Sample configuration entry
-    switch:
-      - platform: gpio
-        name: "Relay #42"
-        pin: GPIOXX
+````markdown
+```yaml
+# Sample configuration entry
+switch:
+  - platform: gpio
+    name: "Relay #42"
+    pin: GPIOXX
 ```
+````
 
 ```yaml
 # Sample configuration entry
@@ -228,115 +222,37 @@ switch:
     pin: GPIOXX
 ```
 
-!!! note
-    Note that a blank line is *required* after every `code-block` directive.
+### Configuration variables
 
-### Collapsible section
+When documenting configuration variables, use this format:
 
-To add a collapsible section, use the `collapse` directive:
+```markdown
+## Configuration variables
 
-```rst
-.. collapse:: Details
-
-    Something small enough to escape casual notice.
+- **name** (**Required**, string): Description of the parameter.
+- **optional_param** (*Optional*, int): Description. Defaults to `42`.
+- **mode** (*Optional*, string): Mode selection. One of `auto`, `manual`. Defaults to `auto`.
 ```
 
-```rst
-.. collapse:: A long code block
-
-    .. code-block:: yaml
-
-        # Sample configuration entry
-        switch:
-          - platform: gpio
-            name: "Relay #42"
-            pin: GPIOXX
-```
-
-The `:open:` flag can be used to have the section open by default.
-
-```rst
-.. collapse:: Open
-    :open:
-
-    This section is open by default.
-```
-
-!!! note
-    - The `:open:` flag must immediately follow the `collapse` directive without a blank line between them.
-    - A blank line is *required* after every `collapse` directive.
-
-### Tabs
-
-To group content into tabs, use the `tabs` directive. The tabs directive defines a tab set.
-Basic tabs are added using the `tab` directive (without s), which takes the tab’s label as an argument:
-
-```rst
-.. tabs::
-
-    .. tab:: Apples
-
-        Apples are green, or sometimes red.
-
-    .. tab:: Pears
-
-        Pears are green.
-
-    .. tab:: Oranges
-
-        Oranges are orange.
-```
-
-Tabs can also be nested inside one another:
-
-```rst
-.. tabs::
-
-    .. tab:: Stars
-
-        .. tabs::
-
-            .. tab:: The Sun
-
-                The closest star to us.
-
-            .. tab:: Proxima Centauri
-
-                The second closest star to us.
-
-            .. tab:: Polaris
-
-                The North Star.
-
-    .. tab:: Moons
-
-        .. tabs::
-
-            .. tab:: The Moon
-
-                Orbits the Earth
-
-            .. tab:: Titan
-
-                Orbits Jupiter
-```
-
-!!! note
-    - A blank line is *required* after every `tabs` directive.
-    - The contents of each tab can be displayed by clicking on the tab that you wish to show.
-      Clicking again on the tab that is currently open will hide its content, leaving only the tab set labels visible.
-    - For advanced features like tab-groupings, refer to https://sphinx-tabs.readthedocs.io/en/latest/
+Use **bold** for required variables and _italic_ for optional variables.
 
 ### Images
 
-Use the `figure` directive to display an image:
+Use standard Markdown syntax to display images:
 
-```rst
-.. figure:: images/dashboard_states.png
-    :align: center
-    :width: 40.0%
+```markdown
+![Description](/images/filename.png)
+```
 
-    Optional figure caption.
+For more control over image display (like width, alignment, or captions), you can use HTML:
+
+```markdown
+<img src="/images/filename.png" alt="Description" width="50%" style="display: block; margin: 0 auto;">
+
+<figure style="text-align: center;">
+  <img src="/images/filename.png" alt="Description" width="70%">
+  <figcaption>Caption text.</figcaption>
+</figure>
 ```
 
 !!! note
@@ -346,16 +262,19 @@ Use the `figure` directive to display an image:
 
 ### Notes and warnings
 
-You can create simple notes and warnings using the `note` and `warning` directives:
+Use GitHub-style alerts (standard Markdown extension):
 
-```rst
-.. note::
+```markdown
+> [!NOTE]
+> This is a note.
+> It can span multiple lines.
 
-    This is a note.
+> [!WARNING]
+> This is a warning.
+> Use this for important cautions.
 
-.. warning::
-
-    This is a warning.
+> [!TIP]
+> This is a helpful tip.
 ```
 
 !!! note
@@ -369,7 +288,7 @@ You can create simple notes and warnings using the `note` and `warning` directiv
 To *italicize* text, use one asterisk around the text. To put
 **a strong emphasis** on a piece of text, put two asterisks around it.
 
-```rst
+```markdown
 *This is italicized.* (A weird word...)
 
 **This is very important.**
@@ -381,9 +300,9 @@ To *italicize* text, use one asterisk around the text. To put
 
 ### Ordered and unordered lists
 
-The syntax for lists in RST is more or less the same as in Markdown:
+Create lists using standard Markdown syntax:
 
-```rst
+```markdown
 - Unordered item
 
   - Unordered sub-item
@@ -403,15 +322,34 @@ The syntax for lists in RST is more or less the same as in Markdown:
   must be split up into multiple lines.
 
 1. Ordered item #1
-1. Ordered item #2
+2. Ordered item #2
 
-### imgtable
+### Legacy Hugo shortcodes
 
-ESPHome uses a custom RST directive to show the table on the main documentation page (see
-[`components/index.rst`](https://github.com/esphome/esphome-docs/blob/current/components/index.rst)). New pages need to
-be added to the `imgtable` list. The syntax is CSV with `<PAGE NAME>`, `<FILE NAME>` (without RST), `<IMAGE>` (in the
-top-level `images/` directory), `<COMMENT>` (optional; short text to describe the component). The aspect ratio of these
-images should be 8:10 (or 10:8) but exceptions are possible.
+ESPHome is migrating away from Hugo-specific features. If you encounter Hugo shortcodes in existing documentation,
+please replace them with standard Markdown alternatives where possible:
+
+**Instead of `{{< docref >}}`**, use standard Markdown links:
+```markdown
+[Link Text](/path/to/page)
+```
+
+**Instead of `{{< img >}}`**, use standard Markdown or HTML:
+```markdown
+![Alt text](/images/image.png)
+<img src="/images/image.png" alt="Alt text" width="50%">
+```
+
+**Hugo anchor** - For now, `{{< anchor >}}` may still be needed for links until a replacement is
+available. If you encounter these, leave them as-is unless you have a suitable replacement.
+
+**API references** - For now, `{{< apiref >}}` may still be needed for API documentation links until a replacement is
+available. If you encounter these, leave them as-is unless you have a suitable replacement.
+
+### Component pages
+
+When adding a new component, you'll need to add it to the appropriate index page. Component thumbnails should have
+an aspect ratio of 8:10 (or 10:8) but exceptions are possible.
 
 Because these images are served on the main page, they need to be compressed heavily. SVGs are preferred over JPGs
 and JPGs should be no more than 300x300px.
@@ -422,5 +360,5 @@ If you have imagemagick installed, you can use this command to convert the thumb
 convert -sampling-factor 4:2:0 -strip -interlace Plane -quality 80% -resize 300x300 in.jpg out.jpg
 ```
 
-reStructured text can do a lot more than this; if you're looking for a more complete guide, please have a look at the
-[Sphinx reStructuredText Primer](http://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html).
+For more information on Markdown syntax, please refer to the
+[Markdown Guide](https://www.markdownguide.org/) or [CommonMark specification](https://commonmark.org/).

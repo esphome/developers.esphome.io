@@ -83,6 +83,7 @@ nav:
               - SPI: architecture/components/spi.md
               - Serial (UART): architecture/components/uart.md
           - Automations: architecture/components/automations.md
+          - Socket Consumption API: architecture/components/socket_consumption_api.md
           - Advanced Topics: architecture/components/advanced.md
       - API:
           - Overview: architecture/api/index.md

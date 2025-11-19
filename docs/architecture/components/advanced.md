@@ -308,3 +308,4 @@ void MyComponent::background_callback(Event event) {
 
 - Component Loop Control: [`esphome/core/component.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.h) and [`esphome/core/component.cpp`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.cpp)
 - Wake Loop Threadsafe: PR [#11681](https://github.com/esphome/esphome/pull/11681)
+- [Socket Consumption API](socket_consumption_api.md) - For components that use network sockets

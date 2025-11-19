@@ -25,11 +25,13 @@ Register socket consumption if your component:
 
 ### 1. Add Socket Dependency
 
-In your component's `__init__.py`, add socket to `AUTO_LOAD` or `DEPENDENCIES`:
+In your component's `__init__.py`, add socket to `AUTO_LOAD`:
 
 ```python
 AUTO_LOAD = ["socket"]
 ```
+
+This ensures the socket component is automatically loaded without requiring users to add it to their configuration.
 
 ### 2. Import and Register Sockets
 

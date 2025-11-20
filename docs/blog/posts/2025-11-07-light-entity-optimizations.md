@@ -75,7 +75,6 @@ bool supports = traits.get_supported_color_modes().count(ColorMode::RGB);  // .c
 
 **Color Mode Changes (PR #11348) - External components mostly backward compatible:**
 
-
 - `ColorModeMask` provides backward compatibility with `std::set` API (has `.count()`, `.insert()`, `.erase()`, `.size()`, `.empty()`)
 - Most components already pass initializer lists like `{ColorMode::RGB, ColorMode::WHITE}` which continue to work
 - No core components needed changes, so external components are unlikely to need changes

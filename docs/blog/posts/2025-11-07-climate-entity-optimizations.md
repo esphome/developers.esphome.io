@@ -193,6 +193,7 @@ if (climate->has_custom_fan_mode()) {
 ```
 
 **Public accessor methods on Climate class:**
+
 - `bool has_custom_fan_mode() const` - Check if custom fan mode is active
 - `const char *get_custom_fan_mode() const` - Get custom fan mode (read-only)
 - `bool has_custom_preset() const` - Check if custom preset is active
@@ -210,6 +211,7 @@ if (climate->has_custom_fan_mode()) {
 The `FiniteSetMask` API is mostly compatible with `std::set`:
 
 **Compatible methods:**
+
 - `.insert(value)` - Add mode
 - `.count(value)` - Check if mode exists (returns 0 or 1)
 - `.erase(value)` - Remove mode
@@ -217,6 +219,7 @@ The `FiniteSetMask` API is mostly compatible with `std::set`:
 - Range-based for loops work identically
 
 **Differences:**
+
 - `.find()` is not available - use `.count()` instead
 - Iterators are available but behave slightly differently
 

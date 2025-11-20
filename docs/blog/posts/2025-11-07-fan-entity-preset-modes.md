@@ -37,12 +37,14 @@ Preset modes now appear in Home Assistant in the **order you define them in YAML
 ## Who This Affects
 
 **External components** that:
+
 - Explicitly create `std::set<std::string>` and pass it to `set_supported_preset_modes()` in C++
 - Store or manipulate fan preset mode lists in member variables
 
 **Note:** Most components already use the correct syntax since Python code generation produces initializer lists like `traits.set_supported_preset_modes({"Low", "Medium", "High"})`. This only affects external components that manually create sets in C++ code.
 
 **YAML users** may notice:
+
 - Preset mode order in Home Assistant changes to match YAML order instead of alphabetical
 - This is a **behavioral change** - you now control the display order
 

@@ -69,10 +69,13 @@ bool supports = traits.get_supported_color_modes().count(ColorMode::RGB);  // .c
 ## Who This Affects
 
 **Effect Name Changes (PR #11487) - External components likely affected:**
+
 - Any custom `LightEffect` subclasses need constructor updates from `std::string` to `const char*`
 - Any code that calls `get_name()` on effects
 
 **Color Mode Changes (PR #11348) - External components mostly backward compatible:**
+
+
 - `ColorModeMask` provides backward compatibility with `std::set` API (has `.count()`, `.insert()`, `.erase()`, `.size()`, `.empty()`)
 - Most components already pass initializer lists like `{ColorMode::RGB, ColorMode::WHITE}` which continue to work
 - No core components needed changes, so external components are unlikely to need changes

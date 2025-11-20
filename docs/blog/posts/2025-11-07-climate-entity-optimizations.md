@@ -169,6 +169,7 @@ this->set_preset_(CLIMATE_PRESET_AWAY);    // Clears custom_preset_
 **Why private?** Climate devices require mutual exclusion between primary modes (e.g., `CLIMATE_FAN_HIGH`) and custom modes (e.g., `"Turbo"`). Private members with protected setters enforce this automatically, preventing bugs.
 
 **Protected setter methods available:**
+
 - `bool set_fan_mode_(ClimateFanMode mode)` - Set fan mode, clear custom fan mode
 - `bool set_custom_fan_mode_(const char *mode)` - Set custom fan mode, clear fan_mode
 - `void clear_custom_fan_mode_()` - Clear custom fan mode

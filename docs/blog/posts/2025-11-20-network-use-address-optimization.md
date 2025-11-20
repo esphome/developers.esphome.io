@@ -7,7 +7,7 @@ comments: true
 
 # Network get_use_address() Optimization
 
-The `network::get_use_address()` function has been optimized to return `const char*` instead of `std::string` to reduce memory overhead. This eliminates unnecessary string copies when accessing the device's network address.
+The `network::get_use_address()` function has been optimized to return `const char*` instead of `const std::string&` to reduce memory overhead. This eliminates unnecessary string object storage when accessing the device's network address.
 
 This is a **breaking change** for external components that call `network::get_use_address()` in **ESPHome 2025.11.0 and later**.
 
@@ -117,19 +117,21 @@ This change affects the following network components:
 
 All three now return `const char*` instead of `const std::string&`.
 
+> **Note:** `esphome::network::get_use_address()` is a wrapper function that delegates to the appropriate component-specific function (`wifi::get_use_address()`, `ethernet::get_use_address()`, or `openthread::get_use_address()`) depending on your network configuration. Most external components should use the `network::` wrapper for generic code. Only use component-specific functions if your code explicitly depends on a particular network type.
+
 ## Why this change
 
-The previous implementation returned a `std::string` reference, but the string itself was stored internally. This meant:
+The previous implementation stored the address internally as a `std::string` and returned a reference to it. This meant:
 
-1. **Unnecessary heap allocation** - Each `get_use_address()` result was a string object
-2. **Copy overhead** - Using `.c_str()` implied there was a string to convert from
-3. **Memory waste** - The address is typically a static configuration value
+1. **Unnecessary string object overhead** - The address was stored as a `std::string`, even though it is typically a static configuration value set once during setup
+2. **Extra memory usage** - The `std::string` object itself uses heap memory plus object overhead (typically 24-32 bytes)
+3. **API complexity** - Callers needed to use `.c_str()` to access the raw address for logging, even though no conversion or copy was performed
 
-By returning `const char*` directly:
+By returning `const char*` directly and storing the address as a pointer to flash memory (RODATA):
 
-- **Zero allocations** - No string objects created when reading the address
-- **Simpler API** - Direct use in logging and C-style string functions
-- **Memory savings** - Eliminates string object overhead (typically 24 bytes per instance)
+- **Zero string object overhead** - No `std::string` objects are created or stored for the address
+- **Simpler API** - The address can be used directly in logging and C-style string functions
+- **Memory savings** - Eliminates the `std::string` overhead, saving 32-72 bytes of RAM per network component
 
 ## Real-world example
 

@@ -197,6 +197,7 @@ class MySelect : public select::Select {
 ```
 
 **Which to override?**
+
 - Override `control(size_t index)` (preferred) - avoids string conversions and lookups
 - Override `control(const std::string &value)` - if you need the actual string value
 - Override both (rare) - if you need different handling for each case

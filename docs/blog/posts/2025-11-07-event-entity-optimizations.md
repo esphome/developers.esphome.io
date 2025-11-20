@@ -31,11 +31,13 @@ Additionally, storing event type strings as `const char *` pointers to string li
 Event type storage has been optimized through two PRs to eliminate memory overhead and move strings to flash:
 
 **[PR #11463](https://github.com/esphome/esphome/pull/11463): `std::set<std::string>` → `FixedVector<std::string>`**
+
 - Eliminated ~80 bytes std::set base overhead
 - Eliminated per-member tree node overhead (~24+ bytes per event type)
 - Single allocation, no reallocation overhead
 
 **[PR #11767](https://github.com/esphome/esphome/pull/11767): `FixedVector<std::string>` → `FixedVector<const char *>`**
+
 - Eliminates std::string heap allocations (~24 bytes overhead + content per event type)
 - **ESP32**: Event type strings stored in flash (ROM), freeing heap
 - **ESP8266**: Event type strings in rodata section (still RAM, but eliminates std::string overhead)
@@ -270,11 +272,13 @@ For typical event use cases (1-5 event types):
 ### Platform-Specific Benefits
 
 **ESP32 (IDF and Arduino):**
+
 - Event type strings stored in flash memory (ROM)
 - Zero heap usage for event type strings
 - Maximum heap available for other operations
 
 **ESP8266:**
+
 - Event type strings in rodata section (still occupies RAM)
 - Eliminates std::string heap overhead (~24 bytes per string + content)
 - Reduces heap fragmentation

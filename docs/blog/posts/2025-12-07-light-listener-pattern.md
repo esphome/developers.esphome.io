@@ -29,8 +29,8 @@ light_state->add_new_target_state_reached_callback([this]() {
 
 // After 2025.12
 // 1. Inherit from the listener interface(s)
-class MyComponent : public LightRemoteValuesListener,
-                    public LightTargetStateReachedListener {
+class MyComponent : public light::LightRemoteValuesListener,
+                    public light::LightTargetStateReachedListener {
   // 2. Implement the required methods
   void on_light_remote_values_update() override {
     this->on_light_update();
@@ -50,9 +50,11 @@ class MyComponent : public LightRemoteValuesListener,
 
 ## New listener interfaces
 
-Two new abstract base classes are available:
+Two new abstract base classes are available in the `esphome::light` namespace:
 
 ```cpp
+namespace esphome::light {
+
 // For notifications when light values change remotely (e.g., from API/MQTT)
 class LightRemoteValuesListener {
  public:
@@ -64,14 +66,16 @@ class LightTargetStateReachedListener {
  public:
   virtual void on_light_target_state_reached() = 0;
 };
+
+}  // namespace esphome::light
 ```
 
 ## API changes summary
 
 | Old Method | New Method |
 |------------|------------|
-| `add_new_remote_values_callback(std::function<void()>)` | `add_remote_values_listener(LightRemoteValuesListener*)` |
-| `add_new_target_state_reached_callback(std::function<void()>)` | `add_target_state_reached_listener(LightTargetStateReachedListener*)` |
+| `add_new_remote_values_callback(std::function<void()> &&)` | `add_remote_values_listener(LightRemoteValuesListener *)` |
+| `add_new_target_state_reached_callback(std::function<void()> &&)` | `add_target_state_reached_listener(LightTargetStateReachedListener *)` |
 
 ## Compilation errors
 

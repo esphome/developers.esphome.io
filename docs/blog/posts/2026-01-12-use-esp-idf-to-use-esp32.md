@@ -156,28 +156,6 @@ elif CORE.is_esp32 and CORE.using_arduino:
 3. **Reduces confusion** - The distinction between "ESP-IDF framework" and "ESP-IDF APIs" caused confusion
 4. **Unified behavior** - Components now work consistently across both frameworks
 
-## Supporting Multiple ESPHome Versions
-
-### C++
-
-```cpp
-// USE_ESP32 has been available for a long time
-// Simply replace USE_ESP_IDF with USE_ESP32
-#ifdef USE_ESP32
-  // ESP32 code
-#endif
-```
-
-### Python
-
-```python
-from esphome.core import CORE
-
-# CORE.is_esp32 has been available for a long time
-if CORE.is_esp32:
-    # code
-```
-
 ## Timeline
 
 - **ESPHome 2026.1.0 (January 2026):** Deprecation warnings active

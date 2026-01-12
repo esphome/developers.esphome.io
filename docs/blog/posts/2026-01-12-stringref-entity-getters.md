@@ -113,8 +113,8 @@ ESP_LOGD(TAG, "Preset: %s", fan->get_preset_mode());
 StringRef preset = fan->get_preset_mode();
 ESP_LOGD(TAG, "Preset: %.*s", (int) preset.size(), preset.c_str());
 
-// Or convert to std::string for simpler logging
-ESP_LOGD(TAG, "Preset: %s", fan->get_preset_mode().str().c_str());
+// Or use c_str() directly (StringRef is null-terminated)
+ESP_LOGD(TAG, "Preset: %s", fan->get_preset_mode().c_str());
 ```
 
 ### 4. Storing as std::string

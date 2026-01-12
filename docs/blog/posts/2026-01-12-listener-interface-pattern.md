@@ -56,8 +56,8 @@ alarm->add_on_armed_away_callback([]() { /* armed away */ });
 alarm->add_on_disarmed_callback([]() { /* disarmed */ });
 
 // After - unified state callback (check get_state() inside)
-alarm->add_on_state_callback([this]() {
-  if (this->alarm_->get_state() == alarm_control_panel::ACP_STATE_TRIGGERED) {
+alarm->add_on_state_callback([alarm]() {
+  if (alarm->get_state() == alarm_control_panel::ACP_STATE_TRIGGERED) {
     // triggered
   }
 });
@@ -156,9 +156,9 @@ alarm->add_on_arming_callback([]() { handle_arming(); });
 alarm->add_on_disarmed_callback([]() { handle_disarmed(); });
 
 // After - single callback that checks get_state()
-alarm->add_on_state_callback([this]() {
+alarm->add_on_state_callback([alarm]() {
   using namespace alarm_control_panel;
-  switch (this->alarm_->get_state()) {
+  switch (alarm->get_state()) {
     case ACP_STATE_TRIGGERED:
       handle_triggered();
       break;
@@ -199,31 +199,31 @@ alarm_control_panel::ACP_STATE_TRIGGERED
 // New API - listener interface
 class MyComponent : public Component, public ota::OTAStateListener {
  public:
-  void set_ota(ota::OTAComponent *ota) { this->ota_ = ota; }
+  void set_ota_parent(ota::OTAComponent *parent) { this->ota_parent_ = parent; }
   void setup() override {
-    if (this->ota_) this->ota_->add_state_listener(this);
+    if (this->ota_parent_) this->ota_parent_->add_state_listener(this);
   }
   void on_ota_state(ota::OTAState state, float progress, uint8_t error) override {
     // handle state
   }
  protected:
-  ota::OTAComponent *ota_{nullptr};
+  ota::OTAComponent *ota_parent_{nullptr};
 };
 #else
 // Old API - std::function callback (also requires OTA component pointer)
 class MyComponent : public Component {
  public:
-  void set_ota(ota::OTAComponent *ota) { this->ota_ = ota; }
+  void set_ota_parent(ota::OTAComponent *parent) { this->ota_parent_ = parent; }
   void setup() override {
-    if (this->ota_) {
-      this->ota_->add_on_state_callback(
+    if (this->ota_parent_) {
+      this->ota_parent_->add_on_state_callback(
         [](ota::OTAState state, float progress, uint8_t error) {
           // handle state
         });
     }
   }
  protected:
-  ota::OTAComponent *ota_{nullptr};
+  ota::OTAComponent *ota_parent_{nullptr};
 };
 #endif
 ```
@@ -233,8 +233,8 @@ class MyComponent : public Component {
 ```cpp
 #if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 1, 0)
 // New API - unified callback (check get_state() inside)
-alarm->add_on_state_callback([this]() {
-  if (this->alarm_->get_state() == alarm_control_panel::ACP_STATE_TRIGGERED) {
+alarm->add_on_state_callback([alarm]() {
+  if (alarm->get_state() == alarm_control_panel::ACP_STATE_TRIGGERED) {
     // handle triggered
   }
 });

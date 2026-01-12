@@ -35,12 +35,13 @@ virtual std::string getsockname();
 ### New buffer-based API
 
 ```cpp
-// New - write to provided buffer (returns bytes written)
+// New - write to provided buffer
+// Returns bytes written (can be ignored for simple logging)
 size_t getpeername_to(std::span<char, SOCKADDR_STR_LEN> buf);
 size_t getsockname_to(std::span<char, SOCKADDR_STR_LEN> buf);
 
-// Buffer size constant
-socket::SOCKADDR_STR_LEN  // 16 for IPv4, 46 for IPv6
+// Buffer size constant (compile-time, based on IPv6 support)
+socket::SOCKADDR_STR_LEN  // 16 bytes (IPv4-only) or 46 bytes (IPv6-enabled)
 ```
 
 ### APIFrameHelper buffer changes
@@ -96,18 +97,16 @@ socket->getpeername_to(peer);
 ESP_LOGD(TAG, "Connected from: %s", peer);
 ```
 
-### 2. Buffer size constants
+### 2. Buffer size constant
 
-Use the appropriate constant for your buffer:
+`SOCKADDR_STR_LEN` is a compile-time constant sized for your build configuration:
 
 ```cpp
-// IPv4 addresses (e.g., "192.168.1.100")
-char buffer[socket::SOCKADDR_STR_LEN];  // 16 bytes for IPv4
+// Works for both IPv4 and IPv6 - size determined at compile time
+char buffer[socket::SOCKADDR_STR_LEN];
 
-// IPv6 addresses (e.g., "fe80::1")
-char buffer[socket::SOCKADDR_STR_LEN];  // 46 bytes for IPv6
-
-// The constant is automatically set based on IPv6 support
+// IPv4-only builds: 16 bytes (fits "255.255.255.255")
+// IPv6-enabled builds: 46 bytes (fits full IPv6 addresses)
 ```
 
 ### 3. APIConnection name access
@@ -134,9 +133,9 @@ If you need to store the address, copy it to your own buffer:
 char peer[socket::SOCKADDR_STR_LEN];
 socket->getpeername_to(peer);
 
-// If you need to store it
+// If you need to store it (snprintf ensures null-termination)
 char stored_peer[socket::SOCKADDR_STR_LEN];
-strncpy(stored_peer, peer, sizeof(stored_peer));
+snprintf(stored_peer, sizeof(stored_peer), "%s", peer);
 ```
 
 ## Supporting Multiple ESPHome Versions

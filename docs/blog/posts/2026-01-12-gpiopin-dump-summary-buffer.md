@@ -72,7 +72,7 @@ class MyGPIOPin : public GPIOPin {
 
 ### Key differences
 
-1. **Return type**: `size_t` (bytes written) instead of `std::string`
+1. **Return type**: `size_t` (characters that would be written, excluding null terminator) instead of `std::string`
 2. **Parameters**: Takes `char *buffer` and `size_t len`
 3. **Writing**: Use `snprintf()` directly to the provided buffer
 4. **No allocation**: No `std::string` construction needed
@@ -81,10 +81,11 @@ class MyGPIOPin : public GPIOPin {
 
 ```cpp
 size_t MyGPIOPin::dump_summary(char *buffer, size_t len) const override {
-  return snprintf(buffer, len, "MY_GPIO%02d (%s, %s)",
-                  this->pin_,
-                  this->inverted_ ? "INVERTED" : "",
-                  this->mode_ == gpio::FLAG_INPUT ? "INPUT" : "OUTPUT");
+  const char *mode = this->mode_ == gpio::FLAG_INPUT ? "INPUT" : "OUTPUT";
+  if (this->inverted_) {
+    return snprintf(buffer, len, "MY_GPIO%02d (INVERTED, %s)", this->pin_, mode);
+  }
+  return snprintf(buffer, len, "MY_GPIO%02d (%s)", this->pin_, mode);
 }
 ```
 

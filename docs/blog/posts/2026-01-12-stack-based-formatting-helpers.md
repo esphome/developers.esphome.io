@@ -20,7 +20,7 @@ ESP devices run for months with small heaps shared between Wi-Fi, BLE, LWIP, and
 These PRs soft-deprecate heap-allocating helpers and migrate internal callers:
 
 **[PR #13156](https://github.com/esphome/esphome/pull/13156): Core helper deprecations**
-Soft-deprecates `format_hex()`, `format_mac_address_pretty()`, `str_truncate()`, `str_upper_case()`, `str_snake_case()`.
+Soft-deprecates `format_hex()` and `format_hex_pretty()` in favor of buffer-based alternatives.
 
 **[PR #13157](https://github.com/esphome/esphome/pull/13157): MAC address helpers**
 Soft-deprecates `get_mac_address()` and `get_mac_address_pretty()`.

@@ -94,11 +94,12 @@ this->select_->add_on_state_callback([](const std::string &value, size_t index) 
   ESP_LOGD(TAG, "Selected: %s (index %zu)", value.c_str(), index);
 });
 
-// After - receives index only
+// After - receives index only, get string from select if needed
 this->select_->add_on_state_callback([this](size_t index) {
-  // Get string from index if needed
-  const char *value = this->select_->option_at(index);
-  ESP_LOGD(TAG, "Selected: %s (index %zu)", value, index);
+  const char *value = this->select_->option_at(index);  // Returns const char*, no allocation
+  if (value != nullptr) {
+    ESP_LOGD(TAG, "Selected: %s (index %zu)", value, index);
+  }
 });
 
 // Or if you only need the index (common case)

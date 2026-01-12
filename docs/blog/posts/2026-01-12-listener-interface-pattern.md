@@ -79,6 +79,8 @@ alarm->add_on_state_callback([this]() {
 ```cpp
 #include "esphome/components/ota/ota_backend.h"
 
+static const char *const TAG = "my_component";
+
 class MyComponent : public Component, public ota::OTAStateListener {
  public:
   void set_ota_parent(ota::OTAComponent *parent) { this->ota_parent_ = parent; }
@@ -119,12 +121,14 @@ class MyComponent : public Component, public ota::OTAStateListener {
 ```python
 # In __init__.py
 import esphome.codegen as cg
+import esphome.config_validation as cv
+from esphome.const import CONF_ID
 from esphome.components import ota
 
 CONF_OTA_ID = "ota_id"
 
 CONFIG_SCHEMA = cv.Schema({
-    # ... your config ...
+    cv.GenerateID(): cv.declare_id(MyComponent),
     cv.Optional(CONF_OTA_ID): cv.use_id(ota.OTAComponent),
 }).extend(cv.COMPONENT_SCHEMA)
 
@@ -173,18 +177,17 @@ alarm->add_on_state_callback([this]() {
 #### Available states
 
 ```cpp
-namespace alarm_control_panel {
-  ACP_STATE_DISARMED
-  ACP_STATE_ARMED_HOME
-  ACP_STATE_ARMED_AWAY
-  ACP_STATE_ARMED_NIGHT
-  ACP_STATE_ARMED_VACATION
-  ACP_STATE_ARMED_CUSTOM_BYPASS
-  ACP_STATE_PENDING
-  ACP_STATE_ARMING
-  ACP_STATE_DISARMING
-  ACP_STATE_TRIGGERED
-}
+// All states in alarm_control_panel namespace:
+alarm_control_panel::ACP_STATE_DISARMED
+alarm_control_panel::ACP_STATE_ARMED_HOME
+alarm_control_panel::ACP_STATE_ARMED_AWAY
+alarm_control_panel::ACP_STATE_ARMED_NIGHT
+alarm_control_panel::ACP_STATE_ARMED_VACATION
+alarm_control_panel::ACP_STATE_ARMED_CUSTOM_BYPASS
+alarm_control_panel::ACP_STATE_PENDING
+alarm_control_panel::ACP_STATE_ARMING
+alarm_control_panel::ACP_STATE_DISARMING
+alarm_control_panel::ACP_STATE_TRIGGERED
 ```
 
 ## Supporting Multiple ESPHome Versions
@@ -231,7 +234,7 @@ class MyComponent : public Component {
 #if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 1, 0)
 // New API - unified callback (check get_state() inside)
 alarm->add_on_state_callback([this]() {
-  if (this->alarm_->get_state() == ACP_STATE_TRIGGERED) {
+  if (this->alarm_->get_state() == alarm_control_panel::ACP_STATE_TRIGGERED) {
     // handle triggered
   }
 });

@@ -96,6 +96,148 @@ class Buffer {
 };
 ```
 
+### Memory management and heap allocation
+
+ESP devices run for months with small heaps shared between Wi-Fi, BLE, LWIP, and application code. Over time, repeated
+allocations of different sizes fragment the heap. Failures happen when the largest contiguous block shrinks, even if
+total free heap is still large. We have seen field crashes caused by this.
+
+!!!note "Why this matters more now"
+    Disabling update entities by default in Home Assistant has had an unintended side effect: devices now stay up much
+    longer. That's great for stability, but it also makes heap fragmentation much more likely to surface. Over long
+    uptimes, small allocations fragment the heap, so you can have lots of "free heap" but no large contiguous block
+    left. When something like a preferences write or other larger allocation happens, it can't fit anywhere and the
+    device resets.
+
+**Heap allocation after `setup()` should be avoided unless absolutely unavoidable.** Every allocation/deallocation cycle
+contributes to fragmentation. ESPHome treats runtime heap allocation as a long-term reliability bug, not a performance
+issue.
+
+#### Avoiding hidden heap allocations
+
+Helper functions that return `std::string` hide heap allocations. These are soft-deprecated and being replaced with
+buffer-based APIs. When writing new code, use stack buffers instead.
+
+**Examples of deprecated functions and their replacements:**
+
+| Deprecated Function | Replacement |
+|---------------------|-------------|
+| `format_hex()` | `format_hex_to()` with stack buffer |
+| `format_hex_pretty()` | `format_hex_pretty_to()` with stack buffer |
+| `format_mac_address_pretty()` | `format_mac_addr_upper()` with stack buffer |
+| `get_mac_address()` | `get_mac_address_into_buffer()` |
+| `get_mac_address_pretty()` | `get_mac_address_pretty_into_buffer()` |
+
+This is not an exhaustive list. Any function returning `std::string` that runs after `setup()` should be scrutinized.
+
+**Example migration:**
+
+```cpp
+// Bad - heap allocation on every call
+ESP_LOGD(TAG, "Data: %s", format_hex(data).c_str());
+
+// Good - stack buffer, no heap allocation
+char hex[64];  // Size appropriately for your data
+ESP_LOGD(TAG, "Data: %s", format_hex_to(hex, data));
+```
+
+For formatting containers directly:
+
+```cpp
+// format_hex_to() has overloads for std::vector and std::array
+std::vector<uint8_t> data = get_data();
+char hex[256];
+ESP_LOGD(TAG, "Received: %s", format_hex_to(hex, data));
+```
+
+For MAC addresses:
+
+```cpp
+char mac[MAC_ADDRESS_PRETTY_BUFFER_SIZE];
+ESP_LOGD(TAG, "MAC: %s", format_mac_addr_upper(mac_bytes, mac));
+```
+
+#### STL container guidelines
+
+Choose containers carefully on embedded systems:
+
+1. **Compile-time-known sizes**: Use `std::array` instead of `std::vector` when size is known at compile time.
+
+    ```cpp
+    // Bad - generates STL realloc code
+    std::vector<int> values;
+
+    // Good - no dynamic allocation
+    std::array<int, MAX_VALUES> values;
+    ```
+
+    Use `cg.add_define("MAX_VALUES", count)` to set the size from Python configuration.
+
+2. **Fixed sizes with vector-like API**: Use `StaticVector` from `esphome/core/helpers.h` for compile-time fixed
+   size with `push_back()` interface (no dynamic allocation).
+
+    ```cpp
+    // Bad - generates STL realloc code (_M_realloc_insert)
+    std::vector<ServiceRecord> services;
+    services.reserve(5);  // Still includes reallocation machinery
+
+    // Good - compile-time fixed size, no dynamic allocation
+    StaticVector<ServiceRecord, MAX_SERVICES> services;
+    services.push_back(record1);
+    ```
+
+3. **Runtime-known sizes**: Use `FixedVector` from `esphome/core/helpers.h` when the size is only known at runtime.
+
+    ```cpp
+    // Bad - generates STL realloc code
+    std::vector<TxtRecord> txt_records;
+    txt_records.reserve(5);
+
+    // Good - single allocation, no reallocation machinery
+    FixedVector<TxtRecord> txt_records;
+    txt_records.init(record_count);
+    ```
+
+4. **Small datasets (1-16 elements)**: Use `std::vector` or `std::array` with simple structs instead of
+   `std::map`/`std::set`/`std::unordered_map`.
+
+    ```cpp
+    // Bad - 2KB+ overhead for red-black tree/hash table
+    std::map<std::string, int> small_lookup;
+
+    // Good - simple struct with linear search
+    struct LookupEntry {
+      const char *key;
+      int value;
+    };
+    std::vector<LookupEntry> small_lookup;
+    ```
+
+    Linear search on small datasets is often faster than hashing/tree overhead.
+
+5. **Avoid `std::deque`**: It allocates in 512-byte blocks regardless of element size, guaranteeing at least 512 bytes
+   of RAM usage immediately. This is a major source of crashes on memory-constrained devices.
+
+6. **Byte buffers**: Avoid `std::vector<uint8_t>` unless the buffer needs to grow. Use `std::unique_ptr<uint8_t[]>`.
+
+    ```cpp
+    // Bad - STL overhead for simple byte buffer
+    std::vector<uint8_t> buffer;
+    buffer.resize(256);
+
+    // Good - minimal overhead, single allocation
+    std::unique_ptr<uint8_t[]> buffer = std::make_unique<uint8_t[]>(256);
+    ```
+
+**Prioritize optimization effort for:**
+
+- Core components (API, network, logger)
+- Widely-used components (mdns, wifi, ble)
+- Components causing flash size complaints
+
+Note: Avoiding heap allocation after `setup()` is always required regardless of component type. The prioritization above
+is about the effort spent on container optimization (e.g., migrating from `std::vector` to `StaticVector`).
+
 ### Use of external libraries
 
 In general, we try to avoid use of external libraries.

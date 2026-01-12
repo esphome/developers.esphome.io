@@ -90,19 +90,19 @@ text_sensor->add_on_state_callback(callback);
 
 ```cpp
 // Before - received string and index
-select->add_on_state_callback([](const std::string &value, size_t index) {
+this->select_->add_on_state_callback([](const std::string &value, size_t index) {
   ESP_LOGD(TAG, "Selected: %s (index %zu)", value.c_str(), index);
 });
 
 // After - receives index only
-select->add_on_state_callback([this](size_t index) {
+this->select_->add_on_state_callback([this](size_t index) {
   // Get string from index if needed
   const char *value = this->select_->option_at(index);
   ESP_LOGD(TAG, "Selected: %s (index %zu)", value, index);
 });
 
 // Or if you only need the index (common case)
-select->add_on_state_callback([this](size_t index) {
+this->select_->add_on_state_callback([this](size_t index) {
   this->handle_selection(index);
 });
 ```
@@ -112,7 +112,7 @@ select->add_on_state_callback([this](size_t index) {
 If your callback needs the option string, retrieve it from the select entity:
 
 ```cpp
-select->add_on_state_callback([this](size_t index) {
+this->select_->add_on_state_callback([this](size_t index) {
   // Option 1: Use option_at()
   const char *value = this->select_->option_at(index);
   if (value != nullptr) {
@@ -144,7 +144,7 @@ text_sensor->add_on_state_callback([](const std::string &value) {
 ```cpp
 #if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 1, 0)
   // New API - index only
-  select->add_on_state_callback([this](size_t index) {
+  this->select_->add_on_state_callback([this](size_t index) {
     const char *value = this->select_->option_at(index);
     if (value != nullptr) {
       ESP_LOGD(TAG, "Selected: %s", value);
@@ -152,7 +152,7 @@ text_sensor->add_on_state_callback([](const std::string &value) {
   });
 #else
   // Old API - string and index
-  select->add_on_state_callback([](const std::string &value, size_t index) {
+  this->select_->add_on_state_callback([](const std::string &value, size_t index) {
     ESP_LOGD(TAG, "Selected: %s", value.c_str());
   });
 #endif

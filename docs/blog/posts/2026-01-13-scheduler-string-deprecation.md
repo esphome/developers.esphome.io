@@ -75,9 +75,10 @@ Component helper methods (used via `this->set_timeout(...)` in your component):
 | `cancel_interval(std::string)` | `cancel_interval(const char*)` or `cancel_interval(uint32_t)` |
 | `set_retry(std::string, wait, attempts, func)` | `set_retry(const char*, wait, attempts, func)` or `set_retry(uint32_t, wait, attempts, func)` |
 | `cancel_retry(std::string)` | `cancel_retry(const char*)` or `cancel_retry(uint32_t)` |
-| `defer(std::string, func)` | `defer(const char*, func)` |
-| `cancel_defer(std::string)` | `cancel_defer(const char*)` |
+| `defer(std::string, func)` | `defer(const char*, func)` *(no `uint32_t` overload available)* |
+| `cancel_defer(std::string)` | `cancel_defer(const char*)` *(no `uint32_t` overload available)* |
 
+Note: Unlike `set_timeout`, `set_interval`, and `set_retry`, the `defer`/`cancel_defer` helpers currently only support `const char*` identifiers and do **not** have `uint32_t` overloads.
 ## Deprecation warnings
 
 You'll see warnings like:

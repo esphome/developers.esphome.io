@@ -31,7 +31,7 @@ All internal usage has been removed in companion PRs: [#13841](https://github.co
 
 ## What's Changing
 
-All overloads of `set_retry` and `cancel_retry`, plus the `RetryResult` enum, are marked `ESPDEPRECATED`. They will produce compiler warnings now and be removed in 2026.8.0.
+The entire `set_retry` / `cancel_retry` / `RetryResult` API is marked `ESPDEPRECATED`. Using any of these will produce compiler warnings now. The API will be removed in 2026.8.0.
 
 ```cpp
 // All of these are deprecated:

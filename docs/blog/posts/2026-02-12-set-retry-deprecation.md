@@ -148,29 +148,7 @@ this->set_interval("wait_stop", 50, [this]() {
 
 ## Supporting Multiple ESPHome Versions
 
-```cpp
-#if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 2, 0)
-// New API - set_interval with counter
-this->read_attempts_remaining_ = 10;
-this->set_interval(INTERVAL_READ, 5, [this]() {
-  if (this->data_ready()) {
-    this->cancel_interval(INTERVAL_READ);
-    this->read_data();
-  } else if (--this->read_attempts_remaining_ == 0) {
-    this->cancel_interval(INTERVAL_READ);
-  }
-});
-#else
-// Old API - set_retry (works but allocates on heap)
-this->set_retry("read", 5, 10, [this](uint8_t remaining) {
-  if (this->data_ready()) {
-    this->read_data();
-    return RetryResult::DONE;
-  }
-  return RetryResult::RETRY;
-});
-#endif
-```
+No version guard is needed. `set_interval` and `set_timeout` are available in all ESPHome versions, so migrated code works everywhere.
 
 ## Timeline
 

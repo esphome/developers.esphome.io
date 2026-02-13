@@ -2,8 +2,7 @@
 
 ## Overview
 
-Logging is an essential part of ESPHome for both debugging and monitoring. It's important to understand that logging
-has performance implications, especially in networked environments.
+It's important to understand that logging has performance implications, especially in networked environments.
 
 This guide covers best practices for efficient logging in ESPHome components and platforms.
 

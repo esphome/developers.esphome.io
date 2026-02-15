@@ -50,8 +50,8 @@ This guide essentially goes over the same material found in
 [GitHub's Editing files in another user's repository](https://docs.github.com/en/repositories/working-with-files/managing-files/editing-files#editing-files-in-another-users-repository).
 You may also find that page helpful to read.
 
-At the bottom of each page in the docs, there is an "Edit this page on GitHub" link. Click this link and you'll see
-something like this:
+At the bottom of each page in the docs, there is an "Edit page" link. Click this link and you'll see something like
+this:
 
 ![A screenshot of a Markdown file opened in GitHub, with the edit button circled](/images/ghedit_1.png)
 

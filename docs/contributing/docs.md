@@ -6,8 +6,9 @@ Our documentation can always be improved. We rely on contributions from our user
 example, spelling/grammar mistakes) or if you want to share your awesome new setup, we encourage you to submit a pull
 request (PR).
 
-The ESPHome documentation uses [Markdown](https://www.markdownguide.org/) for all source (`.md`) files. If you're not
-familiar with Markdown, see [Markdown syntax](#markdown-syntax) for a quick primer.
+The ESPHome documentation is built with [Astro](https://astro.build/) and [Starlight](https://starlight.astro.build/),
+using [MDX](https://mdxjs.com/) (`.mdx`) files for all source content. MDX is Markdown with the ability to import and
+use components. If you're not familiar with Markdown, see [Markdown syntax](#markdown-syntax) for a quick primer.
 
 ## Documentation guidelines
 
@@ -49,8 +50,8 @@ This guide essentially goes over the same material found in
 [GitHub's Editing files in another user's repository](https://docs.github.com/en/repositories/working-with-files/managing-files/editing-files#editing-files-in-another-users-repository).
 You may also find that page helpful to read.
 
-At the bottom of each page in the docs, there is an "Edit this page on GitHub" link. Click this link and you'll see
-something like this:
+At the bottom of each page in the docs, there is an "Edit page" link. Click this link and you'll see something like
+this:
 
 ![A screenshot of a Markdown file opened in GitHub, with the edit button circled](/images/ghedit_1.png)
 
@@ -93,38 +94,31 @@ errors. If, however, more errors are discovered, simply repeat the process above
 
 ## Build
 
-!!! note
-
-    The easiest way is to use the [esphome-docs container image](https://ghcr.io/esphome/esphome-docs/):
-
-    ```bash
-    docker run --rm -v "${PWD}/":/workspaces/esphome-docs -p 8000:8000 -it ghcr.io/esphome/esphome-docs
-    ```
-
-    ...with `PWD` referring to the root of the `esphome-docs` git repository. Then, to see the preview, go to
-    `<HOST_IP>:8000` in your browser.
-
-    This way, you don't have to install the dependencies to build the documentation.
-
-To check your documentation changes locally, you can build the documentation using the provided build tools.
-Check the `esphome-docs` repository for current build instructions, as the build system is being updated.
-
-Traditionally, this involved running:
+To check your documentation changes locally, you first need [Node.js](https://nodejs.org/) (v18 or later). Then, from
+the root of the `esphome-docs` repository:
 
 ```bash
-# in esphome-docs repo:
-make live-html
+npm install
+npm run dev
 ```
 
-This will start a live-reloading web server, typically at `http://localhost:8000`.
+This will start a development server with hot-reloading at `http://localhost:4321/`.
+
+Other useful commands:
+
+```bash
+npm run build        # Build for production (outputs to dist/)
+npm run preview      # Preview the production build locally
+npm run lint         # Run the documentation linter
+```
 
 ## Markdown syntax
 
-Here's a quick Markdown primer for the ESPHome documentation:
+Here's a quick primer on writing documentation for the ESPHome docs (`.mdx` files):
 
 ### Frontmatter
 
-Every documentation page should start with YAML frontmatter (this is standard across most static site generators):
+Every documentation page must start with YAML frontmatter:
 
 ```yaml
 ---
@@ -133,8 +127,7 @@ description: "Short description for meta tags and search"
 ---
 ```
 
-The `title` field is typically used as the page's H1 heading, so you may not need to include an H1 (`#`) in your
-Markdown content depending on the site generator configuration.
+Starlight uses the `title` field as the page's H1 heading, so do not include an H1 (`#`) in your content.
 
 ### Headers
 
@@ -168,7 +161,7 @@ Create a link to an external resource like this:
 
 ### Internal references
 
-To reference other documentation pages, use standard Markdown links:
+To reference other documentation pages, use Markdown links with absolute paths:
 
 ```markdown
 [ESP32 BLE Tracker](/components/esp32_ble_tracker/)
@@ -184,10 +177,10 @@ To link to a specific section using anchors:
 
 Headers automatically create anchor IDs by converting them to lowercase and replacing spaces with hyphens.
 
-To create a custom named anchor, use Hugo shortcodes:
+To create a custom named anchor (for example, to preserve links from old URLs), use an HTML `span`:
 
 ```markdown
-{{< anchor "anchor" >}}
+<span id="my-custom-anchor"></span>
 ```
 
 ### Inline code
@@ -238,21 +231,33 @@ Use **bold** for required variables and _italic_ for optional variables.
 
 ### Images
 
-Use standard Markdown syntax to display images:
+The documentation uses Astro's image handling. There are two approaches depending on whether the image is used in one
+document or shared across multiple pages.
 
-```markdown
+**Local images** (used in a single page) are stored in an `images/` directory alongside the `.mdx` file and imported
+at the top of the file:
+
+```mdx
+import { Image } from 'astro:assets';
+import myDeviceImg from './images/my-device.jpg';
+
+<Image src={myDeviceImg} alt="My Device" layout="constrained" />
+```
+
+**Shared images** (used in multiple pages or in `ImgTable` components) are stored in `/public/images/` and referenced
+with absolute paths:
+
+```mdx
 ![Description](/images/filename.png)
 ```
 
-For more control over image display (like width, alignment, or captions), you can use HTML:
+For images with captions, use the `Figure` component:
 
-```markdown
-<img src="/images/filename.png" alt="Description" width="50%" style="display: block; margin: 0 auto;">
+```mdx
+import Figure from '@components/Figure.astro';
+import myDeviceImg from './images/my-device.jpg';
 
-<figure style="text-align: center;">
-  <img src="/images/filename.png" alt="Description" width="70%">
-  <figcaption>Caption text.</figcaption>
-</figure>
+<Figure src={myDeviceImg} alt="My Device" caption="A photo of the device" layout="constrained" />
 ```
 
 !!! note
@@ -324,32 +329,41 @@ Create lists using standard Markdown syntax:
 1. Ordered item #1
 2. Ordered item #2
 
-### Legacy Hugo shortcodes
+### Importing components in MDX
 
-ESPHome is migrating away from Hugo-specific features. If you encounter Hugo shortcodes in existing documentation,
-please replace them with standard Markdown alternatives where possible:
+Because the documentation uses MDX, you can import and use Astro components. Imports go at the top of the file, after
+the frontmatter:
 
-**Instead of `{{< docref >}}`**, use standard Markdown links:
-```markdown
-[Link Text](/path/to/page)
+```mdx
+---
+title: "My Component"
+description: "Description"
+---
+
+import { Image } from 'astro:assets';
+import Figure from '@components/Figure.astro';
+import APIRef from '@components/APIRef.astro';
+import myImg from './images/my-image.jpg';
+
+Content starts here...
 ```
 
-**Instead of `{{< img >}}`**, use standard Markdown or HTML:
-```markdown
-![Alt text](/images/image.png)
-<img src="/images/image.png" alt="Alt text" width="50%">
-```
+Commonly used components:
 
-**Hugo anchor** - For now, `{{< anchor >}}` may still be needed for links until a replacement is
-available. If you encounter these, leave them as-is unless you have a suitable replacement.
-
-**API references** - For now, `{{< apiref >}}` may still be needed for API documentation links until a replacement is
-available. If you encounter these, leave them as-is unless you have a suitable replacement.
+- **`Image`** (from `astro:assets`): Optimized image display
+- **`Figure`** (from `@components/Figure.astro`): Image with optional caption
+- **`APIRef`** (from `@components/APIRef.astro`): Links to C++ API documentation
+- **`ImgTable`** (from `@components/ImgTable.astro`): Grid of component cards with images (used on index pages)
 
 ### Component pages
 
-When adding a new component, you'll need to add it to the appropriate index page. Component thumbnails should have
-an aspect ratio of 8:10 (or 10:8) but exceptions are possible.
+Component documentation lives in `src/content/docs/components/`. Simple components are a single `.mdx` file (e.g.,
+`wifi.mdx`). Components with sub-platforms use a directory with an `index.mdx` and additional files (e.g.,
+`binary_sensor/index.mdx`, `binary_sensor/gpio.mdx`).
+
+When adding a new component, you'll need to add it to the appropriate index page using the `ImgTable` component.
+Component thumbnails should have an aspect ratio of 8:10 (or 10:8) but exceptions are possible. These images must
+be placed in `/public/images/`.
 
 Because these images are served on the main page, they need to be compressed heavily. SVGs are preferred over JPGs
 and JPGs should be no more than 300x300px.
@@ -358,6 +372,29 @@ If you have imagemagick installed, you can use this command to convert the thumb
 
 ```bash
 convert -sampling-factor 4:2:0 -strip -interlace Plane -quality 80% -resize 300x300 in.jpg out.jpg
+```
+
+### Project structure
+
+For reference, the `esphome-docs` repository is organized as follows:
+
+```text
+esphome-docs/
+├── src/
+│   ├── assets/                      # Static assets (logos, etc.)
+│   ├── components/                  # Astro components (Figure, APIRef, etc.)
+│   ├── content/
+│   │   └── docs/                    # MDX documentation files
+│   │       ├── components/          # Component documentation
+│   │       ├── automations/         # Automation documentation
+│   │       ├── guides/              # General guides
+│   │       ├── cookbook/            # How-to recipes
+│   │       └── changelog/           # Version changelogs
+│   └── styles/                      # CSS files
+├── public/
+│   └── images/                      # Shared images (multi-use, ImgTable)
+├── astro.config.mjs                 # Astro/Starlight configuration
+└── package.json                     # Node.js dependencies
 ```
 
 For more information on Markdown syntax, please refer to the

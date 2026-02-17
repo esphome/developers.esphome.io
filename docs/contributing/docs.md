@@ -89,7 +89,7 @@ failing check to determine what's wrong with your change(s).
 In this example, you would need to fix the reported error in your MDX file (such as a linting issue or
 formatting problem).
 
-Once you make that change, the pull request will be tested & built again; ideally, this time where will be no remaining
+Once you make that change, the pull request will be tested & built again; ideally, this time there will be no remaining
 errors. If, however, more errors are discovered, simply repeat the process above to correct them.
 
 !!! note

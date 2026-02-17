@@ -53,36 +53,40 @@ You may also find that page helpful to read.
 At the bottom of each page in the docs, there is an "Edit page" link. Click this link and you'll see something like
 this:
 
-![A screenshot of a Markdown file opened in GitHub, with the edit button circled](/images/ghedit_1.png)
+![An MDX file opened in GitHub, with the edit button circled](/images/ghedit_1.png)
 
-Click the edit button to start making changes. If you're unsure about syntax, see our [quick primer](#markdown-syntax).
+Click the edit button to start making changes. If this is your first time contributing, GitHub will ask you to fork
+the repository. Click "Fork this repository" to create your own copy where you can make changes.
 
-Once you've made your changes, give them a useful name and click "Propose changes". At this point, you've made the
-changes to your own personal copy of the docs in GitHub, but you still need to submit them to us.
+Once the fork is created, you'll be taken to the editor. Make your changes, then click the "Commit changes..." button
+when you're done:
 
-![The commit creation screen in GitHub, with the commit title and "Propose changes" button circled](/images/ghedit_2.png)
+![The GitHub file editor with the "Commit changes..." button circled](/images/ghedit_2.png)
 
-To do that, you need to create a "Pull request" (PR):
+Give your changes a useful name and click "Propose changes". If you're unsure about syntax, see our
+[quick primer](#markdown-syntax).
 
-![The pull request prompt screen in GitHub with the "Create pull request" button circled](/images/ghedit_3.png)
+![The propose changes dialog in GitHub, with the "Propose changes" button circled](/images/ghedit_3.png)
+
+At this point, you've made the changes to your own personal copy of the docs in GitHub, but you still need to submit
+them to us. To do that, you need to create a "Pull request" (PR):
+
+![The comparing changes screen in GitHub with the "Create pull request" button circled](/images/ghedit_4.png)
 
 Complete the pull request form, replacing the `[ ]` with `[x]` to indicate that you have followed the instructions.
 **Note that there must be no spaces around the `x`** when you populate it.
 
-![The pull request creation screen in GitHub with the "Create pull request" button circled](/images/ghedit_4.png)
+![The pull request creation screen in GitHub with the "Create pull request" button circled](/images/ghedit_5.png)
 
-After a few minutes, you'll see either a green check ✅ or a red ❌ next to your commit in your pull request:
+After a few minutes, you'll see either a green check ✅ or a red ❌ next to your commit in your pull request. If you
+see the red ❌, there is at least one error preventing your pull request from being fully processed. Click on the
+failing check to determine what's wrong with your change(s).
 
-![The pull request with a commit with a red x next to it](/images/ghedit_ci_failed.png)
+![The checks section showing a failed CI/Lint check circled](/images/ghedit_ci_details.png)
 
-If you see the red ❌, there is at least one error preventing your pull request from being fully processed. Click on the
-❌, then click on "Details" next to the lint step to determine what's wrong with your change(s).
+![Log messages showing the reason for the failed lint](/images/ghedit_ci_logs.png)
 
-![Failed lint substep of build, with "details" link circled](/images/ghedit_ci_details.png)
-
-![Log messages showing reason for failed build](/images/ghedit_ci_logs.png)
-
-In this example, you would need to fix the reported error in your Markdown file (such as a linting issue or
+In this example, you would need to fix the reported error in your MDX file (such as a linting issue or
 formatting problem).
 
 Once you make that change, the pull request will be tested & built again; ideally, this time where will be no remaining

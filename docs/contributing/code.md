@@ -261,9 +261,9 @@ In general, we try to avoid use of external libraries.
     - When used in only a single component, they should be defined within that component.
     - If a key is used in two or more components, it should be migrated to `esphome/const/__init__.py`.
     - If a key appears in three or more components, it **must** be migrated to `esphome/const/__init__.py` or CI checks will fail.
-    - Many constants used in components are already defined in `esphome/const.py` - no new constants
+    - Many constants used in components are already defined in `esphome/const.py`; no new constants
       should be added there unless used in core code.
-    - Create a separate PR if/when you wish to move a constant into  `esphome/const/__init__.py`.
+    - Create a separate PR if/when you wish to move a constant into `esphome/const/__init__.py`.
 - Using `AUTO_LOAD` to load main platform components (`sensor`, `binary_sensor`, `switch`, etc.) is not permitted.
 - Use Python's walrus operator for optional config gathering, except for boolean values. For example:
   `sensor_config := config.get(CONF_SENSOR)`

@@ -78,7 +78,7 @@ async def do_thing_to_code(config, action_id, template_arg, args):
 
 ### Reference: Actions that are asynchronous
 
-Only 8 actions in the entire ESPHome codebase are `synchronous=False`:
+Only 9 actions in the entire ESPHome codebase are `synchronous=False`:
 
 | Action | Reason |
 |--------|--------|
@@ -106,6 +106,8 @@ _supports_synchronous = "synchronous" in inspect.signature(
 def _register_action(name, action_type, schema, **kwargs):
     if _supports_synchronous:
         kwargs.setdefault("synchronous", True)
+    else:
+        kwargs.pop("synchronous", None)
     return automation.register_action(name, action_type, schema, **kwargs)
 
 @_register_action("my_comp.do_thing", DoThingAction, DO_THING_SCHEMA)
@@ -121,7 +123,7 @@ If you only need to support ESPHome 2026.3.0+, just pass the parameter directly.
 ## Finding Code That Needs Updates
 
 ```bash
-# Find register_action calls without synchronous=
+# Find all register_action calls for manual review (check each for a synchronous= parameter)
 grep -rn 'register_action' your_component/
 ```
 

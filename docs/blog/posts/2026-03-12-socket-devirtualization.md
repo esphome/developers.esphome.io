@@ -90,7 +90,7 @@ Note: On ESP32 and LibreTiny in 2026.3.0, `ListenSocket` is a type alias for `So
 
 ```bash
 # Find socket::Socket used for listen sockets
-grep -rn 'unique_ptr.*socket::Socket.*server\|socket_ip_loop_monitored\|socket_ip\b' your_component/
+grep -rn 'unique_ptr.*socket::Socket.*server\|socket_ip_loop_monitored' your_component/
 ```
 
 ## Questions?

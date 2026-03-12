@@ -19,7 +19,9 @@ This is a **breaking change** for external components in **ESPHome 2026.3.0 and 
 **[PR #14437](https://github.com/esphome/esphome/pull/14437): Move icon strings to PROGMEM on ESP8266**
 **[PR #14443](https://github.com/esphome/esphome/pull/14443): Move device class strings to PROGMEM on ESP8266**
 
-Icon and device class strings are set at compile time and never change. PR #14171 moved `device_class` and `unit_of_measurement` from per-entity-type traits mixin classes (e.g., `EntityBase_DeviceClass`, `EntityBase_UnitOfMeasurement`) directly into `EntityBase`, so these properties are now accessed on the entity itself rather than through traits. The old getter methods returned references or pointers to these strings, which required them to be stored as regular C strings in RAM. The new buffer-based APIs copy the string into a caller-provided buffer, which works regardless of where the string is stored.
+Icon and device class strings are set at compile time and never change. PR #14171 packed these properties into PROGMEM-indexed `uint8_t` fields on `EntityBase`, replacing per-entity `const char*` pointers and the `EntityBase_DeviceClass`/`EntityBase_UnitOfMeasurement` mixin classes. Most entity types already had `device_class` and `unit_of_measurement` on the entity itself — the exception was `NumberTraits`, which previously inherited the mixin classes. `NumberTraits` no longer provides these accessors; use `number->get_device_class_ref()` / `number->get_unit_of_measurement_ref()` instead of `number->traits.get_*_ref()`.
+
+The old getter methods returned references or pointers to these strings, which required them to be stored as regular C strings in RAM. The new buffer-based APIs copy the string into a caller-provided buffer, which works regardless of where the string is stored.
 
 On ESP8266, PRs #14437 and #14443 also move the strings into PROGMEM (flash), freeing valuable heap RAM. Since PROGMEM strings cannot be accessed through normal C string pointers on ESP8266, the old methods produce a hard `static_assert` error on that platform rather than a deprecation warning.
 
@@ -34,16 +36,33 @@ On ESP8266, PRs #14437 and #14443 also move the strings into PROGMEM (flash), fr
 | `get_device_class_ref()` | `get_device_class_to(buffer)` |
 | `get_device_class()` | `get_device_class_to(buffer)` |
 
-### Traits accessors moved to EntityBase
+### NumberTraits: device_class and unit_of_measurement moved to entity
 
-`device_class` and `unit_of_measurement` have moved from per-entity-type traits to `EntityBase`. Code that accessed these through traits must now access them directly on the entity:
+`NumberTraits` no longer provides `get_device_class()`, `get_device_class_ref()`, or `get_unit_of_measurement_ref()`. These are now accessed directly on the `Number` entity, consistent with all other entity types:
 
 | Before | After |
 |--------|-------|
 | `number->traits.get_device_class()` | `number->get_device_class_to(buffer)` |
 | `number->traits.get_device_class_ref()` | `number->get_device_class_to(buffer)` |
 | `number->traits.get_unit_of_measurement_ref()` | `number->get_unit_of_measurement_ref()` |
-| `sensor->get_device_class()` | `sensor->get_device_class_to(buffer)` |
+
+### EntityBase setters removed and packed into configure_entity_()
+
+The following `EntityBase` setters have been removed and packed into the existing `configure_entity_()` call:
+
+- `set_name()`
+- `set_icon()`
+- `set_device_class()`
+- `set_unit_of_measurement()`
+- `set_internal()`
+- `set_disabled_by_default()`
+- `set_entity_category()`
+
+Additionally, `set_device()` has been renamed to `set_device_()` and made `protected`.
+
+These were codegen-only setters — calling them at runtime was unsafe and could silently corrupt state or crash the device (undefined behavior). If you were calling `set_icon()` from lambdas to dynamically change icons at runtime, move the icon logic to the Home Assistant side (e.g., using template sensors with `icon` templates).
+
+See [PR #14171](https://github.com/esphome/esphome/pull/14171), [PR #14437](https://github.com/esphome/esphome/pull/14437), [PR #14443](https://github.com/esphome/esphome/pull/14443), and [PR #14564](https://github.com/esphome/esphome/pull/14564).
 
 ### ESP8266-specific
 
@@ -67,7 +86,9 @@ const char *dc = entity->get_device_class_to(dc_buf);
 
 **External components that:**
 
-- Call `get_icon_ref()`, `get_icon()`, `get_device_class_ref()`, or `get_device_class()` on any entity or its traits — deprecation warning on all platforms, hard compile error on ESP8266
+- Call `get_icon_ref()`, `get_icon()`, `get_device_class_ref()`, or `get_device_class()` on any entity — deprecation warning on all platforms, hard compile error on ESP8266
+- Access `device_class` or `unit_of_measurement` through `NumberTraits` — moved to `Number` entity directly
+- Call `set_icon()`, `set_device_class()`, `set_unit_of_measurement()`, or other removed EntityBase setters at runtime
 
 **Standard YAML configurations are not affected.**
 
@@ -88,17 +109,15 @@ char dc_buf[MAX_DEVICE_CLASS_LENGTH];
 const char *dc = entity->get_device_class_to(dc_buf);
 ```
 
-### Traits-based accessors (moved to entity)
-
-Device class and unit of measurement have moved from traits to the entity itself:
+### NumberTraits migration
 
 ```cpp
-// Before — accessed through traits
+// Before — accessed through traits (only Number had this pattern)
 auto dc = number->traits.get_device_class();
 auto dc = number->traits.get_device_class_ref();
 auto uom = number->traits.get_unit_of_measurement_ref();
 
-// After — accessed directly on entity, with buffer API for device class
+// After — accessed directly on entity, consistent with all other entity types
 char dc_buf[MAX_DEVICE_CLASS_LENGTH];
 const char *dc = number->get_device_class_to(dc_buf);
 const auto &uom = number->get_unit_of_measurement_ref();
@@ -144,8 +163,11 @@ if (icon != nullptr) {
 grep -rn 'get_icon_ref\|get_icon()' your_component/
 grep -rn 'get_device_class_ref\|get_device_class()' your_component/
 
-# Find traits-based accessors that moved to entity
+# Find NumberTraits accessors that moved to entity
 grep -rn 'traits\.get_device_class\|traits\.get_unit_of_measurement' your_component/
+
+# Find removed EntityBase setters
+grep -rn 'set_icon\|set_device_class\|set_unit_of_measurement\|set_internal\|set_disabled_by_default\|set_entity_category\|set_name(' your_component/
 ```
 
 ## Questions?
@@ -160,3 +182,4 @@ If you have questions about migrating your external component, please ask in:
 - [PR #14171: Pack entity string properties into PROGMEM-indexed fields](https://github.com/esphome/esphome/pull/14171)
 - [PR #14437: Move icon strings to PROGMEM on ESP8266](https://github.com/esphome/esphome/pull/14437)
 - [PR #14443: Move device class strings to PROGMEM on ESP8266](https://github.com/esphome/esphome/pull/14443)
+- [PR #14564: Pack entity flags into configure_entity_() and protect setters](https://github.com/esphome/esphome/pull/14564)

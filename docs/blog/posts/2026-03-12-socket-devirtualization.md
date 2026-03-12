@@ -7,7 +7,7 @@ comments: true
 
 # Socket Abstraction Layer Devirtualized
 
-The `socket::Socket` and `socket::ListenSocket` types have been changed from virtual base classes to concrete type aliases. Listen sockets now use the `ListenSocket` type instead of `Socket`. The `Socket::ready()` method has been converted to a free function `socket_ready_fd()`. These changes save 1,020–3,228 bytes of flash across platforms by eliminating virtual dispatch overhead.
+The `socket::Socket` and `socket::ListenSocket` types have been changed from virtual base classes to concrete type aliases. Listen sockets now use the `ListenSocket` type instead of `Socket`. These changes save 1,020–3,228 bytes of flash across platforms by eliminating virtual dispatch overhead.
 
 This is a **breaking change** for external components in **ESPHome 2026.3.0 and later**.
 
@@ -37,24 +37,11 @@ By converting to concrete type aliases, the compiler can fully inline socket met
 
 Listen sockets returned by `socket_ip_loop_monitored()` and similar factory functions now return `std::unique_ptr<ListenSocket>` instead of `std::unique_ptr<Socket>`.
 
-### socket::Socket::ready() removed
-
-The `ready()` instance method has been replaced with a free function:
-
-```cpp
-// Before
-if (socket->ready()) { ... }
-
-// After
-if (socket_ready_fd(fd)) { ... }
-```
-
 ## Who This Affects
 
 **External components that:**
 
 - Create TCP server sockets using `socket::socket_ip_loop_monitored()` or similar factory functions and store them as `std::unique_ptr<socket::Socket>`
-- Call `socket->ready()`
 
 **Standard YAML configurations are not affected.**
 
@@ -82,20 +69,6 @@ void setup() override {
 
 Client sockets returned by `accept()` still use `std::unique_ptr<socket::Socket>` — no change needed for client socket handling.
 
-### ready() method
-
-```cpp
-// Before
-if (this->socket_->ready()) {
-  // socket is ready
-}
-
-// After
-if (socket_ready_fd(this->fd_)) {
-  // socket is ready
-}
-```
-
 ## Supporting Multiple ESPHome Versions
 
 ```cpp
@@ -118,9 +91,6 @@ Note: On ESP32 and LibreTiny in 2026.3.0, `ListenSocket` is a type alias for `So
 ```bash
 # Find socket::Socket used for listen sockets
 grep -rn 'unique_ptr.*socket::Socket.*server\|socket_ip_loop_monitored\|socket_ip\b' your_component/
-
-# Find ready() calls on sockets
-grep -rn '->ready()' your_component/
 ```
 
 ## Questions?

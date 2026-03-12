@@ -7,7 +7,7 @@ comments: true
 
 # LogListener Virtual Interface Replaced with LogCallback
 
-The `logger::LogListener` abstract class has been removed. Components that receive log messages must now use `logger::global_logger->add_log_callback()` instead of inheriting from `LogListener` and calling `add_log_listener()`.
+The `logger::LogListener` abstract class has been removed. Components that receive log messages must now register a callback with `logger::global_logger->add_log_callback(instance, callback)` instead of inheriting from `LogListener` and calling `add_log_listener()`.
 
 This is a **breaking change** for external components in **ESPHome 2026.3.0 and later**.
 
@@ -21,7 +21,7 @@ The `LogListener` pattern required every log-receiving class to inherit from `Lo
 
 The replacement uses a `LogCallback` struct containing a function pointer + instance pointer. Non-capturing lambdas at registration sites decay to plain function pointers at compile time, producing zero closure overhead.
 
-**Savings:** -112 bytes flash across the built-in implementers (APIServer, WebServer, MQTTClientComponent, Syslog), with net zero heap change.
+**Savings:** 112 bytes of flash saved across the built-in implementers (APIServer, WebServer, MQTTClientComponent, Syslog), with net zero heap change.
 
 ## What's Changing
 
@@ -146,7 +146,7 @@ class MyLogForwarder : public Component
 
 ## Timeline
 
-- **ESPHome 2026.3.0 (March 2026):** `LogListener` class and `add_log_listener()` removed, `add_log_callback()` available
+- **ESPHome 2026.3.0 (March 2026):** `LogListener` class and `add_log_listener()` removed, `add_log_callback(instance, callback)` available
 
 ## Finding Code That Needs Updates
 

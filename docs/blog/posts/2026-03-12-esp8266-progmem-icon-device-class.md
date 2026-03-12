@@ -80,7 +80,7 @@ char dc_buf[MAX_DEVICE_CLASS_LENGTH];
 const char *dc = entity->get_device_class_to(dc_buf);
 ```
 
-`MAX_ICON_LENGTH` is 64 bytes (63 characters + null terminator). Icon strings longer than 63 characters will produce a compile-time error.
+`MAX_ICON_LENGTH` and `MAX_DEVICE_CLASS_LENGTH` are both 64 bytes (63 characters + null terminator). Strings longer than 63 characters will produce a compile-time error.
 
 ## Who This Affects
 

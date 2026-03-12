@@ -7,7 +7,7 @@ comments: true
 
 # Icon and Device Class Getter Migration
 
-The `get_icon_ref()`, `get_icon()`, `get_device_class_ref()`, and `get_device_class()` methods are deprecated on **all platforms** and replaced by new buffer-based APIs `get_icon_to()` and `get_device_class_to()`. On ESP8266, the old methods produce a `static_assert` error because the underlying strings have been moved to PROGMEM and cannot be accessed through normal C string pointers. On other platforms, the old methods emit deprecation warnings and will be removed in 2026.9.0.
+The `get_icon_ref()`, `get_icon()`, `get_device_class_ref()`, and `get_device_class()` methods are deprecated on **all platforms** and replaced by new buffer-based APIs `get_icon_to()` and `get_device_class_to()`. On ESP8266, the old methods produce a `static_assert` error because the underlying strings have been moved to PROGMEM and cannot be accessed through normal C string pointers. On other platforms, the old methods continue to work but emit deprecation warnings and will be removed in 2026.9.0.
 
 This is a **breaking change** for external components in **ESPHome 2026.3.0 and later**.
 

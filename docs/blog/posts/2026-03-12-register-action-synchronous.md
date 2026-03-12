@@ -93,29 +93,25 @@ All other actions (~440) are `synchronous=True`. If your action simply calls a m
 
 ## Supporting Multiple ESPHome Versions
 
-The `synchronous=` parameter is new in 2026.3.0. To support older versions, use a try/except or check the ESPHome version:
+The `synchronous=` parameter is new in 2026.3.0. On older versions, passing it raises a `TypeError`. To support both:
 
 ```python
 import esphome.automation as automation
+import inspect
 
-# Option 1: Use keyword argument — older versions ignore unknown kwargs
-# (register_action accepts **kwargs on all versions)
-@automation.register_action(
-    "my_comp.do_thing", DoThingAction, DO_THING_SCHEMA, synchronous=True,
-)
+_supports_synchronous = "synchronous" in inspect.signature(
+    automation.register_action
+).parameters
+
+def _register_action(name, action_type, schema, **kwargs):
+    if _supports_synchronous:
+        kwargs.setdefault("synchronous", True)
+    return automation.register_action(name, action_type, schema, **kwargs)
+
+@_register_action("my_comp.do_thing", DoThingAction, DO_THING_SCHEMA)
 ```
 
-If your minimum supported version is older and doesn't accept the parameter:
-
-```python
-from esphome.const import __version__
-
-kwargs = {}
-if tuple(int(x) for x in __version__.split(".")[:2]) >= (2026, 3):
-    kwargs["synchronous"] = True
-
-@automation.register_action("my_comp.do_thing", DoThingAction, DO_THING_SCHEMA, **kwargs)
-```
+If you only need to support ESPHome 2026.3.0+, just pass the parameter directly.
 
 ## Timeline
 

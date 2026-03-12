@@ -5,9 +5,9 @@ authors:
 comments: true
 ---
 
-# ESP8266 PROGMEM: Icon and Device Class Getter Migration
+# Icon and Device Class Getter Migration
 
-Icon and device class strings are now stored in PROGMEM on ESP8266, making the old `get_icon_ref()`, `get_icon()`, `get_device_class_ref()`, and `get_device_class()` methods unable to return valid C string pointers on that platform. New buffer-based APIs `get_icon_to()` and `get_device_class_to()` replace them. The old methods are deprecated on all platforms and will produce a `static_assert` error on ESP8266.
+The `get_icon_ref()`, `get_icon()`, `get_device_class_ref()`, and `get_device_class()` methods are deprecated on **all platforms** and replaced by new buffer-based APIs `get_icon_to()` and `get_device_class_to()`. On ESP8266, the old methods produce a `static_assert` error because the underlying strings have been moved to PROGMEM and cannot be accessed through normal C string pointers. On other platforms, the old methods emit deprecation warnings and will be removed in 2026.9.0.
 
 This is a **breaking change** for external components in **ESPHome 2026.3.0 and later**.
 
@@ -18,9 +18,9 @@ This is a **breaking change** for external components in **ESPHome 2026.3.0 and 
 **[PR #14437](https://github.com/esphome/esphome/pull/14437): Move icon strings to PROGMEM on ESP8266**
 **[PR #14443](https://github.com/esphome/esphome/pull/14443): Move device class strings to PROGMEM on ESP8266**
 
-On ESP8266, RAM is extremely limited. Icon and device class strings — which are set at compile time and never change — were consuming valuable heap RAM. Moving them to PROGMEM (flash) frees this RAM, but PROGMEM strings cannot be accessed through normal C string pointers on ESP8266. The old getter methods returned references or pointers to these strings, which is fundamentally incompatible with PROGMEM storage.
+Icon and device class strings are set at compile time and never change. The old getter methods returned references or pointers to these strings, which required them to be stored as regular C strings in RAM. The new buffer-based APIs copy the string into a caller-provided buffer, which works regardless of where the string is stored.
 
-The new buffer-based APIs copy the string from PROGMEM into a caller-provided buffer, which works on all platforms.
+On ESP8266, this change also moves the strings into PROGMEM (flash), freeing valuable heap RAM. Since PROGMEM strings cannot be accessed through normal C string pointers on ESP8266, the old methods produce a hard `static_assert` error on that platform rather than a deprecation warning.
 
 ## What's Changing
 
@@ -55,8 +55,7 @@ const char *dc = entity->get_device_class_to(dc_buf);
 
 **External components that:**
 
-- Call `get_icon_ref()`, `get_icon()`, `get_device_class_ref()`, or `get_device_class()` on any entity
-- Target ESP8266 (compile error) or any platform (deprecation warning)
+- Call `get_icon_ref()`, `get_icon()`, `get_device_class_ref()`, or `get_device_class()` on any entity — deprecation warning on all platforms, hard compile error on ESP8266
 
 **Standard YAML configurations are not affected.**
 

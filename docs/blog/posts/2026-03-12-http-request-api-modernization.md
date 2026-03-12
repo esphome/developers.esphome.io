@@ -18,7 +18,7 @@ This is a **breaking change** for external components in **ESPHome 2026.3.0 and 
 **[PR #14024](https://github.com/esphome/esphome/pull/14024): Modernize response header handling**
 **[PR #14027](https://github.com/esphome/esphome/pull/14027): Modernize request header handling**
 
-The `http_request` API used heavyweight STL containers (`std::map`, `std::list`, `std::set`) for header storage. These containers pull in significant template code (red-black trees, hash tables) and allocate heavily on the heap. Replacing them with `std::vector<Header>` reduces flash usage and heap fragmentation.
+The `http_request` API used heavyweight STL containers (`std::map`, `std::list`, `std::set`) for header storage. These containers pull in significant template code (red-black trees, linked lists) and allocate heavily on the heap. Replacing them with `std::vector<Header>` reduces flash usage and heap fragmentation.
 
 ## What's Changing
 

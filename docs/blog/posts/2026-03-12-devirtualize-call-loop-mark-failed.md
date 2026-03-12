@@ -7,7 +7,7 @@ comments: true
 
 # call_loop(), mark_failed(), and call_dump_config() Are No Longer Virtual
 
-`Component::call_loop()`, `Component::mark_failed()`, and `Component::call_dump_config()` are no longer virtual methods. External components that override any of these methods must remove the `override` keyword. This saves ~800+ bytes of flash globally from vtable elimination.
+`Component::call_loop()`, `Component::mark_failed()`, and `Component::call_dump_config()` are no longer virtual methods. External components that override any of these methods must remove them entirely and move logic to `loop()` or `dump_config()`. This saves 800+ bytes of flash globally from vtable elimination.
 
 This is a **breaking change** for external components in **ESPHome 2026.3.0 and later**.
 
@@ -18,13 +18,13 @@ This is a **breaking change** for external components in **ESPHome 2026.3.0 and 
 **[PR #14083](https://github.com/esphome/esphome/pull/14083): Devirtualize call_loop() and mark_failed() in Component**
 **[PR #14355](https://github.com/esphome/esphome/pull/14355): Devirtualize call_dump_config()**
 
-These methods were virtual since the original 2019 codebase, designed to let intermediate base classes inject behavior between the framework and the user's `loop()` / `dump_config()` without requiring super calls. The components that historically used these overrides have all been refactored:
+These methods were virtual since the original 2019 codebase, designed to let intermediate base classes inject behavior between the framework and the user's `loop()` / `dump_config()` without requiring base class calls. The components that historically used these overrides have all been refactored:
 
 1. **`MQTTComponent::call_loop()`** — removed in [#13356](https://github.com/esphome/esphome/pull/13356) (Jan 2026) when MQTT was restructured
 2. **`ESP32BLE::mark_failed()`** — removed in [#4173](https://github.com/esphome/esphome/pull/4173) (Jan 2023) when BLE was refactored to use event handlers
 3. **`MQTTComponent::call_dump_config()`** — removed in [#14355](https://github.com/esphome/esphome/pull/14355); the override incorrectly skipped `dump_config()` for internal entities
 
-After those architectural improvements, zero overrides remained. Making these methods non-virtual eliminates one vtable slot per method from every `Component`-derived class (~100+ vtables in a typical build), saving **~800+ bytes of flash**.
+After those architectural improvements, zero overrides remained. Making these methods non-virtual eliminates one vtable slot per method from every `Component`-derived class (~100+ vtables in a typical build), saving **800+ bytes of flash**.
 
 ## What's Changing
 
@@ -56,44 +56,39 @@ External components that override `call_loop()`, `mark_failed()`, or `call_dump_
 
 ## Migration Guide
 
-### Remove the override keyword
+### Remove overrides and move logic to loop()/dump_config()
+
+Simply removing the `override` keyword is not enough — a same-named non-virtual method in a derived class will never be called by the framework (calls through `Component*` always dispatch to `Component::call_loop()`). You must **remove the method entirely** and move logic to the appropriate virtual hook.
 
 ```cpp
 // Before — fails to compile
-void call_loop() override { /* ... */ }
-void mark_failed() override { /* ... */ }
-void call_dump_config() override { /* ... */ }
-
-// After
-// These methods can no longer be overridden.
-// Use loop() for custom loop logic, dump_config() for config output,
-// or call mark_failed() without overriding it.
-```
-
-### Use the user-facing virtual methods instead
-
-`loop()`, `dump_config()`, and `setup()` remain virtual — override those directly:
-
-```cpp
-void loop() override {
-  // Your custom loop logic here
-}
-
-void dump_config() override {
-  // Your custom config output here
-}
-```
-
-For failure handling, react to failure in your own logic rather than overriding `mark_failed()`:
-
-```cpp
-void loop() override {
-  if (this->is_failed()) {
-    // Handle failure state
-    return;
+class MyComponent : public Component {
+ public:
+  void call_loop() override {
+    // Custom per-loop logic
   }
-  // Normal logic
-}
+  void call_dump_config() override {
+    // Custom config output
+  }
+  void mark_failed() override {
+    // Custom failure handling
+  }
+};
+
+// After — use loop(), dump_config(), and is_failed() instead
+class MyComponent : public Component {
+ public:
+  void loop() override {
+    // Former call_loop() logic goes here
+    if (this->is_failed()) {
+      // Former mark_failed() follow-up handling goes here
+      return;
+    }
+  }
+  void dump_config() override {
+    // Former call_dump_config() logic goes here
+  }
+};
 ```
 
 ## Supporting Multiple ESPHome Versions

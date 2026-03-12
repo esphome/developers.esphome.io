@@ -113,8 +113,7 @@ const char *dc = entity->get_device_class_to(dc_buf);
 
 ```cpp
 // Before — accessed through traits (only Number had this pattern)
-auto dc = number->traits.get_device_class();
-auto dc = number->traits.get_device_class_ref();
+auto dc = number->traits.get_device_class();       // or get_device_class_ref()
 auto uom = number->traits.get_unit_of_measurement_ref();
 
 // After — accessed directly on entity, consistent with all other entity types

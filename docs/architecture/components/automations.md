@@ -57,7 +57,7 @@ The arguments to `build_callback_automation`:
 
 1. `parent` -- the component variable
 2. `callback_method` -- name of the C++ method to register the callback (e.g. `"add_on_state_callback"`)
-3. `args` -- template args as `[(type, name)]` tuples, exposed as variables in the automation
+3. `args` -- template args as `[(type, name)]` tuples, exposed as variables in the user's `then:` block. This controls the `Automation<Ts...>` template parameters, **not** the callback signature. When using a custom forwarder, the forwarder's `operator()` signature must match the callback, but `args` can differ (e.g. `args=[]` with `TriggerOnTrueForwarder` which receives `bool` but triggers `Automation<>`)
 4. `config` -- the automation config dict
 5. `forwarder` (optional) -- override the default `TriggerForwarder<Ts...>`
 

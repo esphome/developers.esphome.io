@@ -8,6 +8,10 @@ ESPHome automations consist of three building blocks:
 
 This page covers how to implement all three in a component.
 
+!!! note
+
+    All Python examples below assume the standard ESPHome imports (`esphome.codegen as cg`, `esphome.config_validation as cv`, relevant constants from `esphome.const`, etc.) are already present.
+
 ## Triggers
 
 There are two ways to connect a trigger to an automation. Use the **callback method** (preferred) for simple cases where the forwarder only needs a single pointer. Use the **Trigger class method** when the forwarder needs extra state beyond a single pointer.
@@ -45,7 +49,7 @@ async def to_code(config):
     await cg.register_component(var, config)
     for conf in config.get(CONF_ON_STATE, []):
         await automation.build_callback_automation(
-            var, "add_on_state_callback", [(float, "x")], conf
+            var, "add_on_state_callback", [(bool, "x")], conf
         )
 ```
 
@@ -57,12 +61,12 @@ The arguments to `build_callback_automation`:
 4. `config` -- the automation config dict
 5. `forwarder` (optional) -- override the default `TriggerForwarder<Ts...>`
 
-For boolean filtering (e.g. `on_turn_on` / `on_turn_off`), pass a forwarder:
+For boolean filtering (e.g. `on_press` / `on_release` on a `void(bool)` callback), pass a forwarder. Note that the forwarder receives the `bool` from the callback but triggers `Automation<>` with no args:
 
 ```python
 for conf_key, forwarder in (
-    (CONF_ON_TURN_ON, automation.TriggerOnTrueForwarder),
-    (CONF_ON_TURN_OFF, automation.TriggerOnFalseForwarder),
+    (CONF_ON_PRESS, automation.TriggerOnTrueForwarder),
+    (CONF_ON_RELEASE, automation.TriggerOnFalseForwarder),
 ):
     for conf in config.get(conf_key, []):
         await automation.build_callback_automation(
@@ -82,14 +86,14 @@ class MyComponent : public Component {
   }
 
  protected:
-  CallbackManager<void(float)> state_callback_;
+  CallbackManager<void(bool)> state_callback_;
 };
 ```
 
 When the state changes, call the callback:
 
 ```cpp
-void MyComponent::publish_state(float value) {
+void MyComponent::publish_state(bool value) {
   this->state_ = value;
   this->state_callback_.call(value);
 }
@@ -97,9 +101,11 @@ void MyComponent::publish_state(float value) {
 
 #### Custom forwarders
 
-For state-specific filtering (e.g. trigger only when entering a particular enum state), define a custom forwarder in the component's `automation.h`:
+For state-specific filtering (e.g. trigger only when entering a particular enum state), define a custom forwarder in the component's `automation.h`. The forwarder receives the enum value as a callback argument and only triggers when it matches the compile-time template parameter:
 
 ```cpp
+#include "esphome/core/automation.h"
+
 // Must be pointer-sized (single Automation* field) to avoid heap allocation.
 template<MyState State> struct StateEnterForwarder {
   Automation<> *automation;
@@ -127,7 +133,7 @@ await automation.build_callback_automation(
 
 ### Trigger class method
 
-Use this when the forwarder needs **more than one pointer** of state (e.g. both an entity pointer and an automation pointer), which would exceed `sizeof(void*)` and cause heap allocation. Examples include triggers that need to track previous state for edge detection, or triggers that need to call methods on the parent entity.
+Use this when the trigger needs **more than one pointer** of state (e.g. both an entity pointer and tracked previous state), which would exceed `sizeof(void*)` and cause heap allocation if used as a forwarder. Examples include triggers that need to track previous state for edge detection, or triggers with timing logic.
 
 #### Python
 
@@ -213,7 +219,7 @@ template<typename... Ts> class MyAction : public Action<Ts...> {
  public:
   explicit MyAction(MyComponent *parent) : parent_(parent) {}
 
-  void play(const Ts &...x) override {
+  void play(const Ts &...) override {
     this->parent_->do_something();
   }
 
@@ -228,10 +234,10 @@ For actions that accept templatable values from the user config:
 template<typename... Ts> class SetValueAction : public Action<Ts...> {
  public:
   explicit SetValueAction(MyComponent *parent) : parent_(parent) {}
-  TEMPLATABLE_VALUE(float, value)
+  TEMPLATABLE_VALUE(bool, state)
 
   void play(const Ts &...x) override {
-    this->parent_->set_value(this->value_.value(x...));
+    this->parent_->set_state(this->state_.value(x...));
   }
 
  protected:
@@ -264,7 +270,7 @@ async def my_condition_to_code(config, condition_id, template_arg, args):
 template<typename... Ts> class MyCondition : public Condition<Ts...> {
  public:
   explicit MyCondition(MyComponent *parent) : parent_(parent) {}
-  bool check(const Ts &...x) override { return this->parent_->is_active(); }
+  bool check(const Ts &...) override { return this->parent_->is_active(); }
 
  protected:
   MyComponent *parent_;

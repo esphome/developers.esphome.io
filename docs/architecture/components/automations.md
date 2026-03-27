@@ -81,6 +81,7 @@ No C++ trigger class is needed -- the component just needs the callback registra
 ```cpp
 class MyComponent : public Component {
  public:
+  // Templatized to accept both std::function and lightweight forwarder structs
   template<typename F> void add_on_state_callback(F &&callback) {
     this->state_callback_.add(std::forward<F>(callback));
   }
@@ -186,7 +187,7 @@ The trigger registers a callback that calls `this->trigger()`, which forwards to
 |----------|--------|---------|
 | Simple forwarding | Callback | [`button on_press`](https://github.com/esphome/esphome/blob/dev/esphome/components/button/__init__.py) -- `TriggerForwarder<>` forwards directly |
 | Boolean filtering | Callback with built-in forwarder | [`binary_sensor on_press/on_release`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/__init__.py) -- `TriggerOnTrueForwarder` / `TriggerOnFalseForwarder` |
-| Enum state filtering | Callback with custom forwarder | [`lock on_lock/on_unlock`](https://github.com/esphome/esphome/blob/dev/esphome/components/lock/automation.h) -- `LockStateForwarder<State>` checks enum, single pointer (pending [#15199](https://github.com/esphome/esphome/pull/15199)) |
+| Enum state filtering | Callback with custom forwarder | [`lock on_lock/on_unlock`](https://github.com/esphome/esphome/pull/15199) -- `LockStateForwarder<State>` checks enum, single pointer (pending #15199) |
 | Edge detection | Trigger class | [`fan on_turn_on/on_turn_off`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/automation.h) -- `FanTurnOnTrigger` stores `fan_` + `last_on_` to detect transitions |
 | Complex logic | Trigger class | [`binary_sensor on_multi_click`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/automation.h) -- `MultiClickTrigger` with timing, cooldown, and state machine |
 
@@ -210,7 +211,7 @@ async def my_action_to_code(config, action_id, template_arg, args):
     return cg.new_Pvariable(action_id, template_arg, parent)
 ```
 
-Set `synchronous=True` if the action completes immediately (no async operations like delays or waits).
+Set `synchronous=True` if the action completes immediately (no async operations like delays or waits). Set `synchronous=False` if the action defers `play_next_()` to a later point (e.g. after a delay or async operation completes).
 
 ### C++
 

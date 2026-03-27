@@ -10,7 +10,7 @@ This page covers how to implement all three in a component.
 
 !!! note
 
-    All Python examples below assume the standard ESPHome imports (`esphome.codegen as cg`, `esphome.config_validation as cv`, relevant constants from `esphome.const`, etc.) are already present.
+    All Python examples below assume the standard ESPHome imports are present: `esphome.codegen as cg`, `esphome.config_validation as cv`, relevant constants from `esphome.const`, and typing imports (`ConfigType` from `esphome.types`, `MockObj` from `esphome.cpp_generator`, `TemplateArgsType` from `esphome.automation`).
 
 ## Triggers
 

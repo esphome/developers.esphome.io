@@ -141,15 +141,15 @@ Use this when the trigger needs **more than one pointer** of state (e.g. both an
 Declare the trigger class and reference it in the schema:
 
 ```python
-StateTrigger = my_ns.class_(
-    "StateTrigger", automation.Trigger.template(bool)
+TurnOnTrigger = my_ns.class_(
+    "TurnOnTrigger", automation.Trigger.template()
 )
 
 CONFIG_SCHEMA = cv.Schema({
     cv.GenerateID(): cv.declare_id(MyComponent),
-    cv.Optional(CONF_ON_STATE): automation.validate_automation(
+    cv.Optional(CONF_ON_TURN_ON): automation.validate_automation(
         {
-            cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(StateTrigger),
+            cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(TurnOnTrigger),
         }
     ),
 }).extend(cv.COMPONENT_SCHEMA)
@@ -161,25 +161,34 @@ In `to_code`, use `build_automation`:
 async def to_code(config: ConfigType) -> None:
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
-    for conf in config.get(CONF_ON_STATE, []):
+    for conf in config.get(CONF_ON_TURN_ON, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
-        await automation.build_automation(trigger, [(bool, "x")], conf)
+        await automation.build_automation(trigger, [], conf)
 ```
 
 #### C++
 
-Define the trigger class in `automation.h`:
+Define the trigger class in `automation.h`. This example fires only on the off-to-on transition, requiring stored state (`last_on_`) that exceeds a single pointer:
 
 ```cpp
-class StateTrigger : public Trigger<bool> {
+class TurnOnTrigger : public Trigger<> {
  public:
-  explicit StateTrigger(MyComponent *parent) {
-    parent->add_on_state_callback([this](bool state) { this->trigger(state); });
+  explicit TurnOnTrigger(MyComponent *parent) : parent_(parent) {
+    parent->add_on_state_callback([this](bool state) {
+      if (state && !this->last_on_)
+        this->trigger();
+      this->last_on_ = state;
+    });
+    this->last_on_ = parent->get_state();
   }
+
+ protected:
+  MyComponent *parent_;
+  bool last_on_;
 };
 ```
 
-The trigger registers a callback that calls `this->trigger()`, which forwards to the `Automation` object. This works but allocates a separate trigger object in static storage (via placement new) that exists solely to forward the callback.
+The trigger stores `parent_` + `last_on_` -- two fields that exceed `sizeof(void*)`, so this cannot be a pointer-sized forwarder. The `Trigger` base class manages the connection to the `Automation` object.
 
 ### When to use which method
 

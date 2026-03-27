@@ -44,7 +44,7 @@ CONFIG_SCHEMA = cv.Schema({
 In `to_code`, use `build_callback_automation`:
 
 ```python
-async def to_code(config):
+async def to_code(config: ConfigType) -> None:
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     for conf in config.get(CONF_ON_STATE, []):
@@ -157,7 +157,7 @@ CONFIG_SCHEMA = cv.Schema({
 In `to_code`, use `build_automation`:
 
 ```python
-async def to_code(config):
+async def to_code(config: ConfigType) -> None:
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     for conf in config.get(CONF_ON_STATE, []):

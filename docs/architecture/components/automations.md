@@ -178,7 +178,7 @@ class StateTrigger : public Trigger<bool> {
 };
 ```
 
-The trigger registers a callback that calls `this->trigger()`, which forwards to the `Automation` object. This works but allocates a separate trigger object in BSS that exists solely to forward the callback.
+The trigger registers a callback that calls `this->trigger()`, which forwards to the `Automation` object. This works but creates a separate trigger instance that exists solely to forward the callback.
 
 ### When to use which method
 

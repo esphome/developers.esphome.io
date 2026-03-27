@@ -24,7 +24,7 @@ Built-in forwarders in `esphome/core/automation.h`:
 
 | Forwarder | Callback signature | Behavior |
 |-----------|-------------------|----------|
-| `TriggerForwarder<Ts...>` | `void(Ts...)` | Forwards all args to `Automation<Ts...>::trigger()` |
+| `TriggerForwarder<Ts...>` | `void(const Ts&...)` | Forwards all args to `Automation<Ts...>::trigger()` |
 | `TriggerOnTrueForwarder` | `void(bool)` | Triggers `Automation<>` only when `true` |
 | `TriggerOnFalseForwarder` | `void(bool)` | Triggers `Automation<>` only when `false` |
 
@@ -178,7 +178,7 @@ class StateTrigger : public Trigger<bool> {
 };
 ```
 
-The trigger registers a callback that calls `this->trigger()`, which forwards to the `Automation` object. This works but allocates a separate trigger object in BSS that exists solely to forward the callback.
+The trigger registers a callback that calls `this->trigger()`, which forwards to the `Automation` object. This works but allocates a separate trigger object in static storage (via placement new) that exists solely to forward the callback.
 
 ### When to use which method
 

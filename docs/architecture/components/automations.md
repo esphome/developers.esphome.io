@@ -206,7 +206,9 @@ MyAction = my_ns.class_("MyAction", automation.Action)
     cv.Schema({cv.GenerateID(): cv.use_id(MyComponent)}),
     synchronous=True,
 )
-async def my_action_to_code(config, action_id, template_arg, args):
+async def my_action_to_code(
+    config: ConfigType, action_id: MockObj, template_arg: MockObj, args: TemplateArgsType
+) -> MockObj:
     parent = await cg.get_variable(config[CONF_ID])
     return cg.new_Pvariable(action_id, template_arg, parent)
 ```
@@ -260,7 +262,9 @@ MyCondition = my_ns.class_("MyCondition", automation.Condition)
     MyCondition,
     cv.Schema({cv.GenerateID(): cv.use_id(MyComponent)}),
 )
-async def my_condition_to_code(config, condition_id, template_arg, args):
+async def my_condition_to_code(
+    config: ConfigType, condition_id: MockObj, template_arg: MockObj, args: TemplateArgsType
+) -> MockObj:
     parent = await cg.get_variable(config[CONF_ID])
     return cg.new_Pvariable(condition_id, template_arg, parent)
 ```

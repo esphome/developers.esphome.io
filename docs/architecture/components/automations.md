@@ -6,7 +6,7 @@ ESPHome automations consist of three building blocks:
 - **Actions** do something (set a value, call a service, etc.)
 - **Conditions** check whether something is true (is the component on? is the value above a threshold?)
 
-This page covers how to implement all three in a component.
+This page covers how to implement all three in a component. For a minimal working example, see the [empty_automation starter component](https://github.com/esphome/starter-components/tree/main/components/empty_automation).
 
 !!! note
 
@@ -134,7 +134,7 @@ await automation.build_callback_automation(
 
 ### Trigger class method
 
-Use this when the trigger needs **more than one pointer** of state (e.g. both an entity pointer and tracked previous state), which would exceed `sizeof(void*)` and cause heap allocation if used as a forwarder. Examples include triggers that need to track previous state for edge detection, or triggers with timing logic.
+Use this when the trigger needs **mutable state beyond a single `Automation*` pointer** (e.g. tracked previous state for edge detection, or timing logic). A forwarder struct must be pointer-sized with only an `Automation*` field, so any additional state requires a full `Trigger` subclass.
 
 #### Python
 
@@ -168,7 +168,7 @@ async def to_code(config: ConfigType) -> None:
 
 #### C++
 
-Define the trigger class in `automation.h`. This example fires only on the off-to-on transition, requiring stored state (`last_on_`) that exceeds a single pointer:
+Define the trigger class in `automation.h`. This example fires only on the off-to-on transition, requiring mutable state (`last_on_`) that cannot be stored in a pointer-sized forwarder:
 
 ```cpp
 class TurnOnTrigger : public Trigger<> {
@@ -188,7 +188,7 @@ class TurnOnTrigger : public Trigger<> {
 };
 ```
 
-The trigger stores `parent_` + `last_on_` -- two fields that exceed `sizeof(void*)`, so this cannot be a pointer-sized forwarder. The `Trigger` base class manages the connection to the `Automation` object.
+The trigger needs to track mutable state (`last_on_`) across callback invocations. A forwarder struct must contain only a single `Automation*` field -- it cannot store extra state. When the trigger logic requires additional fields, use a `Trigger` subclass instead. The `Trigger` base class manages the connection to the `Automation` object.
 
 ### When to use which method
 
@@ -196,8 +196,8 @@ The trigger stores `parent_` + `last_on_` -- two fields that exceed `sizeof(void
 |----------|--------|---------|
 | Simple forwarding | Callback | [`button on_press`](https://github.com/esphome/esphome/blob/dev/esphome/components/button/__init__.py) -- `TriggerForwarder<>` forwards directly |
 | Boolean filtering | Callback with built-in forwarder | [`binary_sensor on_press/on_release`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/__init__.py) -- `TriggerOnTrueForwarder` / `TriggerOnFalseForwarder` |
-| Enum state filtering | Callback with custom forwarder | [`lock on_lock/on_unlock`](https://github.com/esphome/esphome/pull/15199) -- `LockStateForwarder<State>` checks enum, single pointer (pending #15199) |
-| Extra state needed | Trigger class | [`fan on_turn_on`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/automation.h) -- `FanTurnOnTrigger` stores `fan_` + `last_on_` for edge detection (2 fields, exceeds pointer size) |
+| Enum state filtering | Callback with custom forwarder | `lock on_lock/on_unlock` -- `LockStateForwarder<State>` checks enum, single pointer ([esphome/esphome#15199](https://github.com/esphome/esphome/pull/15199), pending) |
+| Extra state needed | Trigger class | [`fan on_turn_on`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/automation.h) -- `FanTurnOnTrigger` tracks `last_on_` for edge detection (mutable state, can't be a forwarder) |
 | Complex logic (timing, state machine) | Trigger class | [`binary_sensor on_multi_click`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/automation.h) -- `MultiClickTrigger` with timing, cooldown, and multiple state fields |
 
 ## Actions

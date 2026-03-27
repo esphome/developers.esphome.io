@@ -176,13 +176,13 @@ The trigger registers a callback that calls `this->trigger()`, which forwards to
 
 ### When to use which method
 
-| Scenario | Method | Why |
-|----------|--------|-----|
-| Simple forwarding (no filtering or extra state) | Callback | No C++ class needed, saves RAM |
-| Boolean filtering (`on_press` / `on_release`) | Callback with `TriggerOnTrueForwarder` / `TriggerOnFalseForwarder` | Built-in, no C++ class needed |
-| Enum state filtering (trigger on specific state) | Callback with custom forwarder | Single pointer, compiler deduplicates |
-| Edge detection (need previous state) | Trigger class | Forwarder would need 2+ pointers |
-| Complex logic (timing, multi-click, debounce) | Trigger class | Needs additional state fields |
+| Scenario | Method | Example |
+|----------|--------|---------|
+| Simple forwarding | Callback | [`button on_press`](https://github.com/esphome/esphome/blob/dev/esphome/components/button/__init__.py) -- `TriggerForwarder<>` forwards directly |
+| Boolean filtering | Callback with built-in forwarder | [`binary_sensor on_press/on_release`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/__init__.py) -- `TriggerOnTrueForwarder` / `TriggerOnFalseForwarder` |
+| Enum state filtering | Callback with custom forwarder | [`lock on_lock/on_unlock`](https://github.com/esphome/esphome/blob/dev/esphome/components/lock/automation.h) -- `LockStateForwarder<State>` checks enum, single pointer (pending [#15199](https://github.com/esphome/esphome/pull/15199)) |
+| Edge detection | Trigger class | [`fan on_turn_on/on_turn_off`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/automation.h) -- `FanTurnOnTrigger` stores `fan_` + `last_on_` to detect transitions |
+| Complex logic | Trigger class | [`binary_sensor on_multi_click`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/automation.h) -- `MultiClickTrigger` with timing, cooldown, and state machine |
 
 ## Actions
 

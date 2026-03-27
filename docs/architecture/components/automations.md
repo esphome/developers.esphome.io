@@ -188,8 +188,8 @@ The trigger registers a callback that calls `this->trigger()`, which forwards to
 | Simple forwarding | Callback | [`button on_press`](https://github.com/esphome/esphome/blob/dev/esphome/components/button/__init__.py) -- `TriggerForwarder<>` forwards directly |
 | Boolean filtering | Callback with built-in forwarder | [`binary_sensor on_press/on_release`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/__init__.py) -- `TriggerOnTrueForwarder` / `TriggerOnFalseForwarder` |
 | Enum state filtering | Callback with custom forwarder | [`lock on_lock/on_unlock`](https://github.com/esphome/esphome/pull/15199) -- `LockStateForwarder<State>` checks enum, single pointer (pending #15199) |
-| Edge detection | Trigger class | [`fan on_turn_on/on_turn_off`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/automation.h) -- `FanTurnOnTrigger` stores `fan_` + `last_on_` to detect transitions |
-| Complex logic | Trigger class | [`binary_sensor on_multi_click`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/automation.h) -- `MultiClickTrigger` with timing, cooldown, and state machine |
+| Extra state needed | Trigger class | [`fan on_turn_on`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/automation.h) -- `FanTurnOnTrigger` stores `fan_` + `last_on_` for edge detection (2 fields, exceeds pointer size) |
+| Complex logic (timing, state machine) | Trigger class | [`binary_sensor on_multi_click`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/automation.h) -- `MultiClickTrigger` with timing, cooldown, and multiple state fields |
 
 ## Actions
 

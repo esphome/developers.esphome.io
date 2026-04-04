@@ -255,27 +255,19 @@ To debug loop control issues:
 
 ## Waking the Main Loop from Background Threads
 
-For components that receive events in background threads/FreeRTOS tasks (BLE callbacks, network events, platform callbacks, etc.) and need low-latency processing, use `App.wake_loop_threadsafe()` to immediately wake the main loop instead of waiting 0-16ms for the next select() timeout.
+For components that receive events in background threads/FreeRTOS tasks (BLE callbacks, network events, platform callbacks, etc.) and need low-latency processing, use `App.wake_loop_threadsafe()` to immediately wake the main loop instead of waiting 0-16ms for the next loop timeout.
 
-**Platform Support:** ESP32 (ESP-IDF) and LibreTiny only.
+**Platform Support:** All platforms except Zephyr. No setup or opt-in required — it just works.
 
-### Setup
-
-Add socket dependency in your component's `__init__.py`:
-
-```python
-AUTO_LOAD = ["socket"]
-
-from esphome.components import socket
-
-async def to_code(config):
-    # Enable wake support
-    socket.require_wake_loop_threadsafe()
-```
+- **ESP32/LibreTiny:** FreeRTOS task notifications (<1 µs)
+- **ESP8266:** `esp_schedule()` to exit `esp_delay()` early
+- **RP2040:** ARM `__sev()` to exit `__wfe()` early
+- **Host:** UDP loopback socket to wake `select()`
+- **Zephyr:** Not yet implemented (no-op fallback)
 
 ### Usage
 
-Call from background thread/FreeRTOS task context (not ISR context):
+Call from background thread/FreeRTOS task context:
 
 ```cpp
 #include "esphome/core/application.h"
@@ -285,24 +277,41 @@ void MyComponent::background_callback(Event event) {
 
   // Only wake for time-critical events
   if (event.is_time_critical()) {
-#if defined(USE_SOCKET_SELECT_SUPPORT) && defined(USE_WAKE_LOOP_THREADSAFE)
     App.wake_loop_threadsafe();
-#endif
   }
 }
 ```
 
+No `#ifdef` guards, no socket dependency, no `AUTO_LOAD` — just call it.
+
 **When to wake:**
-- Interactive events (user pairing, passkey requests) - need immediate response
-- Time-critical operations - latency matters for correctness
-- Low-frequency events - won't cause wake storms
+- Interactive events (user pairing, passkey requests) — need immediate response
+- Time-critical operations — latency matters for correctness
+- Low-frequency events — won't cause wake storms
 
 **When NOT to wake:**
-- High-frequency events (scan results, RSSI reads) - avoid socket churning
-- Non-time-critical operations - can wait for next loop iteration
-- Events that batch well - queue multiple before processing
+- High-frequency events (scan results, RSSI reads) — avoid notification storms
+- Non-time-critical operations — can wait for next loop iteration
+- Events that batch well — queue multiple before processing
 
-**Important:** Only call from FreeRTOS task context, not from ISR handlers (not ISR-safe).
+### Waking from ISR (ESP32 only)
+
+On ESP32, `App.wake_loop_isrsafe()` and `App.wake_loop_any_context()` are available for ISR handlers (e.g., UART RX ISR, GPIO ISR). Both are `IRAM_ATTR` and use `vTaskNotifyGiveFromISR()`.
+
+```cpp
+void IRAM_ATTR MyComponent::gpio_isr(MyComponent *arg) {
+  arg->pending_ = true;
+  int pxHigherPriorityTaskWoken = 0;
+  App.wake_loop_isrsafe(&pxHigherPriorityTaskWoken);
+  if (pxHigherPriorityTaskWoken) portYIELD_FROM_ISR();
+}
+```
+
+`App.wake_loop_any_context()` auto-detects ISR vs task context — use it when the caller may run in either context.
+
+On ESP8266, `App.wake_loop_any_context()` is also ISR-safe (`IRAM_ATTR`, calls `esp_schedule()` which is IRAM) — but the separate `wake_loop_isrsafe()` API is not available since ESP8266 doesn't use FreeRTOS task notifications.
+
+On other platforms (LibreTiny, RP2040, Host, Zephyr), do not call wake functions from ISR.
 
 ## See Also
 

@@ -294,7 +294,22 @@ No `#ifdef` guards, no socket dependency, no `AUTO_LOAD` — just call it.
 - Non-time-critical operations — can wait for next loop iteration
 - Events that batch well — queue multiple before processing
 
-**Important:** Only call from FreeRTOS task context, not from ISR handlers (not ISR-safe).
+### Waking from ISR (ESP32 only)
+
+On ESP32, `App.wake_loop_isrsafe()` and `App.wake_loop_any_context()` are available for ISR handlers (e.g., UART RX ISR, GPIO ISR). Both are `IRAM_ATTR` and use `vTaskNotifyGiveFromISR()`.
+
+```cpp
+void IRAM_ATTR MyComponent::gpio_isr(MyComponent *arg) {
+  arg->pending_ = true;
+  int pxHigherPriorityTaskWoken = 0;
+  App.wake_loop_isrsafe(&pxHigherPriorityTaskWoken);
+  if (pxHigherPriorityTaskWoken) portYIELD_FROM_ISR();
+}
+```
+
+`App.wake_loop_any_context()` auto-detects ISR vs task context — use it when the caller may run in either context.
+
+These are not available on other platforms. On ESP8266, `App.wake_loop_threadsafe()` is `IRAM_ATTR` and ISR-safe (calls `esp_schedule()` which is IRAM). On other platforms, do not call wake functions from ISR.
 
 ## See Also
 

@@ -309,7 +309,7 @@ void IRAM_ATTR MyComponent::gpio_isr(MyComponent *arg) {
 
 `App.wake_loop_any_context()` auto-detects ISR vs task context — use it when the caller may run in either context.
 
-These are not available on other platforms. On ESP8266, `App.wake_loop_threadsafe()` is `IRAM_ATTR` and ISR-safe (calls `esp_schedule()` which is IRAM). On other platforms, do not call wake functions from ISR.
+These are not available on other platforms. Do not call wake functions from ISR on non-ESP32 platforms.
 
 ## See Also
 

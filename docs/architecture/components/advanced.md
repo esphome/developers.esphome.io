@@ -257,13 +257,13 @@ To debug loop control issues:
 
 For components that receive events in background threads/FreeRTOS tasks (BLE callbacks, network events, platform callbacks, etc.) and need low-latency processing, use `App.wake_loop_threadsafe()` to immediately wake the main loop instead of waiting 0-16ms for the next loop timeout.
 
-**Platform Support:** All platforms. No setup or opt-in required — it just works.
+**Platform Support:** All platforms except Zephyr. No setup or opt-in required — it just works.
 
 - **ESP32/LibreTiny:** FreeRTOS task notifications (<1 µs)
 - **ESP8266:** `esp_schedule()` to exit `esp_delay()` early
 - **RP2040:** ARM `__sev()` to exit `__wfe()` early
 - **Host:** UDP loopback socket to wake `select()`
-- **Zephyr:** Fallback (no-op) — proper wake support planned
+- **Zephyr:** Not yet implemented (no-op fallback)
 
 ### Usage
 

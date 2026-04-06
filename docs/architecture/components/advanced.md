@@ -257,13 +257,15 @@ To debug loop control issues:
 
 For components that receive events in background threads/FreeRTOS tasks (BLE callbacks, network events, platform callbacks, etc.) and need low-latency processing, use `App.wake_loop_threadsafe()` to immediately wake the main loop instead of waiting 0-16ms for the next loop timeout.
 
-**Platform Support:** All platforms except Zephyr. No setup or opt-in required — it just works.
+**Platform Support:** Available on all platforms. No setup or opt-in required — it just works.
 
 - **ESP32/LibreTiny:** FreeRTOS task notifications (<1 µs)
 - **ESP8266:** `esp_schedule()` to exit `esp_delay()` early
 - **RP2040:** ARM `__sev()` to exit `__wfe()` early
 - **Host:** UDP loopback socket to wake `select()`
-- **Zephyr:** Not yet implemented (no-op fallback)
+
+!!! note "Zephyr"
+    Not yet implemented — calls are accepted but fall back to a no-op.
 
 ### Usage
 
@@ -294,16 +296,16 @@ No `#ifdef` guards, no socket dependency, no `AUTO_LOAD` — just call it.
 - Non-time-critical operations — can wait for next loop iteration
 - Events that batch well — queue multiple before processing
 
-### Waking from ISR (ESP32 only)
+### Waking from ISR
 
 On ESP32, `App.wake_loop_isrsafe()` and `App.wake_loop_any_context()` are available for ISR handlers (e.g., UART RX ISR, GPIO ISR). Both are `IRAM_ATTR` and use `vTaskNotifyGiveFromISR()`.
 
 ```cpp
 void IRAM_ATTR MyComponent::gpio_isr(MyComponent *arg) {
   arg->pending_ = true;
-  int pxHigherPriorityTaskWoken = 0;
-  App.wake_loop_isrsafe(&pxHigherPriorityTaskWoken);
-  if (pxHigherPriorityTaskWoken) portYIELD_FROM_ISR();
+  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+  App.wake_loop_isrsafe(&xHigherPriorityTaskWoken);
+  if (xHigherPriorityTaskWoken) portYIELD_FROM_ISR();
 }
 ```
 

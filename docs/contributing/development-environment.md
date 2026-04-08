@@ -104,9 +104,8 @@ Always do your work in a new branch created from the latest ESPHome upstream `de
 directly to the `dev` branch.
 
 ```bash
-git checkout upstream/dev -b my-new-feature
-git pull upstream dev
-
+git fetch upstream
+git checkout -b my-new-feature upstream/dev
 ```
 
 This branch should contain your work for this new feature.

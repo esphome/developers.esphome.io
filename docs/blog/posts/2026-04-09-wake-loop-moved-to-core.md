@@ -46,7 +46,7 @@ Now it just works — no opt-in, no defines, no guards.
 
 ```cpp
 // Before
-#ifdef USE_WAKE_LOOP_THREADSAFE
+#if defined(USE_SOCKET_SELECT_SUPPORT) && defined(USE_WAKE_LOOP_THREADSAFE)
 App.wake_loop_threadsafe();
 #endif
 
@@ -80,7 +80,7 @@ AUTO_LOAD = ["socket"]  # just for wake_loop
 ```cpp
 // Before
 void some_background_thread() {
-#ifdef USE_WAKE_LOOP_THREADSAFE
+#if defined(USE_SOCKET_SELECT_SUPPORT) && defined(USE_WAKE_LOOP_THREADSAFE)
   App.wake_loop_threadsafe();
 #endif
 }

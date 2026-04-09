@@ -38,9 +38,9 @@ Now it just works — no opt-in, no defines, no guards.
 - `USE_WAKE_LOOP_THREADSAFE` — no longer needed, wake is always available
 - `USE_SOCKET_SELECT_SUPPORT` — replaced by `USE_HOST` where needed
 
-### Deprecated function
+### Deprecated Python function
 
-`socket::require_wake_loop_threadsafe()` is deprecated (warns, no-op). Remove calls to it.
+`socket.require_wake_loop_threadsafe()` (Python codegen helper) is deprecated (warns, no-op). Remove calls to it.
 
 ### No more `#ifdef` guards
 
@@ -68,44 +68,40 @@ AUTO_LOAD = ["socket"]  # just for wake_loop
 
 ## Who This Affects
 
-1. **External components calling `socket::require_wake_loop_threadsafe()`** — remove the call
+1. **External components calling `socket.require_wake_loop_threadsafe()`** in Python codegen — remove the call
 2. **External components using `#ifdef USE_WAKE_LOOP_THREADSAFE`** — remove the guard
 3. **External components with socket in `AUTO_LOAD` only for wake** — remove it
 4. **External components checking `USE_SOCKET_SELECT_SUPPORT`** — use `USE_HOST` instead
 
 ## Migration Guide
 
+### C++ — remove `#ifdef` guards
+
 ```cpp
 // Before
-#include "esphome/components/socket/socket.h"
-
-void setup() override {
-  socket::require_wake_loop_threadsafe();
-}
-
 void some_background_thread() {
 #ifdef USE_WAKE_LOOP_THREADSAFE
   App.wake_loop_threadsafe();
 #endif
 }
-```
 
-```cpp
-// After — no include, no setup call, no #ifdef guard
+// After
 void some_background_thread() {
   App.wake_loop_threadsafe();
 }
 ```
 
+### Python codegen — remove opt-in call and socket AUTO_LOAD
+
 ```python
 # Before
-DEPENDENCIES = ["socket"]
+AUTO_LOAD = ["socket"]
 
 async def to_code(config):
     cg.add(socket_ns.require_wake_loop_threadsafe())
     # ... rest of codegen
 
-# After — remove the socket dependency and require call
+# After — remove socket AUTO_LOAD and require call
 async def to_code(config):
     # ... rest of codegen (no wake opt-in needed)
 ```

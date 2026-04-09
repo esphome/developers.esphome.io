@@ -9,7 +9,7 @@ comments: true
 
 Direct access to the sensor `.raw_state` member is now deprecated. Use `get_raw_state()` instead. The `.raw_state` member will be removed in **ESPHome 2026.10.0**.
 
-This is a **developer breaking change** for external components in **ESPHome 2026.4.0 and later**.
+This is a **breaking change** for external components in **ESPHome 2026.4.0 and later**.
 
 <!-- more -->
 
@@ -57,15 +57,11 @@ float current = this->get_raw_state();
 
 ## Supporting Multiple ESPHome Versions
 
-```cpp
-#if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 4, 0)
-float raw = id(my_sensor).get_raw_state();
-#else
-float raw = id(my_sensor).raw_state;
-#endif
-```
+`get_raw_state()` has been available since before this deprecation (it was previously defined in `.cpp`), so you can simply switch to it without a version guard:
 
-Note: `get_raw_state()` existed before this PR (it was defined in `.cpp`), so you may be able to use it on older versions as well.
+```cpp
+float raw = id(my_sensor).get_raw_state();
+```
 
 ## Timeline
 

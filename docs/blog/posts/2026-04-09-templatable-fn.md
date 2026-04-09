@@ -9,7 +9,7 @@ comments: true
 
 The `TEMPLATABLE_VALUE` macro now uses `TemplatableFn` (4 bytes) instead of `TemplatableValue` (8 bytes) for trivially copyable types like `float`, `uint32_t`, `bool`, and enums. External components that call macro-generated setters with raw C++ constants instead of going through `cg.templatable()` will fail to compile.
 
-This is a **developer breaking change** for external components in **ESPHome 2026.4.0 and later**.
+This is a **breaking change** for external components in **ESPHome 2026.4.0 and later**.
 
 <!-- more -->
 
@@ -25,9 +25,9 @@ With ~340 `TEMPLATABLE_VALUE` fields across the codebase for trivially copyable 
 
 | Type | Size (32-bit) | Use Case |
 |------|--------------|----------|
-| `TemplatableFn<T, X...>` | **4 bytes** | Function pointer only. Used by `TEMPLATABLE_VALUE` macro for trivially copyable types. |
-| `TemplatableValue<T, X...>` | **8 bytes** | Value OR function pointer. Full backward compat — accepts raw constants. |
-| `TemplatableValue<std::string, X...>` | **8 bytes** | Full implementation with string paths, stateful lambdas. Unchanged. |
+| `TemplatableFn<T, Ts...>` | **4 bytes** | Function pointer only. Used by `TEMPLATABLE_VALUE` macro for trivially copyable types. |
+| `TemplatableValue<T, Ts...>` | **8 bytes** | Value OR function pointer. Full backward compat — accepts raw constants. |
+| `TemplatableValue<std::string, Ts...>` | **8 bytes** | Full implementation with string paths, stateful lambdas. Unchanged. |
 
 The `TEMPLATABLE_VALUE` macro automatically selects the type via `TemplatableStorage<T, Ts...>`:
 
@@ -50,7 +50,7 @@ cg.add(action.set_brightness(await cg.templatable(config[CONF_BRIGHTNESS], [], f
 
 ### 2. External components using TemplatableValue for non-string types with stateful lambdas
 
-`TemplatableValue<T, X...>` for non-string types no longer accepts stateful lambdas (lambdas with captures). A GitHub code search found no external components using this pattern. If needed, use `std::function<T(X...)>` directly.
+`TemplatableValue<T, Ts...>` for non-string types no longer accepts stateful lambdas (lambdas with captures). A GitHub code search found no external components using this pattern. If needed, use `std::function<T(Ts...)>` directly.
 
 ## Migration Guide
 
@@ -61,6 +61,7 @@ cg.add(action.set_brightness(await cg.templatable(config[CONF_BRIGHTNESS], [], f
 cg.add(action.set_value(config[CONF_VALUE]))
 
 # After — value wrapped via cg.templatable (correct)
+# args is the list of template arguments, e.g. [(float, "x")] or []
 template_ = await cg.templatable(config[CONF_VALUE], args, int)
 cg.add(action.set_value(template_))
 ```
@@ -100,7 +101,7 @@ TemplatableValue<int> val = [captured]() { return captured; };
 std::function<int()> val = [captured]() { return captured; };
 ```
 
-`TemplatableValue<std::string, X...>` still supports stateful lambdas — no changes needed for string types.
+`TemplatableValue<std::string, Ts...>` still supports stateful lambdas — no changes needed for string types.
 
 ## Timeline
 

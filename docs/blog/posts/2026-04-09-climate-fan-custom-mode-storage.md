@@ -39,8 +39,8 @@ climate::ClimateTraits traits() override {
 
 // After — set once during setup or codegen
 void setup() override {
-  this->set_custom_fan_modes({"Low", "Medium", "High"});
-  this->set_custom_presets({"Eco", "Sleep"});
+  this->set_supported_custom_fan_modes({"Low", "Medium", "High"});
+  this->set_supported_custom_presets({"Eco", "Sleep"});
 }
 ```
 
@@ -58,7 +58,7 @@ fan::FanTraits get_traits() override {
 
 // After — set once during setup or codegen
 void setup() override {
-  this->set_preset_modes({"Auto", "Sleep", "Nature"});
+  this->set_supported_preset_modes({"Auto", "Sleep", "Nature"});
 }
 ```
 
@@ -86,8 +86,8 @@ climate::ClimateTraits traits() override {
 
 // After — set once, traits() gets them automatically
 void setup() override {
-  this->set_custom_fan_modes({"Low", "Medium", "High"});
-  this->set_custom_presets({"Eco", "Sleep"});
+  this->set_supported_custom_fan_modes({"Low", "Medium", "High"});
+  this->set_supported_custom_presets({"Eco", "Sleep"});
 }
 
 climate::ClimateTraits traits() override {
@@ -108,7 +108,7 @@ fan::FanTraits get_traits() override {
 
 // After
 void setup() override {
-  this->set_preset_modes({"Auto", "Sleep", "Nature"});
+  this->set_supported_preset_modes({"Auto", "Sleep", "Nature"});
 }
 
 fan::FanTraits get_traits() override {
@@ -123,7 +123,7 @@ fan::FanTraits get_traits() override {
 cg.add(traits.set_supported_custom_fan_modes(modes))
 
 # After — setting custom modes directly on the entity
-cg.add(var.set_custom_fan_modes(modes))
+cg.add(var.set_supported_custom_fan_modes(modes))
 ```
 
 ## Timeline

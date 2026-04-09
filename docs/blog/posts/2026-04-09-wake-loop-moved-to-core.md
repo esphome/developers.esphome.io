@@ -9,7 +9,7 @@ comments: true
 
 `wake_loop_threadsafe()` and related wake primitives have moved from the socket component into core. The `require_wake_loop_threadsafe()` opt-in is deprecated (now a no-op) — wake works unconditionally on all platforms.
 
-This is a **developer breaking change** for external components in **ESPHome 2026.4.0 and later**.
+This is a **breaking change** for external components in **ESPHome 2026.4.0 and later**.
 
 <!-- more -->
 
@@ -17,7 +17,7 @@ This is a **developer breaking change** for external components in **ESPHome 202
 
 **[PR #15446](https://github.com/esphome/esphome/pull/15446): Move wake_loop out of socket component into core**
 
-The wake mechanism originally lived in the socket component because the first implementation used a UDP loopback socket. Since then, every platform has moved to nearly-free primitives (FreeRTOS task notifications, `esp_schedule()`, ARM `__sev()`), and the socket dependency was unnecessary complexity: 12 components needed `socket.require_wake_loop_threadsafe()`, `#ifdef USE_WAKE_LOOP_THREADSAFE` guards were needed at every call site, and platforms without networking had silent degradation (up to ~16ms latency).
+The wake mechanism originally lived in the socket component because the first implementation used a UDP loopback socket. Since then, every platform has moved to nearly-free primitives (FreeRTOS task notifications, `esp_schedule()`, ARM `__sev()`), and the socket dependency was unnecessary complexity: 12 components needed to call `require_wake_loop_threadsafe()`, `#ifdef USE_WAKE_LOOP_THREADSAFE` guards were needed at every call site, and platforms without networking had silent degradation (up to ~16ms latency).
 
 Now it just works — no opt-in, no defines, no guards.
 
@@ -54,7 +54,7 @@ App.wake_loop_threadsafe();
 App.wake_loop_threadsafe();
 ```
 
-### Socket AUTO_LOAD removed
+### Socket dependency no longer needed for wake
 
 Components no longer need to declare socket as a dependency just for wake functionality:
 

@@ -9,16 +9,16 @@ comments: true
 
 Custom mode vectors (`custom_fan_modes`, `custom_presets` for climate; `preset_modes` for fan) are now stored on the entity base class instead of being rebuilt inside traits on every call. The old `ClimateTraits` and `FanTraits` setter methods are deprecated.
 
-This is a **developer breaking change** for external components in **ESPHome 2026.4.0 and later**.
+This is a **breaking change** for external components in **ESPHome 2026.4.0 and later**.
 
 <!-- more -->
 
 ## Background
 
-**[PR #15206](https://github.com/esphome/esphome/pull/15206): Climate — Store custom mode vectors on Climate entity**
-**[PR #15209](https://github.com/esphome/esphome/pull/15209): Fan — Store preset mode vector on Fan entity**
+- **[PR #15206](https://github.com/esphome/esphome/pull/15206):** Climate — Store custom mode vectors on Climate entity
+- **[PR #15209](https://github.com/esphome/esphome/pull/15209):** Fan — Store preset mode vector on Fan entity
 
-`ClimateTraits` and `FanTraits` contained `std::vector` members that were reconstructed on every `get_traits()` call. Since `get_traits()` is called during `publish_state()` and `control()`/`perform()` — the hottest paths in these components — this caused **heap allocations on every state update**. On long-running ESP devices, repeated allocations of different sizes fragment the heap and can lead to crashes.
+`ClimateTraits` and `FanTraits` contained `std::vector` members that were reconstructed on every traits call. Climate uses `traits()` and Fan uses `get_traits()` — both are called during `publish_state()` and `control()`, the hottest paths in these components. This caused **heap allocations on every state update**. On long-running ESP devices, repeated allocations of different sizes fragment the heap and can lead to crashes.
 
 Moving the vectors to the entity base class eliminates all heap allocation from traits copies.
 
@@ -29,7 +29,7 @@ Moving the vectors to the entity base class eliminates all heap allocation from 
 Custom fan modes and custom presets are now set directly on the `Climate` entity:
 
 ```cpp
-// Before — set on traits in get_traits()
+// Before — set on traits in traits() override
 climate::ClimateTraits traits() override {
   auto traits = climate::ClimateTraits();
   traits.set_supported_custom_fan_modes({"Low", "Medium", "High"});
@@ -51,7 +51,7 @@ The old `ClimateTraits::set_supported_custom_fan_modes()` and `ClimateTraits::se
 Preset modes are now set directly on the `Fan` entity:
 
 ```cpp
-// Before — set on traits in get_traits()
+// Before — set on traits in traits() override
 fan::FanTraits get_traits() override {
   return fan::FanTraits(true, true, true, this->preset_modes_);
 }
@@ -119,10 +119,10 @@ fan::FanTraits get_traits() override {
 ### Python codegen
 
 ```python
-# Before
-cg.add(var.traits.set_supported_custom_fan_modes(modes))
+# Before — setting custom modes via traits in C++ generated code
+cg.add(traits.set_supported_custom_fan_modes(modes))
 
-# After
+# After — setting custom modes directly on the entity
 cg.add(var.set_custom_fan_modes(modes))
 ```
 

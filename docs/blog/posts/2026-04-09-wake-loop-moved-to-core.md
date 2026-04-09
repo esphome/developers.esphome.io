@@ -60,17 +60,17 @@ Components no longer need to declare socket as a dependency just for wake functi
 
 ```python
 # Before
-DEPENDENCIES = ["socket"]  # just for wake_loop
+AUTO_LOAD = ["socket"]  # just for wake_loop
 
 # After — remove if socket was only needed for wake
-# DEPENDENCIES = []
+# AUTO_LOAD = []
 ```
 
 ## Who This Affects
 
 1. **External components calling `socket::require_wake_loop_threadsafe()`** — remove the call
 2. **External components using `#ifdef USE_WAKE_LOOP_THREADSAFE`** — remove the guard
-3. **External components with socket dependency only for wake** — remove the dependency
+3. **External components with socket in `AUTO_LOAD` only for wake** — remove it
 4. **External components checking `USE_SOCKET_SELECT_SUPPORT`** — use `USE_HOST` instead
 
 ## Migration Guide
@@ -83,7 +83,7 @@ void setup() override {
   socket::require_wake_loop_threadsafe();
 }
 
-void some_isr_or_thread() {
+void some_background_thread() {
 #ifdef USE_WAKE_LOOP_THREADSAFE
   App.wake_loop_threadsafe();
 #endif
@@ -91,8 +91,8 @@ void some_isr_or_thread() {
 ```
 
 ```cpp
-// After
-void some_isr_or_thread() {
+// After — no include, no setup call, no #ifdef guard
+void some_background_thread() {
   App.wake_loop_threadsafe();
 }
 ```
@@ -103,10 +103,11 @@ DEPENDENCIES = ["socket"]
 
 async def to_code(config):
     cg.add(socket_ns.require_wake_loop_threadsafe())
+    # ... rest of codegen
 
-# After
+# After — remove the socket dependency and require call
 async def to_code(config):
-    pass  # wake is always available, no opt-in needed
+    # ... rest of codegen (no wake opt-in needed)
 ```
 
 ## Timeline

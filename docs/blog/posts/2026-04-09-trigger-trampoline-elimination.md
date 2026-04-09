@@ -121,17 +121,21 @@ this->parent_->add_on_state_callback([this](MediaPlayerState state) {
 
 ### Python codegen migration
 
-If your external component uses `build_automation()` with any of the removed trigger classes, migrate to `build_callback_automation()`:
+If your external component uses `build_automation()` with trigger classes, migrate to `build_callback_automations()` ([PR #15246](https://github.com/esphome/esphome/pull/15246)):
 
 ```python
 # Before
 from esphome import automation
 
 MyStateTrigger = my_ns.class_("MyStateTrigger", automation.Trigger.template(cg.bool_))
+MyPressTrigger = my_ns.class_("MyPressTrigger", automation.Trigger.template())
 
 CONFIG_SCHEMA = cv.Schema({
     cv.Optional(CONF_ON_STATE): automation.validate_automation(
         {cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(MyStateTrigger)}
+    ),
+    cv.Optional(CONF_ON_PRESS): automation.validate_automation(
+        {cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(MyPressTrigger)}
     ),
 })
 
@@ -139,21 +143,27 @@ async def to_code(config):
     for conf in config.get(CONF_ON_STATE, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
         await automation.build_automation(trigger, [(bool, "x")], conf)
+    for conf in config.get(CONF_ON_PRESS, []):
+        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
+        await automation.build_automation(trigger, [], conf)
 ```
 
 ```python
-# After — no trigger class needed, no CONF_TRIGGER_ID in schema
+# After — no trigger classes needed, no CONF_TRIGGER_ID in schema
 from esphome import automation
+
+_CALLBACK_AUTOMATIONS = (
+    automation.CallbackAutomation(CONF_ON_STATE, "add_on_state_callback", [(bool, "x")]),
+    automation.CallbackAutomation(CONF_ON_PRESS, "add_on_press_callback"),
+)
 
 CONFIG_SCHEMA = cv.Schema({
     cv.Optional(CONF_ON_STATE): automation.validate_automation({}),
+    cv.Optional(CONF_ON_PRESS): automation.validate_automation({}),
 })
 
 async def to_code(config):
-    for conf in config.get(CONF_ON_STATE, []):
-        await automation.build_callback_automation(
-            var, "add_on_state_callback", [(bool, "x")], conf
-        )
+    await automation.build_callback_automations(var, config, _CALLBACK_AUTOMATIONS)
 ```
 
 `build_automation()` and all `Trigger` subclasses remain available for triggers that need mutable state beyond a single `Automation*` pointer.

@@ -43,34 +43,7 @@ The forwarder fits in the `Callback::ctx_` field — no additional storage neede
 
 ## What's Changing
 
-### 1. Trigger classes removed
-
-The following trigger classes are removed and replaced with forwarder structs:
-
-**Core entities (PR #15174):**
-
-- `ButtonPressTrigger`
-- `SensorStateTrigger`, `SensorRawStateTrigger`
-- `PressTrigger`, `ReleaseTrigger`, `StateTrigger`, `StateChangeTrigger` (binary_sensor)
-- `SwitchStateTrigger`, `SwitchTurnOnTrigger`, `SwitchTurnOffTrigger`
-- `TextSensorStateTrigger`, `TextSensorStateRawTrigger`
-- `NumberStateTrigger`
-- `EventTrigger`
-
-**alarm_control_panel (PR #15198):**
-
-- `StateTrigger`, `ClearedTrigger`, `ChimeTrigger`, `ReadyTrigger`
-- `TriggeredTrigger`, `ArmingTrigger`, `PendingTrigger`, `ArmedHomeTrigger`, `ArmedNightTrigger`, `ArmedAwayTrigger`, `DisarmedTrigger`
-
-**lock (PR #15199):**
-
-- `LockStateTrigger<State>`, `LockLockTrigger`, `LockUnlockTrigger`
-
-**media_player (PR #15200):**
-
-- `StateTrigger`, `MediaPlayerStateTrigger<State>`, `IdleTrigger`, `PlayTrigger`, `PauseTrigger`, `AnnouncementTrigger`, `OnTrigger`, `OffTrigger`
-
-### 2. Callback signatures changed
+### 1. Callback signatures changed
 
 Several entity callback signatures changed to pass state as an argument, enabling single-pointer forwarders:
 
@@ -94,15 +67,14 @@ template<typename F> void add_on_state_callback(F &&callback);
 // Callback signature: void(MediaPlayerState)
 ```
 
-### 3. Automation::trigger_ field removed
+### 2. Automation::trigger_ field removed
 
 The `trigger_` protected field on `Automation` (set in constructor, never read) has been removed.
 
 ## Who This Affects
 
-1. **External components that instantiate removed trigger classes** — must migrate to `build_callback_automation()` or register callbacks directly
-2. **External components registering callbacks on alarm_control_panel, lock, or media_player** — must update callback signature to accept the state parameter
-3. **External components accessing `Automation::trigger_`** — this field no longer exists
+1. **External components registering callbacks on alarm_control_panel, lock, or media_player** — must update callback signature to accept the state parameter
+2. **External components accessing `Automation::trigger_`** — this field no longer exists
 
 ## Migration Guide
 
@@ -194,12 +166,6 @@ async def to_code(config):
 ## Finding Code That Needs Updates
 
 ```bash
-# Find references to removed trigger classes
-grep -rn 'ButtonPressTrigger\|SensorStateTrigger\|PressTrigger\|ReleaseTrigger' your_component/
-grep -rn 'SwitchStateTrigger\|TextSensorStateTrigger\|NumberStateTrigger' your_component/
-grep -rn 'LockStateTrigger\|LockLockTrigger\|LockUnlockTrigger' your_component/
-grep -rn 'MediaPlayerStateTrigger\|IdleTrigger\|PlayTrigger' your_component/
-
 # Find alarm_control_panel/lock/media_player callback registrations
 grep -rn 'add_on_state_callback' your_component/
 ```

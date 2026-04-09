@@ -9,7 +9,7 @@ comments: true
 
 `CallbackManager` and `LazyCallbackManager` now use a lightweight 8-byte `Callback` struct instead of `std::function` (16 bytes). External components that define their own callback registration methods using `std::function` should update to templates for optimal performance.
 
-This is a **developer breaking change** for external components in **ESPHome 2026.4.0 and later**.
+This is a **breaking change** for external components in **ESPHome 2026.4.0 and later**.
 
 <!-- more -->
 
@@ -17,7 +17,7 @@ This is a **developer breaking change** for external components in **ESPHome 202
 
 **[PR #14853](https://github.com/esphome/esphome/pull/14853): Replace std::function with lightweight Callback in CallbackManager**
 
-`std::function` has significant overhead on embedded targets: 16 bytes per instance on 32-bit platforms, plus heap allocation for captured lambdas. The new `Callback` struct uses C++20 `if constexpr` to store small trivially-copyable callables (like `[this]` lambdas) inline in the function pointer — zero heap allocation, 8 bytes total.
+`std::function` has significant overhead on embedded targets: 16 bytes per instance on 32-bit platforms, plus heap allocation for captured lambdas. The new `Callback` struct uses C++20 `if constexpr` to store small trivially-copyable callables (like `[this]` lambdas) inline within the `Callback` object, alongside a function pointer, avoiding heap allocation while keeping the total size at 8 bytes.
 
 ### Measured savings
 

@@ -9,16 +9,16 @@ comments: true
 
 Common entity trigger classes have been replaced with lightweight forwarder structs that fit inline in the callback system. The new `build_callback_automation()` API eliminates per-trigger object allocations. Several entity callback signatures have also changed to pass state as an argument.
 
-This is a **developer breaking change** for external components in **ESPHome 2026.4.0 and later**.
+This is a **breaking change** for external components in **ESPHome 2026.4.0 and later**.
 
 <!-- more -->
 
 ## Background
 
-**[PR #15174](https://github.com/esphome/esphome/pull/15174): Eliminate trigger trampolines with deduplicated forwarder structs**
-**[PR #15198](https://github.com/esphome/esphome/pull/15198): alarm_control_panel — Migrate triggers to callback automation**
-**[PR #15199](https://github.com/esphome/esphome/pull/15199): lock — Migrate LockStateTrigger to callback automation**
-**[PR #15200](https://github.com/esphome/esphome/pull/15200): media_player — Migrate triggers to callback automation**
+- **[PR #15174](https://github.com/esphome/esphome/pull/15174):** Eliminate trigger trampolines with deduplicated forwarder structs
+- **[PR #15198](https://github.com/esphome/esphome/pull/15198):** `alarm_control_panel` — Migrate triggers to callback automation
+- **[PR #15199](https://github.com/esphome/esphome/pull/15199):** `lock` — Migrate LockStateTrigger to callback automation
+- **[PR #15200](https://github.com/esphome/esphome/pull/15200):** `media_player` — Migrate triggers to callback automation
 
 Previously, each automation trigger created a separate C++ object that existed solely to forward a callback to an `Automation`. For example:
 
@@ -73,7 +73,7 @@ The `trigger_` protected field on `Automation` (set in constructor, never read) 
 
 ## Who This Affects
 
-1. **External components registering callbacks on alarm_control_panel, lock, or media_player** — must update callback signature to accept the state parameter
+1. **External components registering callbacks on `alarm_control_panel`, `lock`, or `media_player`** — must update callback signature to accept the state parameter
 2. **External components accessing `Automation::trigger_`** — this field no longer exists
 
 ## Migration Guide
@@ -82,39 +82,39 @@ The `trigger_` protected field on `Automation` (set in constructor, never read) 
 
 ```cpp
 // alarm_control_panel — Before
-panel->add_on_state_callback([this]() {
-  auto state = this->panel_->get_state();
+this->parent_->add_on_state_callback([this]() {
+  auto state = this->parent_->get_state();
   // ...
 });
 
 // After
-panel->add_on_state_callback([this](AlarmControlPanelState state) {
+this->parent_->add_on_state_callback([this](AlarmControlPanelState state) {
   // state is passed directly, no need to call get_state()
 });
 ```
 
 ```cpp
 // lock — Before
-lock->add_on_state_callback([this]() {
-  auto state = this->lock_->state;
+this->parent_->add_on_state_callback([this]() {
+  auto state = this->parent_->state;
   // ...
 });
 
 // After
-lock->add_on_state_callback([this](LockState state) {
+this->parent_->add_on_state_callback([this](LockState state) {
   // state is passed directly
 });
 ```
 
 ```cpp
 // media_player — Before
-player->add_on_state_callback([this]() {
-  auto state = this->player_->state;
+this->parent_->add_on_state_callback([this]() {
+  auto state = this->parent_->state;
   // ...
 });
 
 // After
-player->add_on_state_callback([this](MediaPlayerState state) {
+this->parent_->add_on_state_callback([this](MediaPlayerState state) {
   // state is passed directly
 });
 ```
@@ -127,18 +127,18 @@ If your external component uses `build_automation()` with any of the removed tri
 # Before
 from esphome import automation
 
-TurnOnTrigger = my_ns.class_("TurnOnTrigger", automation.Trigger.template())
+MyStateTrigger = my_ns.class_("MyStateTrigger", automation.Trigger.template(cg.bool_))
 
 CONFIG_SCHEMA = cv.Schema({
-    cv.Optional(CONF_ON_TURN_ON): automation.validate_automation(
-        {cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(TurnOnTrigger)}
+    cv.Optional(CONF_ON_STATE): automation.validate_automation(
+        {cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(MyStateTrigger)}
     ),
 })
 
 async def to_code(config):
-    for conf in config.get(CONF_ON_TURN_ON, []):
+    for conf in config.get(CONF_ON_STATE, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
-        await automation.build_automation(trigger, [], conf)
+        await automation.build_automation(trigger, [(bool, "x")], conf)
 ```
 
 ```python
@@ -146,11 +146,11 @@ async def to_code(config):
 from esphome import automation
 
 CONFIG_SCHEMA = cv.Schema({
-    cv.Optional(CONF_ON_TURN_ON): automation.validate_automation({}),
+    cv.Optional(CONF_ON_STATE): automation.validate_automation({}),
 })
 
 async def to_code(config):
-    for conf in config.get(CONF_ON_TURN_ON, []):
+    for conf in config.get(CONF_ON_STATE, []):
         await automation.build_callback_automation(
             var, "add_on_state_callback", [(bool, "x")], conf
         )
@@ -180,6 +180,6 @@ If you have questions about migrating your external component, please ask in:
 ## Related Documentation
 
 - [PR #15174: Eliminate trigger trampolines with deduplicated forwarder structs](https://github.com/esphome/esphome/pull/15174)
-- [PR #15198: alarm_control_panel — Migrate triggers to callback automation](https://github.com/esphome/esphome/pull/15198)
-- [PR #15199: lock — Migrate LockStateTrigger to callback automation](https://github.com/esphome/esphome/pull/15199)
-- [PR #15200: media_player — Migrate triggers to callback automation](https://github.com/esphome/esphome/pull/15200)
+- [PR #15198: Migrate alarm\_control\_panel triggers to callback automation](https://github.com/esphome/esphome/pull/15198)
+- [PR #15199: Migrate lock triggers to callback automation](https://github.com/esphome/esphome/pull/15199)
+- [PR #15200: Migrate media\_player triggers to callback automation](https://github.com/esphome/esphome/pull/15200)

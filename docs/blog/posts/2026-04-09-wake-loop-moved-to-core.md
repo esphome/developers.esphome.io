@@ -95,10 +95,12 @@ void some_background_thread() {
 
 ```python
 # Before
+from esphome.components import socket
+
 AUTO_LOAD = ["socket"]
 
 async def to_code(config):
-    cg.add(socket_ns.require_wake_loop_threadsafe())
+    socket.require_wake_loop_threadsafe()
     # ... rest of codegen
 
 # After — remove socket AUTO_LOAD and require call

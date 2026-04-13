@@ -8,4 +8,4 @@ on:
 
 jobs:
   lock:
-    uses: esphome/workflows/.github/workflows/lock.yml@main
+    uses: esphome/workflows/.github/workflows/lock.yml@e7eee2a828517c042794a831f75310959fbf2a16  # 2025.10.0

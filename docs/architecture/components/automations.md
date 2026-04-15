@@ -257,7 +257,7 @@ template<typename... Ts> class SetValueAction : public Action<Ts...> {
 };
 ```
 
-Values passed to a `TEMPLATABLE_VALUE` setter from Python codegen should always be wrapped with `cg.templatable()`, even when the value is a literal constant. The setter's storage is `TemplatableFn` for trivially copyable types (`bool`, `int`, `float`, enums, pointers) and `TemplatableValue` otherwise; `TemplatableFn` holds only a function pointer and will not accept a raw C++ value, so failing to wrap compiles on 2026.3.x and earlier only because `TemplatableValue` had an implicit raw-constant constructor:
+Values passed to a `TEMPLATABLE_VALUE` setter from Python codegen should always be wrapped with `cg.templatable()`, even when the value is a literal constant. The setter's storage is `TemplatableFn` for trivially copyable types (`bool`, `int`, `float`, enums, pointers) and `TemplatableValue` otherwise; `TemplatableFn` holds only a function pointer and will not accept a raw C++ value, so failing to wrap compiles on 2026.3.x and earlier only when the setter type is `TemplatableValue`, which accepts raw constants:
 
 ```python
 @automation.register_action(
@@ -281,7 +281,7 @@ async def set_state_to_code(
 
 Same imports as the earlier Python snippets on this page apply (`cg`, `cv`, `automation`, constants, typing aliases); `CONF_STATE` and `SetValueAction` are defined by the component itself.
 
-Passing a raw value such as `cg.add(var.set_state(config[CONF_STATE]))` worked on 2026.3.x and earlier for literal constants but fails to compile on 2026.4.0 and later, where trivially copyable types use `TemplatableFn` (4-byte function-pointer storage) where implicit conversion from raw values is not possible. See the [TemplatableFn blog post](../../blog/posts/2026-04-09-templatable-fn.md) for details.
+Passing a raw value such as `cg.add(var.set_state(config[CONF_STATE]))` worked on 2026.3.x and earlier for literal constants but fails to compile on 2026.4.0 and later, because trivially copyable types use `TemplatableFn` (pointer-sized function-pointer storage, 4 bytes on 32-bit platforms), for which implicit conversion from raw values is not possible. See the [TemplatableFn blog post](../../blog/posts/2026-04-09-templatable-fn.md) for details.
 
 ## Conditions
 

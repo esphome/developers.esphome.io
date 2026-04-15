@@ -257,6 +257,30 @@ template<typename... Ts> class SetValueAction : public Action<Ts...> {
 };
 ```
 
+Values passed to a `TEMPLATABLE_VALUE` setter from Python codegen **must** be wrapped with `cg.templatable()`, even when the value is a literal constant. The setter stores a `TemplatableFn`/`TemplatableValue` and cannot be assigned a raw C++ value directly:
+
+```python
+@automation.register_action(
+    "my_component.set_state",
+    SetValueAction,
+    cv.Schema({
+        cv.GenerateID(): cv.use_id(MyComponent),
+        cv.Required(CONF_STATE): cv.templatable(cv.boolean),
+    }),
+    synchronous=True,
+)
+async def set_state_to_code(
+    config: ConfigType, action_id: MockObj, template_arg: MockObj, args: TemplateArgsType
+) -> MockObj:
+    parent = await cg.get_variable(config[CONF_ID])
+    var = cg.new_Pvariable(action_id, template_arg, parent)
+    template_ = await cg.templatable(config[CONF_STATE], args, bool)
+    cg.add(var.set_state(template_))
+    return var
+```
+
+Passing a raw value (`cg.add(var.set_state(config[CONF_STATE]))`) may appear to work for literal constants on older ESPHome versions but fails to compile on 2026.4.0 and later, where trivially copyable types use `TemplatableFn` (4-byte function-pointer storage) with no implicit conversion from raw values. See the [TemplatableFn blog post](../../blog/posts/2026-04-09-templatable-fn.md) for details.
+
 ## Conditions
 
 Conditions are template classes that return a boolean to control automation flow.

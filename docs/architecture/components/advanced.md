@@ -65,6 +65,8 @@ void IRAM_ATTR MyComponent::gpio_isr_handler() {
 }
 ```
 
+ISR safety is platform-dependent; see [Waking from ISR](#waking-from-isr) for the per-platform details.
+
 ### Real-World Examples
 
 #### 1. Interrupt-Driven GPIO Binary Sensor
@@ -189,7 +191,7 @@ The `enable_loop_soon_any_context()` method is specifically designed for cross-t
 
 - Sets volatile flags that are checked by the main loop
 - No memory allocation or complex operations
-- Safe to call from ISRs, timer callbacks, or FreeRTOS tasks
+- Safe to call from timer callbacks and FreeRTOS tasks on all platforms; ISR safety is platform-dependent, see [Waking from ISR](#waking-from-isr)
 - Multiple calls are idempotent (safe to call repeatedly)
 
 ### Best Practices
@@ -306,7 +308,7 @@ For ISR handlers (e.g. UART RX ISR, GPIO ISR), use `App.wake_loop_any_context()`
 - **LibreTiny:** not ISR-safe. `IRAM_ATTR` placement is not functional on this port, and the FreeRTOS port lacks `vTaskNotifyGiveFromISR`.
 - **Zephyr:** wake is a no-op, so enabling the loop from any context takes effect on the next loop iteration.
 
-Example ISR using the explicit isr-safe API on ESP32:
+Example ISR using the explicit ISR-safe API on ESP32:
 
 ```cpp
 void IRAM_ATTR MyComponent::gpio_isr(MyComponent *arg) {

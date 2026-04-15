@@ -257,7 +257,7 @@ template<typename... Ts> class SetValueAction : public Action<Ts...> {
 };
 ```
 
-Values passed to a `TEMPLATABLE_VALUE` setter from Python codegen **must** be wrapped with `cg.templatable()`, even when the value is a literal constant. The setter stores a `TemplatableFn`/`TemplatableValue` and cannot be assigned a raw C++ value directly:
+Values passed to a `TEMPLATABLE_VALUE` setter from Python codegen should always be wrapped with `cg.templatable()`, even when the value is a literal constant. The setter's storage is `TemplatableFn` for trivially copyable types (`bool`, `int`, `float`, enums, pointers) and `TemplatableValue` otherwise; `TemplatableFn` holds only a function pointer and will not accept a raw C++ value, so failing to wrap compiles on 2026.3.x and earlier only because `TemplatableValue` had an implicit raw-constant constructor:
 
 ```python
 @automation.register_action(
@@ -274,12 +274,14 @@ async def set_state_to_code(
 ) -> MockObj:
     parent = await cg.get_variable(config[CONF_ID])
     var = cg.new_Pvariable(action_id, template_arg, parent)
-    template_ = await cg.templatable(config[CONF_STATE], args, bool)
+    template_ = await cg.templatable(config[CONF_STATE], args, cg.bool_)
     cg.add(var.set_state(template_))
     return var
 ```
 
-Passing a raw value (`cg.add(var.set_state(config[CONF_STATE]))`) may appear to work for literal constants on older ESPHome versions but fails to compile on 2026.4.0 and later, where trivially copyable types use `TemplatableFn` (4-byte function-pointer storage) with no implicit conversion from raw values. See the [TemplatableFn blog post](../../blog/posts/2026-04-09-templatable-fn.md) for details.
+Same imports as the earlier Python snippets on this page apply (`cg`, `cv`, `automation`, constants, typing aliases); `CONF_STATE` and `SetValueAction` are defined by the component itself.
+
+Passing a raw value such as `cg.add(var.set_state(config[CONF_STATE]))` worked on 2026.3.x and earlier for literal constants but fails to compile on 2026.4.0 and later, where trivially copyable types use `TemplatableFn` (4-byte function-pointer storage) with no implicit conversion from raw values. See the [TemplatableFn blog post](../../blog/posts/2026-04-09-templatable-fn.md) for details.
 
 ## Conditions
 

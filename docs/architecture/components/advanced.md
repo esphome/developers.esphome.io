@@ -65,6 +65,8 @@ void IRAM_ATTR MyComponent::gpio_isr_handler() {
 }
 ```
 
+See [Waking from ISR](#waking-from-isr) for per-platform notes.
+
 ### Real-World Examples
 
 #### 1. Interrupt-Driven GPIO Binary Sensor
@@ -189,7 +191,7 @@ The `enable_loop_soon_any_context()` method is specifically designed for cross-t
 
 - Sets volatile flags that are checked by the main loop
 - No memory allocation or complex operations
-- Safe to call from ISRs, timer callbacks, or FreeRTOS tasks
+- Safe to call from ISRs, timer callbacks, or FreeRTOS tasks on any platform where ISRs are supported
 - Multiple calls are idempotent (safe to call repeatedly)
 
 ### Best Practices
@@ -298,7 +300,15 @@ No `#ifdef` guards, no socket dependency, no `AUTO_LOAD` — just call it.
 
 ### Waking from ISR
 
-On ESP32, `App.wake_loop_isrsafe()` and `App.wake_loop_any_context()` are available for ISR handlers (e.g., UART RX ISR, GPIO ISR). Both are `IRAM_ATTR` and use `vTaskNotifyGiveFromISR()`.
+For ISR handlers (e.g. UART RX ISR, GPIO ISR), use `enable_loop_soon_any_context()` on your component, or `App.wake_loop_any_context()` if you just need to wake the loop. Both auto-detect ISR vs task context. Platform notes:
+
+- **ESP32:** ISR-safe via `vTaskNotifyGiveFromISR()`. A separate `App.wake_loop_isrsafe()` is also available when you already know you are in ISR context and want to forward the `xHigherPriorityTaskWoken` flag yourself.
+- **ESP8266:** ISR-safe via `esp_schedule()`, which is IRAM. The `wake_loop_isrsafe()` variant is not provided since ESP8266 does not use FreeRTOS task notifications.
+- **RP2040:** ISR-safe. The wake body is inlined into `enable_loop_soon_any_context()`, which is placed in `.time_critical` RAM via `IRAM_ATTR`.
+- **LibreTiny:** running code from ISR context is not supported on this port (no functional `IRAM_ATTR` placement), so ISR usage does not apply.
+- **Zephyr:** wake is a no-op, so enabling the loop from any context takes effect on the next loop iteration.
+
+Example ISR using the explicit ISR-safe API on ESP32:
 
 ```cpp
 void IRAM_ATTR MyComponent::gpio_isr(MyComponent *arg) {
@@ -308,12 +318,6 @@ void IRAM_ATTR MyComponent::gpio_isr(MyComponent *arg) {
   if (xHigherPriorityTaskWoken) portYIELD_FROM_ISR();
 }
 ```
-
-`App.wake_loop_any_context()` auto-detects ISR vs task context — use it when the caller may run in either context.
-
-On ESP8266, `App.wake_loop_any_context()` is also ISR-safe (`IRAM_ATTR`, calls `esp_schedule()` which is IRAM) — but the separate `wake_loop_isrsafe()` API is not available since ESP8266 doesn't use FreeRTOS task notifications.
-
-On other platforms (LibreTiny, RP2040, Host, Zephyr), do not call wake functions from ISR.
 
 ## See Also
 

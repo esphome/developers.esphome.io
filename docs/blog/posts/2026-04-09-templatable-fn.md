@@ -127,4 +127,5 @@ If you have questions about migrating your external component, please ask in:
 
 ## Related Documentation
 
+- [Implementing Automations](../../architecture/components/automations.md) covers the full `TEMPLATABLE_VALUE` / `cg.templatable()` pairing for actions
 - [PR #15545: Add TemplatableFn for 4-byte function-pointer templatable storage](https://github.com/esphome/esphome/pull/15545)

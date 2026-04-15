@@ -313,7 +313,7 @@ void IRAM_ATTR MyComponent::gpio_isr(MyComponent *arg) {
 
 On ESP8266, `App.wake_loop_any_context()` is also ISR-safe (`IRAM_ATTR`, calls `esp_schedule()` which is IRAM) — but the separate `wake_loop_isrsafe()` API is not available since ESP8266 doesn't use FreeRTOS task notifications.
 
-On other platforms (LibreTiny, RP2040, Host, Zephyr), do not call wake functions from ISR.
+On RP2040, wake is ISR-safe only when inlined into an `IRAM_ATTR` caller (e.g. `enable_loop_soon_any_context()`); do not call bare wake functions from flash-resident ISR code. On LibreTiny, do not call wake functions from ISR — `IRAM_ATTR` placement is not functional and the FreeRTOS port lacks `vTaskNotifyGiveFromISR`. On Zephyr, wake is a no-op — enabling takes effect on the next loop iteration.
 
 ## See Also
 

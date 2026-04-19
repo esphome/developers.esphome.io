@@ -305,7 +305,7 @@ For ISR handlers (e.g. UART RX ISR, GPIO ISR), use `enable_loop_soon_any_context
 - **ESP32:** ISR-safe via `vTaskNotifyGiveFromISR()`. A separate `App.wake_loop_isrsafe()` is also available when you already know you are in ISR context and want to forward the `xHigherPriorityTaskWoken` flag yourself.
 - **ESP8266:** ISR-safe via `esp_schedule()`, which is IRAM. The `wake_loop_isrsafe()` variant is not provided since ESP8266 does not use FreeRTOS task notifications.
 - **RP2040:** ISR-safe. The wake body is inlined into `enable_loop_soon_any_context()`, which is placed in `.time_critical` RAM via `IRAM_ATTR`.
-- **LibreTiny:** running code from ISR context is not supported on this port (no functional `IRAM_ATTR` placement), so ISR usage does not apply.
+- **LibreTiny:** ISR-safe via `vTaskNotifyGiveFromISR()` (same path as ESP32); `App.wake_loop_isrsafe()` is also available. `IRAM_ATTR` places handlers in executable RAM as expected, except on BK72xx where it is a no-op — the Beken SDK wraps every flash op in `GLOBAL_INT_DISABLE()` (FIQ+IRQ masked), so flash-resident ISR handlers are safe.
 - **Zephyr:** wake is a no-op, so enabling the loop from any context takes effect on the next loop iteration.
 
 Example ISR using the explicit ISR-safe API on ESP32:

@@ -48,17 +48,23 @@ The old `ClimateTraits::set_supported_custom_fan_modes()` and `ClimateTraits::se
 
 ### Fan
 
-Preset modes are now set directly on the `Fan` entity:
+Preset modes are now set directly on the `Fan` entity. Unlike Climate, `Fan::get_traits()` is the virtual method itself, so the `get_traits()` override must wire the stored preset modes into the returned traits via `wire_preset_modes_()`:
 
 ```cpp
-// Before — set on traits in traits() override
+// Before — set on traits in get_traits() override
 fan::FanTraits get_traits() override {
   return fan::FanTraits(true, true, true, this->preset_modes_);
 }
 
-// After — set once during setup or codegen
+// After — set once during setup or codegen, wire into traits in get_traits()
 void setup() override {
   this->set_supported_preset_modes({"Auto", "Sleep", "Nature"});
+}
+
+fan::FanTraits get_traits() override {
+  fan::FanTraits traits(true, true, true);
+  this->wire_preset_modes_(traits);
+  return traits;
 }
 ```
 
@@ -106,15 +112,19 @@ fan::FanTraits get_traits() override {
   return fan::FanTraits(true, true, true, this->preset_modes_);
 }
 
-// After
+// After — get_traits() override must call wire_preset_modes_() to expose them
 void setup() override {
   this->set_supported_preset_modes({"Auto", "Sleep", "Nature"});
 }
 
 fan::FanTraits get_traits() override {
-  return fan::FanTraits(true, true, true);
+  fan::FanTraits traits(true, true, true);
+  this->wire_preset_modes_(traits);
+  return traits;
 }
 ```
+
+> **Note:** Unlike Climate — where the base class's non-virtual `get_traits()` wraps a virtual `traits()` and wires custom modes automatically — `Fan::get_traits()` is itself the virtual method overridden by components. The base class has no opportunity to inject preset modes, so each override must call `wire_preset_modes_()` explicitly. The internal `speed`, `template`, and `hbridge` fan components follow this pattern.
 
 ### Python codegen
 

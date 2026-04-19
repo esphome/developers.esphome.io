@@ -257,6 +257,32 @@ template<typename... Ts> class SetValueAction : public Action<Ts...> {
 };
 ```
 
+Values passed to a `TEMPLATABLE_VALUE` setter from Python codegen should always be wrapped with `cg.templatable()`, even when the value is a literal constant. The setter's storage is `TemplatableFn` for trivially copyable types (`bool`, `int`, `float`, enums, pointers) and `TemplatableValue` otherwise; `TemplatableFn` holds only a function pointer and will not accept a raw C++ value, so failing to wrap compiles on 2026.3.x and earlier only when the setter type is `TemplatableValue`, which accepts raw constants:
+
+```python
+@automation.register_action(
+    "my_component.set_state",
+    SetValueAction,
+    cv.Schema({
+        cv.GenerateID(): cv.use_id(MyComponent),
+        cv.Required(CONF_STATE): cv.templatable(cv.boolean),
+    }),
+    synchronous=True,
+)
+async def set_state_to_code(
+    config: ConfigType, action_id: MockObj, template_arg: MockObj, args: TemplateArgsType
+) -> MockObj:
+    parent = await cg.get_variable(config[CONF_ID])
+    var = cg.new_Pvariable(action_id, template_arg, parent)
+    template_ = await cg.templatable(config[CONF_STATE], args, cg.bool_)
+    cg.add(var.set_state(template_))
+    return var
+```
+
+Same imports as the earlier Python snippets on this page apply (`cg`, `cv`, `automation`, constants, typing aliases); `CONF_STATE` and `SetValueAction` are defined by the component itself.
+
+Passing a raw value such as `cg.add(var.set_state(config[CONF_STATE]))` worked on 2026.3.x and earlier for literal constants but fails to compile on 2026.4.0 and later, because trivially copyable types use `TemplatableFn` (pointer-sized function-pointer storage, 4 bytes on 32-bit platforms), for which implicit conversion from raw values is not possible. See the [TemplatableFn blog post](../../blog/posts/2026-04-09-templatable-fn.md) for details.
+
 ## Conditions
 
 Conditions are template classes that return a boolean to control automation flow.

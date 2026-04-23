@@ -126,7 +126,7 @@ review.
     - Minimize the potential for conflicts as much as reasonably possible.
 
 None of this is meant to be discouraging; we love ambitious contributors, we just want the ambition to actually
-result in merged code, and a five minute chat up front is usually the difference.
+result in merged code, and a five-minute chat up front is usually the difference.
 
 ## Can I Help Review PRs?
 

@@ -102,7 +102,7 @@ review.
 
 - **Please [talk to us on Discord](https://esphome.io/chat) in `#devs` *before* you start writing code.** A quick
   chat lets us tell you whether the idea fits where the project is heading, help you scope the change, and flag if
-  someone is already working on what you have in mind (not all in-flight work is public).
+  someone is already working on what you have in mind.
 - **Stick around during review.** Large PRs almost always need back-and-forth before they can land. If you go quiet
   after opening one, we have no way to work through revisions with you and it will eventually get closed even if the
   idea was good.

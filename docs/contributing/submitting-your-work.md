@@ -75,39 +75,56 @@ this, reviews can (and often do) take some time.
 Small PRs are easier to review and are often reviewed first. If you want your PR to be reviewed (and merged) quickly,
 here are some tips:
 
-- **Keep PRs as small and as focused as possible.** Smaller PRs tend to be easier to understand and take less time to
-  review. Large PRs (many hundreds or thousands of lines) by their nature (of being large) tend to keep changing which
-  means reviewers have to revisit them over and over as they evolve. This isn't a tenable practice for project
-  maintainers. Break your work into multiple, smaller PRs and link these PRs together with comments in the description
-  so reviewers can follow the work more easily.
-- The above bullet paraphrased: **we would rather review ten ten-line PRs than one 100-line PR.**
-- **Be sure to follow all [codebase standards](code.md#codebase-standards).** When reviewers have to spend
-  time commenting on/correcting your PR because you didn't name variables correctly or didn't prefix member variable
-  accesses with `this->`, it wastes time we could be using to review other PRs which *do* follow the standards.
-- If you wish to take on a big project, such as refactoring a substantial section of the codebase or integrating
-  another open source project with ESPHome, please discuss this with us on [Discord](https://esphome.io/chat) or
-  [create a discussion on GitHub](https://github.com/esphome/esphome/discussions) **before** you do all the work and
-  attempt to submit a massive PR.
-- If you are not sure about how you should proceed with some changes, **please**
-  [discuss it with us on Discord](https://esphome.io/chat) **before** you go do a bunch of work that we can't (for
-  whatever reason) accept...and then you have to go back and re-do it all to get your PR merged. It's easier to make
-  corrections early-on -- and we want to help you!
+- **Keep PRs as small and as focused as possible.** A small, focused PR can usually be reviewed in the short gaps
+  between a maintainer's other work, so those tend to move quickly. Large PRs need a long uninterrupted block of
+  attention to review properly, and most maintainers rarely have those, so a big PR can sit for a while even when
+  nothing is wrong with it. Breaking the same work into several smaller PRs (linked together in the descriptions so
+  reviewers can follow along) almost always gets you merged faster overall.
+- Put another way: **we would rather review ten ten-line PRs than one 100-line PR.**
+- **Follow all [codebase standards](code.md#codebase-standards).** When reviewers have to spend time pointing out
+  that variables aren't named correctly, or that member access isn't prefixed with `this->`, that's time we could
+  have spent reviewing another PR that does follow the standards.
+- **If you're planning something big** (refactoring a large section of the codebase, integrating another open source
+  project, or anything you'd describe as "a lot of code"), please talk to us on
+  [Discord](https://esphome.io/chat) or [open a GitHub discussion](https://github.com/esphome/esphome/discussions)
+  **before** writing it. See [How to approach large submissions](#how-to-approach-large-submissions) below.
+- **If you're unsure how to proceed, please ask.** A quick question on [Discord](https://esphome.io/chat) is much
+  better than writing something we can't accept and having to redo it. We genuinely want to help you get your change
+  merged.
 
 #### How to approach large submissions
 
-If you have a (very) large amount of code (thousands of lines) you want to submit:
+If you're thinking about contributing a (very) large amount of code (thousands of lines), please read this first.
+The goal is to help you avoid the worst outcome, which is pouring weeks into something only to have it turned down
+at review.
 
-- [Discuss it with us on Discord](https://esphome.io/chat) **before** you begin the work.
-- **Carefully plan a way to break the work into a series of smaller changes** which can be submitted independently of
-  each other. For example, consider a piece of sensor hardware which provides measurements of seven different
-  environmental parameters and can be connected via either I2C or SPI; the work might be broken into separate PRs for:
-    - Implementing the base "hub" component
-    - Extending the base for both I2C and SPI connectivity
-    - Adding the various sensor platforms to make available the data the sensor reports
-- It's reasonable to submit all the PRs at once, but, if you do so, be sure to:
-    - Link them together in the PR descriptions so that reviewers can follow the work.
-    - Indicate the order in which the PRs should be reviewed and/or merged, if relevant.
-    - Minimize (the potential for) conflicts as much as reasonably possible.
+- **Please [talk to us on Discord](https://esphome.io/chat) in `#devs` *before* you start writing code.** A quick
+  chat lets us tell you whether the idea fits where the project is heading, help you scope the change, and flag if
+  someone is already working on what you have in mind (not all in-flight work is public).
+- **Stick around during review.** Large PRs almost always need back and forth before they can land. If you go quiet
+  after opening one, we have no way to work through revisions with you and it will eventually get closed even if the
+  idea was good.
+- **Maintainability is a requirement, not a nice-to-have.** Anything we merge we have to live with for years. Things
+  that tend to make a contribution impossible to accept regardless of what it does:
+    - Large pre-compiled, minified, or bundled assets checked in as source.
+    - A single huge file containing logic that should live across many files.
+    - Generated code committed without the generator, or with no documented way to regenerate it.
+    - AI-assisted output submitted without the author understanding it. If you can't explain and defend every part
+      of the change in review, it isn't ready yet. We're not against AI assistance, we just need the author to
+      actually own the code.
+- **Plan to break the work into smaller changes** that can be reviewed independently, with **one platform per PR**
+  (for example, `binary_sensor` in one PR, `sensor` in the next, `switch` in another, and so on). For example, a
+  sensor that measures seven parameters and supports both I2C and SPI might be split into:
+    - The base "hub" component
+    - I2C and SPI connectivity
+    - Each platform (`sensor`, `binary_sensor`, etc.) as its own PR
+- It's fine to submit all the PRs at once, but if you do:
+    - Link them in the PR descriptions so reviewers can follow the work.
+    - Indicate the order in which they should be reviewed or merged, if relevant.
+    - Minimize the potential for conflicts as much as reasonably possible.
+
+None of this is meant to be discouraging; we love ambitious contributors, we just want the ambition to actually
+result in merged code, and a five minute chat up front is usually the difference.
 
 ## Can I Help Review PRs?
 

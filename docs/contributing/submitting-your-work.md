@@ -94,9 +94,11 @@ here are some tips:
 
 #### How to approach large submissions
 
-If you're thinking about contributing a (very) large amount of code (thousands of lines), please read this first.
-The goal is to help you avoid the worst outcome, which is pouring weeks into something only to have it turned down
-at review.
+If you're thinking about contributing a large amount of code, please read this first. "Large" here is not a
+specific line count; if your change is meaningfully bigger than a typical bugfix or small feature (roughly, more
+than a few hundred lines, or anything you'd describe as "a lot of work"), this section applies to you. The goal
+is to help you avoid the worst outcome, which is pouring weeks into something only to have it turned down at
+review.
 
 - **Please [talk to us on Discord](https://esphome.io/chat) in `#devs` *before* you start writing code.** A quick
   chat lets us tell you whether the idea fits where the project is heading, help you scope the change, and flag if

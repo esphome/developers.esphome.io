@@ -6,8 +6,8 @@ This section covers advanced component development topics in ESPHome. These feat
 
 ESPHome's main loop runs at the configured `loop_interval_` (default ~16 ms, ~62.5 Hz / ~3750 component-phase calls per minute), calling each registered component's `loop()` method. This is fast enough to feel responsive but still wastes CPU cycles for components that don't need continuous updates. The loop control API allows components to dynamically enable or disable their participation in the main loop.
 
-!!! note "Cadence change in 2026.4.0"
-    Before [PR #15792](https://github.com/esphome/esphome/pull/15792), `loop()` could be emergently pulled forward to roughly double the configured rate when the scheduler had a timer due sooner than `loop_interval_/2`. Configs without scheduler activity weren't affected, but on devices with `set_interval`, `set_timeout`, or `PollingComponent` updates running at sub-`loop_interval_` cadences (common on busy ESP32 builds), every component's `loop()` ran at roughly double the documented rate. As of 2026.4.0, components run at the configured `loop_interval_` exactly, and `App.set_loop_interval()` actually saves power. See ["Choosing Between loop() and the Scheduler"](#choosing-between-loop-and-the-scheduler) below for what this means for periodic work.
+!!! note "Cadence change in 2026.5.0"
+    Before [PR #15792](https://github.com/esphome/esphome/pull/15792), `loop()` could be emergently pulled forward to roughly double the configured rate when the scheduler had a timer due sooner than `loop_interval_/2`. Configs without scheduler activity weren't affected, but on devices with `set_interval`, `set_timeout`, or `PollingComponent` updates running at sub-`loop_interval_` cadences (common on busy ESP32 builds), every component's `loop()` ran at roughly double the documented rate. As of 2026.5.0, components run at the configured `loop_interval_` exactly, and `App.set_loop_interval()` actually saves power. See ["Choosing Between loop() and the Scheduler"](#choosing-between-loop-and-the-scheduler) below for what this means for periodic work.
 
 On platforms with socket select support (ESP32, Host, and LibreTiny-based chips like BK72xx/RTL87xx), the loop also wakes up immediately when there is new data on monitored sockets (such as API connections and OTA updates), ensuring low-latency network communication without polling. ESP8266 and RP2040 platforms use a simpler TCP implementation without select support.
 
@@ -182,7 +182,7 @@ Components track their loop state using internal flags:
 
 #### Performance Considerations
 
-With the main loop running at the configured `loop_interval_` (default 16 ms / ~62 Hz):
+With the main loop running at the configured `loop_interval_` (default 16 ms / ~62.5 Hz):
 
 - An idle component with an empty `loop()` still consumes CPU cycles each tick
 - 10 disabled components save ~37,500 function calls per minute (default cadence)
@@ -260,7 +260,7 @@ To debug loop control issues:
 
 ## Choosing Between loop() and the Scheduler
 
-ESPHome offers several primitives for periodic or deferred work. Since the main-loop cadence fix in 2026.4.0 ([PR #15792](https://github.com/esphome/esphome/pull/15792)), the tradeoffs have shifted enough that some older patterns are now pessimizations.
+ESPHome offers several primitives for periodic or deferred work. Since the main-loop cadence fix in 2026.5.0 ([PR #15792](https://github.com/esphome/esphome/pull/15792)), the tradeoffs have shifted enough that some older patterns are now pessimizations.
 
 ### Quick rule of thumb
 

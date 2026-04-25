@@ -4,7 +4,10 @@ This section covers advanced component development topics in ESPHome. These feat
 
 ## Component Loop Control
 
-ESPHome's main loop runs approximately every 7ms (~7000 times per minute), calling each component's `loop()` method. This high frequency ensures responsive behavior but can waste CPU cycles for components that don't need continuous updates. The loop control API allows components to dynamically enable or disable their participation in the main loop.
+ESPHome's main loop runs at the configured `loop_interval_` (default ~16 ms, ~62 Hz / ~3720 component-phase calls per minute), calling each registered component's `loop()` method. This is fast enough to feel responsive but still wastes CPU cycles for components that don't need continuous updates. The loop control API allows components to dynamically enable or disable their participation in the main loop.
+
+!!! note "Cadence change in 2026.4.0"
+    Before [PR #15792](https://github.com/esphome/esphome/pull/15792), `loop()` could be emergently pulled forward to ~128 Hz (~2× the configured rate) when the scheduler had a timer due sooner than `loop_interval_/2`. Configs without scheduler activity weren't affected, but on devices with `set_interval`, `set_timeout`, or `PollingComponent` updates running at sub-`loop_interval_` cadences (common on busy ESP32 builds), every component's `loop()` ran at roughly double the documented rate. As of 2026.4.0, components run at the configured `loop_interval_` exactly, and `App.set_loop_interval()` actually saves power. See ["Choosing Between loop() and the Scheduler"](#choosing-between-loop-and-the-scheduler) below for what this means for periodic work.
 
 On platforms with socket select support (ESP32, Host, and LibreTiny-based chips like BK72xx/RTL87xx), the loop also wakes up immediately when there is new data on monitored sockets (such as API connections and OTA updates), ensuring low-latency network communication without polling. ESP8266 and RP2040 platforms use a simpler TCP implementation without select support.
 
@@ -179,11 +182,11 @@ Components track their loop state using internal flags:
 
 #### Performance Considerations
 
-With the main loop running every ~7ms:
+With the main loop running at the configured `loop_interval_` (default 16 ms / ~62 Hz):
 
-- An idle component with an empty `loop()` still consumes CPU cycles
-- 10 disabled components save ~70,000 function calls per minute
-- Critical for ESP8266/ESP32 devices with limited CPU resources
+- An idle component with an empty `loop()` still consumes CPU cycles each tick
+- 10 disabled components save ~37,000 function calls per minute (default cadence)
+- Critical for ESP8266/ESP32 devices with limited CPU resources, and for power-managed configurations using `App.set_loop_interval()`
 
 #### Thread Safety
 
@@ -254,6 +257,42 @@ To debug loop control issues:
    ```
 
 3. Use the Logger component's async support as a reference implementation
+
+## Choosing Between loop() and the Scheduler
+
+ESPHome offers several primitives for periodic or deferred work. Since the main-loop cadence fix in 2026.4.0 ([PR #15792](https://github.com/esphome/esphome/pull/15792)), the tradeoffs have shifted enough that some older patterns are now pessimizations.
+
+### Quick rule of thumb
+
+| Cadence / shape | Recommended primitive |
+|---|---|
+| Sub-`loop_interval_` (`< 16 ms`) wakes | `HighFrequencyLoopRequester` |
+| Periodic, **interval < 250 ms** | `loop()` + `App.get_loop_component_start_time()` gate |
+| Periodic, **250–500 ms** | Either; `loop()` usually still cheaper |
+| Periodic, **≥ 500 ms** | `set_interval` |
+| One-shot or rare reschedule | `set_timeout` |
+| Run-once-on-next-loop | `defer` |
+
+Crossover depends on how cheap your `loop()` "nothing to do" path is and whether the timer interval would force extra Phase A wakes. Use `App.get_loop_component_start_time()` rather than `millis()` — it's cached per tick.
+
+### Why `loop()` wins for sub-second work
+
+Each main-loop tick has two phases. **Phase A** runs every tick (drains wake notifications, runs due scheduler entries, feeds the watchdog). **Phase B** runs the component list only when `loop_interval_` elapsed, `HighFrequencyLoopRequester` is active, or a `wake_loop_*` raised the flag. A `set_interval(N)` with `N` smaller than (or unaligned with) `loop_interval_` forces extra Phase A wakes that each pay scheduler-dispatch + WDT-feed cost — often more than the work itself.
+
+### RAM cost
+
+`set_timeout`, `set_interval`, and `defer` store callbacks in `std::function`, which has an ~8-byte small-buffer optimization. **Captures larger than 8 bytes spill to heap allocation**, fragmenting the heap over time. A `loop()` method needs no allocation and no capture — `this` is already available.
+
+```cpp
+this->set_interval(1000, [this]() { this->tick_(); });               // SBO-safe (one pointer)
+this->set_interval(1000, [this, addr, name]() { this->ping_(...); }); // heap-allocated (> 8 bytes)
+```
+
+### Other primitives
+
+- **`set_interval` still wins** for slow cadences (≥ 30 s), shared cadence across many items, or when you need named cancellation.
+- **`set_timeout`** — one-shots and self-rescheduling timers with variable delays. Don't chain it as a hand-rolled `set_interval`.
+- **`defer`** — run-once on the next main-loop iteration; use it to break recursion or escape interrupt context, not as a task queue.
 
 ## Waking the Main Loop from Background Threads
 

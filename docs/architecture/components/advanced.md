@@ -290,7 +290,7 @@ this->set_interval(1000, [this, addr, name]() { this->ping_(...); }); // heap-al
 
 ### Other primitives
 
-- **`set_interval` still wins** for slow cadences (≥ 30 s) and likely wins for anything > 500 ms; also when many items share one cadence or when you need named cancellation.
+- **`set_interval` still wins** for intervals ≥ 500 ms, when many items share one cadence, or when you need named cancellation.
 - **`set_timeout`** — one-shots and self-rescheduling timers with variable delays. Don't chain it as a hand-rolled `set_interval`.
 - **`defer`** — run-once on the next main-loop iteration; use it to break recursion or escape interrupt context, not as a task queue.
 

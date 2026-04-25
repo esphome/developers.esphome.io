@@ -281,12 +281,14 @@ Each main-loop tick has two phases. **Phase A** runs every tick (drains wake not
 
 ### RAM cost
 
-`set_timeout`, `set_interval`, and `defer` store callbacks in `std::function`, which has an ~8-byte small-buffer optimization. **Captures larger than 8 bytes spill to heap allocation**, fragmenting the heap over time. A `loop()` method needs no allocation and no capture — `this` is already available.
+`set_timeout`, `set_interval`, and `defer` store callbacks in `std::function`, which has an ~8-byte small-buffer optimization. **Captures larger than 8 bytes spill to heap allocation**, fragmenting the heap over time. Each registration adds its own `std::function` — three timers means three allocations.
 
 ```cpp
 this->set_interval(1000, [this]() { this->tick_(); });               // SBO-safe (one pointer)
 this->set_interval(1000, [this, addr, name]() { this->ping_(...); }); // heap-allocated (> 8 bytes)
 ```
+
+A `loop()` method costs one pointer in the application's `looping_components_` list per active component (regardless of how many distinct tasks the loop body performs) and no per-call allocation — `this` is already available. So a component doing three things at three different cadences via gated branches in `loop()` is one pointer of overhead; the same work split across three `set_interval` registrations is three `std::function`s plus their scheduler-entry storage.
 
 ### Other primitives
 

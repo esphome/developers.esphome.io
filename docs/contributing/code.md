@@ -467,11 +467,25 @@ correctly. Breaking changes must be:
 
 When you need to make a C++ breaking change:
 
-1. **Add a deprecation warning** using compile-time warnings or runtime logs (when possible—see compatibility window note)
-2. **Maintain the old behavior** alongside the new for 6 months when possible (note: for C++ changes, maintaining
-   backward compatibility is not always possible, especially for signature changes or refactorings)
-3. **Document the migration path** in the PR description (which generates release notes) and code comments
-4. **Update all internal usage** to use the new API
+1. **Migrate all in-codebase usage to the new API first.** Update every caller in the ESPHome repository (core,
+   components, tests) to use the new pattern before any deprecation warning is added. Marking something deprecated
+   while internal callers still use it produces a stream of warnings from our own codebase, which drowns out the
+   warnings users actually need to see, churns across dev cycles, and erodes the signal that deprecation warnings
+   are supposed to carry.
+2. **Add the deprecation warning** using compile-time warnings or runtime logs (when possible; see compatibility
+   window note), only after step 1 is complete and the codebase is clean.
+3. **Maintain the old behavior** alongside the new for 6 months when possible (note: for C++ changes, maintaining
+   backward compatibility is not always possible, especially for signature changes or refactorings).
+4. **Document the migration path** in the PR description (which generates release notes) and code comments.
+
+!!!note "Should I mark something deprecated in one PR and migrate callers later?"
+    No. Migrate every in-tree caller to the new API in the same PR, or in PRs that land before the deprecation PR.
+    The deprecation warning should not fire on any code we ship. This is especially important when a migration may
+    span multiple dev cycles; if the codebase is left to migrate itself gradually, the warnings linger across
+    releases and the cleanup tends to stall.
+
+    This rule applies to in-tree code only. External components and user configurations are exactly who the
+    deprecation warning is for, and the 6 month compatibility window gives them time to react.
 
 !!!note "C++ Compatibility Window"
     ESPHome aims to maintain backward compatibility for 6 months when possible. However, some C++ breaking changes

@@ -2,9 +2,11 @@
 
 ## Overview
 
-It's important to understand that logging has performance implications, especially in networked environments.
+This guide covers best practices for efficient logging in ESPHome components
+and platforms. It's important to understand that logging has performance
+implications, especially in networked environments. Following these
+best practices will minimize CPU, RAM, flash, and network overhead.
 
-This guide covers best practices for efficient logging in ESPHome components and platforms.
 
 ## Understanding Logger Overhead
 
@@ -47,7 +49,18 @@ wasted space and time.
     - include punctuation unless necessary; each message appears on a new line. For example, a period (`.`) or
       exclamation point (`!`) at the end of every message does not help with debugging and only wastes space.
 
+### Logging State Changes: Don't
+
+Component code should **not** include any log calls for state changes. 
+Sensor state changes are automatically inserted into the log at `VERBOSE` and
+`VERY_VERBOSE` levels, and client-side logging tools based on aioesphomeapi
+(including those output by `esphome logs`) automatically insert state change
+messages into log output irregardless of sensor log level (this behavior can be
+disabled by setting the `--no-states` flag).
+
+
 #### Examples
+
 
 !!! failure "Bad"
 
@@ -135,7 +148,7 @@ When combining log messages:
 - Each `\n` adds only one byte
 - Consider the length of substituted values (for example, `%s` might expand to 20+ characters/bytes for long strings)
 - The log header (timestamp, level, tag) uses approximately 30 bytes
-- Most combined ESP_LOGCONFIG calls stay well under this limit, even with 8-10 lines
+- Most combined `ESP_LOGCONFIG` calls stay well under this limit, even with 8-10 lines
 
 1. **Use string literal concatenation** for readability:
    ```cpp

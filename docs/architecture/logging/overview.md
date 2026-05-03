@@ -1,8 +1,10 @@
 # Logging
 
+Logging is an important function for both ESPHome developers and users alike.
+This functionality is enabled when the
+[logger component](https://esphome.io/components/logger/) is added to an
+ESPHome device configuration:
 
-
-Logging is an important function for both ESPHome developers and users alike. This functionality is enabled (TODO: by default?) when the [logger component](https://esphome.io/components/logger/) is added to an ESPHome device configuration:
 
 ```yaml
 logger:
@@ -45,7 +47,8 @@ If logging over multiple lines, combine into a single log message (see [best pra
 ## Log Levels
 ESPHome has seven log channels: one for configuration, and six for runtime messages of varying verbosity and severity.
 
- - `ESP_LOGCONFIG()`: Logged during component configuration. (TODO: Logged at which function?)
+ - `ESP_LOGCONFIG()`: Logged during component configuration. Typically used in
+component `dump_config()` function.
 
 In increasing order of verbosity, the runtime channels are:
 
@@ -74,15 +77,29 @@ esphome logs --device ttyACM1 path/to/configuration.yaml
 ```
 
 !!! failure Missing Logs over Network API
-   If you are attempting to troubleshoot an error that occurs before the device network stack is initialized and connected, early log messages will likely be missing. If you are troubleshooting a component and cannot see log messages during component setup, consider retrieving logs over serial
+   Some problems may be difficult to troubleshoot when using the Network API, either due to the errors occurring well before the device network stack is initialized, or if the network stack itself is causing an issue. If this is the case, you may need to use hardware serial to obtain logs.
 
-To retrieve logs over serial, you can either configure your hardware's USB CDC if it has such hardware, or connect your device's UART ports to a UART adapter Alternatively, for RP2040 platforms (TODO: can debug probe be used for ESP32 UART devices too?) you can use a [Debug Probe](https://www.raspberrypi.com/products/debug-probe/) or another RP2040 device (including a non-wireless Pi Pico) loaded with [debug probe firmware](github.com/raspberrypi/debugprobe).
+
+To retrieve logs over serial, you can either configure your hardware's USB CDC if it has such hardware, or configure your device to use specific UART pins, which you
+can then connect to your computer using:
+
+- A deducated USB to UART adapter, or
+- An [RP2040 Debug Probe](https://www.raspberrypi.com/products/debug-probe/) or another RP2040 device such as a Raspberry Pi Pico loaded with [debug probe firmware](github.com/raspberrypi/debugprobe). This will work for any UART-capable ESPHome device, not just RP2040 devices.
+
+If your logs look garbled, make sure that your PC UART interface baud rate is
+the same baud rate as your ESPHome device UART (default is 115200), and that
+both your interface and device have a shared ground connection.
 
 ### Over MQTT
 
-It is also possible to have ESPHome log messages over MQTT.
+It is also possible to get ESPHome log messages over MQTT. You must have
+[MQTT configured](https://esphome.io/components/mqtt/) with a `log_topic`
+configuration option:
 
-TODO: I have no idea what this entails or any caveats.
+```yaml
+mqtt:
+  log_topic: ${mqtt_prefix}/logs
+```
 
 ## Logging Best Practices
 

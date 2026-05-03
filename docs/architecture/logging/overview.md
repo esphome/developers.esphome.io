@@ -76,7 +76,7 @@ esphome logs --device 192.168.1.111 path/to/configuration.yaml
 esphome logs --device ttyACM1 path/to/configuration.yaml
 ```
 
-!!! failure Missing Logs over Network API
+!!! failure "Missing Logs over Network API"
    Some problems may be difficult to troubleshoot when using the Network API, either due to the errors occurring well before the device network stack is initialized, or if the network stack itself is causing an issue. If this is the case, you may need to use hardware serial to obtain logs.
 
 

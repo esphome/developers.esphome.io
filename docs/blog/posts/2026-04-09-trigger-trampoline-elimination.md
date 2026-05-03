@@ -1,0 +1,195 @@
+---
+date: 2026-04-09
+authors:
+  - bdraco
+comments: true
+---
+
+# Trigger Trampolines Eliminated with build_callback_automation
+
+Common entity trigger classes have been replaced with lightweight forwarder structs that fit inline in the callback system. The new `build_callback_automation()` API eliminates per-trigger object allocations. Several entity callback signatures have also changed to pass state as an argument.
+
+This is a **breaking change** for external components in **ESPHome 2026.4.0 and later**.
+
+<!-- more -->
+
+## Background
+
+- **[PR #15174](https://github.com/esphome/esphome/pull/15174):** Eliminate trigger trampolines with deduplicated forwarder structs
+- **[PR #15198](https://github.com/esphome/esphome/pull/15198):** `alarm_control_panel` — Migrate triggers to callback automation
+- **[PR #15199](https://github.com/esphome/esphome/pull/15199):** `lock` — Migrate LockStateTrigger to callback automation
+- **[PR #15200](https://github.com/esphome/esphome/pull/15200):** `media_player` — Migrate triggers to callback automation
+
+Previously, each automation trigger created a separate C++ object that existed solely to forward a callback to an `Automation`. For example:
+
+```
+button press → callback → ButtonPressTrigger::trigger() → Automation::trigger()
+```
+
+Now a lightweight forwarder struct collapses this into the callback itself:
+
+```
+button press → callback → TriggerForwarder::operator()() → Automation::trigger()
+```
+
+The forwarder fits in the `Callback::ctx_` field — no additional storage needed.
+
+### Memory savings
+
+| Config | Platform | RAM Saved | Flash Saved |
+|--------|----------|-----------|-------------|
+| ratgdo (garage door) | ESP8266 | **88 bytes** | **224 bytes** |
+| multi-sensor device | ESP32-IDF | **208 bytes** | **280 bytes** |
+
+## What's Changing
+
+### 1. Callback signatures changed
+
+Several entity callback signatures changed to pass state as an argument, enabling single-pointer forwarders:
+
+```cpp
+// alarm_control_panel — Before
+void add_on_state_callback(std::function<void()> &&callback);
+// After
+template<typename F> void add_on_state_callback(F &&callback);
+// Callback signature: void(AlarmControlPanelState)
+
+// lock — Before
+void add_on_state_callback(std::function<void()> &&callback);
+// After
+template<typename F> void add_on_state_callback(F &&callback);
+// Callback signature: void(LockState)
+
+// media_player — Before
+void add_on_state_callback(std::function<void()> &&callback);
+// After
+template<typename F> void add_on_state_callback(F &&callback);
+// Callback signature: void(MediaPlayerState)
+```
+
+### 2. Automation::trigger_ field removed
+
+The `trigger_` protected field on `Automation` (set in constructor, never read) has been removed.
+
+## Who This Affects
+
+1. **External components registering callbacks on `alarm_control_panel`, `lock`, or `media_player`** — must update callback signature to accept the state parameter
+2. **External components accessing `Automation::trigger_`** — this field no longer exists
+
+## Migration Guide
+
+### Callback signature changes
+
+```cpp
+// alarm_control_panel — Before
+this->parent_->add_on_state_callback([this]() {
+  auto state = this->parent_->get_state();
+  // ...
+});
+
+// After
+this->parent_->add_on_state_callback([this](AlarmControlPanelState state) {
+  // state is passed directly, no need to call get_state()
+});
+```
+
+```cpp
+// lock — Before
+this->parent_->add_on_state_callback([this]() {
+  auto state = this->parent_->state;
+  // ...
+});
+
+// After
+this->parent_->add_on_state_callback([this](LockState state) {
+  // state is passed directly
+});
+```
+
+```cpp
+// media_player — Before
+this->parent_->add_on_state_callback([this]() {
+  auto state = this->parent_->state;
+  // ...
+});
+
+// After
+this->parent_->add_on_state_callback([this](MediaPlayerState state) {
+  // state is passed directly
+});
+```
+
+### Python codegen migration
+
+If your external component uses `build_automation()` with trigger classes, migrate to `build_callback_automations()` ([PR #15246](https://github.com/esphome/esphome/pull/15246)):
+
+```python
+# Before
+from esphome import automation
+
+MyStateTrigger = my_ns.class_("MyStateTrigger", automation.Trigger.template(cg.bool_))
+MyPressTrigger = my_ns.class_("MyPressTrigger", automation.Trigger.template())
+
+CONFIG_SCHEMA = cv.Schema({
+    cv.Optional(CONF_ON_STATE): automation.validate_automation(
+        {cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(MyStateTrigger)}
+    ),
+    cv.Optional(CONF_ON_PRESS): automation.validate_automation(
+        {cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(MyPressTrigger)}
+    ),
+})
+
+async def to_code(config):
+    for conf in config.get(CONF_ON_STATE, []):
+        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
+        await automation.build_automation(trigger, [(bool, "x")], conf)
+    for conf in config.get(CONF_ON_PRESS, []):
+        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
+        await automation.build_automation(trigger, [], conf)
+```
+
+```python
+# After — no trigger classes needed, no CONF_TRIGGER_ID in schema
+from esphome import automation
+
+_CALLBACK_AUTOMATIONS = (
+    automation.CallbackAutomation(CONF_ON_STATE, "add_on_state_callback", [(bool, "x")]),
+    automation.CallbackAutomation(CONF_ON_PRESS, "add_on_press_callback"),
+)
+
+CONFIG_SCHEMA = cv.Schema({
+    cv.Optional(CONF_ON_STATE): automation.validate_automation({}),
+    cv.Optional(CONF_ON_PRESS): automation.validate_automation({}),
+})
+
+async def to_code(config):
+    await automation.build_callback_automations(var, config, _CALLBACK_AUTOMATIONS)
+```
+
+`build_automation()` and all `Trigger` subclasses remain available for triggers that need mutable state beyond a single `Automation*` pointer.
+
+## Timeline
+
+- **ESPHome 2026.4.0 (April 2026):** Trigger classes removed, callback signatures changed
+- No deprecation period — these are signature changes and class removals
+
+## Finding Code That Needs Updates
+
+```bash
+# Find alarm_control_panel/lock/media_player callback registrations
+grep -rn 'add_on_state_callback' your_component/
+```
+
+## Questions?
+
+If you have questions about migrating your external component, please ask in:
+
+- [ESPHome Discord](https://discord.gg/KhAMKrd) - #devs channel
+- [ESPHome GitHub Discussions](https://github.com/esphome/esphome/discussions)
+
+## Related Documentation
+
+- [PR #15174: Eliminate trigger trampolines with deduplicated forwarder structs](https://github.com/esphome/esphome/pull/15174)
+- [PR #15198: Migrate alarm\_control\_panel triggers to callback automation](https://github.com/esphome/esphome/pull/15198)
+- [PR #15199: Migrate lock triggers to callback automation](https://github.com/esphome/esphome/pull/15199)
+- [PR #15200: Migrate media\_player triggers to callback automation](https://github.com/esphome/esphome/pull/15200)

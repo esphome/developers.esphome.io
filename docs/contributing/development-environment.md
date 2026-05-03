@@ -36,6 +36,16 @@ First you will need a "Fork" of the ESPHome repository. You can do this by visit
 [ESPHome repository](https://github.com/esphome/esphome), clicking the **Fork** button and following the instructions
 on GitHub to complete the fork.
 
+Note that forks created from GitHub organization accounts will protect branches involved in
+pull requests, preventing ESPHome maintainers from making any changes to your branch.
+
+If there is a small change required to a PR to enable it to be approved, a maintainer may well choose to
+make that change directly rather than leaving a review (this applies particularly to PRs in
+the docs where a simple formatting fix is needed.)
+
+It is therefore recommended that you use a personal account for forking ESPHome and raising PRs.
+
+
 Once the fork is created, you can clone the repository to your local machine:
 
 ```bash
@@ -94,10 +104,8 @@ Always do your work in a new branch created from the latest ESPHome upstream `de
 directly to the `dev` branch.
 
 ```bash
-git checkout dev
-git pull upstream dev
-
-git checkout -b my-new-feature
+git fetch upstream
+git checkout -b my-new-feature upstream/dev
 ```
 
 This branch should contain your work for this new feature.

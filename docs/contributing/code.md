@@ -519,6 +519,60 @@ API. This includes:
 - **Configuration structure**: Nesting requirements, required vs optional keys
 - **Platform names**: The names used to reference components (e.g., `sensor.dht`, `switch.gpio`)
 
+#### Schema-driven UI hints (`advanced` / `yaml_only`)
+
+Some configuration keys are valid YAML but a poor fit for a visual editor (the dashboard's
+add-component form, the section editor, third-party schema-driven tooling, …). ESPHome's
+`cv.Optional` and `cv.Required` accept two opt-in keyword arguments that let the field's author
+decide how editors should render it. Both flags are **purely advisory** — they don't affect
+validation in any way; ESPHome itself ignores them at runtime — they just flow through the schema
+dump (`script/build_language_schema.py`) so downstream consumers can act on them.
+
+| Kwarg | Semantics | Use when |
+|---|---|---|
+| `advanced=True` | Render the field, but tuck it under the editor's "advanced settings" disclosure. | The default is right for ~all users; power users can still tune the YAML directly without crowding the form. |
+| `yaml_only=True` | Never render the field in a visual editor. | The knob is dangerous to expose in a UI even as advanced — a casual click could break boot or otherwise mis-configure the component. |
+
+`yaml_only` is the stronger signal — a sensible consumer treats `yaml_only` as "hide" regardless of
+the `advanced` value. Setting both is fine; the contract is "either is sufficient to skip the main
+form".
+
+!!!example "UI hint kwargs in practice"
+    ```python
+    # Field belongs on the editor's "advanced settings" section
+    cv.Optional(CONF_FOO, default="42", advanced=True): cv.int_
+
+    # Field never shows in a visual editor — YAML escape hatch
+    # stays available for the rare power-user override.
+    cv.Optional(CONF_BAR, yaml_only=True): cv.string
+
+    # Required works the same way
+    cv.Required(CONF_BAZ, advanced=True): cv.boolean
+    ```
+
+For helpers that produce schemas behind a function call (like `cv.polling_component_schema`), prefer
+adding an opt-in kwarg to the helper so callers stay declarative — for example,
+`polling_component_schema` exposes `advanced_update_interval=True` so a time-platform call site can
+opt the inherited `update_interval` into the advanced section without affecting sensors and other
+polling components.
+
+When in doubt:
+
+- Don't set either flag. The default (no flag) keeps the field on the main form, which is the right
+  answer for the long tail of normal config keys.
+- Reach for `advanced=True` when the field is *valid* but you'd be answering the user's question
+  with a question if you led with it ("How often should I sync time?" — they don't know, the default
+  is fine).
+- Reach for `yaml_only=True` only when surfacing the field in a UI is actively unsafe.
+  `setup_priority` is the canonical example: it exists on every component (via
+  `core.COMPONENT_SCHEMA`'s extends), the default is correct in essentially every case, and a visual
+  editor putting "Setup Priority" on every component's Advanced section is a foot-gun even there.
+
+Adding a flag to an existing field is **not** a breaking change for YAML users — the YAML still
+validates the same way. It can be a meaningful change for a visual editor, though, so coordinate
+with downstream catalog consumers (e.g. esphome/device-builder) before flipping a previously-shown
+field to `yaml_only=True`.
+
 #### Python Functions and Classes
 
 Unlike C++, most Python code in ESPHome is **internal implementation** unless explicitly documented:

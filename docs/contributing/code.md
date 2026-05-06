@@ -533,7 +533,7 @@ ignores it at runtime — it just flows through the schema dump
 |---|---|---|
 | _(unset, the default)_ | Render the field on the editor's main form. | The field is normal config — the user genuinely wants to see it. |
 | `cv.Visibility.ADVANCED` | Render the field, but tuck it under the editor's "advanced settings" disclosure. | The default is right for ~all users; power users can still tune the YAML directly without crowding the form. |
-| `cv.Visibility.YAML_ONLY` | Never render the field in a visual editor. | The knob is dangerous to expose in a UI even as advanced — a casual click could break boot or otherwise mis-configure the component. |
+| `cv.Visibility.YAML_ONLY` | Never render the field in a visual editor. | The knob is dangerous to expose in a UI even as advanced — a casual click could break boot or otherwise misconfigure the component. |
 
 The values are points along a single axis of strictness:
 `YAML_ONLY` > `ADVANCED` > _unset_. The single-axis shape encodes "yaml-only is strictly stronger
@@ -543,7 +543,7 @@ contradictory state.
 !!!example "Visibility kwarg in practice"
     ```python
     # Field belongs on the editor's "advanced settings" section
-    cv.Optional(CONF_FOO, default="42", visibility=cv.Visibility.ADVANCED): cv.int_
+    cv.Optional(CONF_FOO, default=42, visibility=cv.Visibility.ADVANCED): cv.int_
 
     # Field never shows in a visual editor — YAML escape hatch
     # stays available for the rare power-user override.
@@ -562,7 +562,7 @@ adding an opt-in kwarg to the helper so callers stay declarative — for example
 
 ##### Cascading
 
-A stricter parent forces every descendant at-least as strict. Schema consumers (the device-builder
+A stricter parent forces every descendant at least as strict. Schema consumers (the device-builder
 catalog generator and similar) walk the parent chain when computing the *effective* visibility for
 each field — a child can only ever be **stricter** than its parent, never more visible:
 

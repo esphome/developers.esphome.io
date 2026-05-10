@@ -29,6 +29,7 @@ Now it just works — no opt-in, no defines, no guards.
 | LibreTiny | FreeRTOS task notifications |
 | ESP8266 | `esp_schedule()` (IRAM-safe) |
 | RP2040 | `__sev()` / `__wfe()` (ARM CPU instructions) |
+| Zephyr (nRF52) | `k_sem_give()` (ISR-safe) / `k_sem_take()` |
 | Host | UDP loopback socket + `select()` |
 
 ## What's Changing

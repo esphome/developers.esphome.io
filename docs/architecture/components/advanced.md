@@ -305,10 +305,8 @@ For components that receive events in background threads/FreeRTOS tasks (BLE cal
 - **ESP32/LibreTiny:** FreeRTOS task notifications (<1 µs)
 - **ESP8266:** `esp_schedule()` to exit `esp_delay()` early
 - **RP2040:** ARM `__sev()` to exit `__wfe()` early
+- **Zephyr (nRF52):** `k_sem_give()` to exit `k_sem_take()` early
 - **Host:** UDP loopback socket to wake `select()`
-
-!!! note "Zephyr"
-    Not yet implemented — calls are accepted but fall back to a no-op.
 
 ### Usage
 
@@ -347,7 +345,7 @@ For ISR handlers (e.g. UART RX ISR, GPIO ISR), use `enable_loop_soon_any_context
 - **ESP8266:** ISR-safe via `esp_schedule()`, which is IRAM. `App.wake_loop_isrsafe()` is also available; it takes no arguments since ESP8266 has no FreeRTOS task to notify, and the body is implemented inline and typically inlines into the `IRAM_ATTR` caller. For ISR safety, ensure the called code is IRAM-resident.
 - **RP2040:** ISR-safe. The wake body is inlined into `enable_loop_soon_any_context()`, which is placed in `.time_critical` RAM via `IRAM_ATTR`.
 - **LibreTiny:** ISR-safe via `vTaskNotifyGiveFromISR()` (same path as ESP32); `App.wake_loop_isrsafe()` is also available. `IRAM_ATTR` places handlers in executable RAM as expected, except on BK72xx where it is a no-op — the Beken SDK wraps every flash op in `GLOBAL_INT_DISABLE()` (FIQ+IRQ masked), so flash-resident ISR handlers are safe.
-- **Zephyr:** wake is a no-op, so enabling the loop from any context takes effect on the next loop iteration.
+- **Zephyr (nRF52):** ISR-safe via `k_sem_give()`, which the Zephyr kernel allows from ISR context. `App.wake_loop_isrsafe()` is also available, takes no arguments (`k_sem_give()` handles ISR scheduling internally), and does not require `IRAM_ATTR` — nRF52 runs ISRs directly from internal flash.
 
 Example ISR using the explicit ISR-safe API on ESP32:
 

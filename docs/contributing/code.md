@@ -519,6 +519,81 @@ API. This includes:
 - **Configuration structure**: Nesting requirements, required vs optional keys
 - **Platform names**: The names used to reference components (e.g., `sensor.dht`, `switch.gpio`)
 
+#### Schema-driven UI hints (`visibility`)
+
+Some configuration keys are valid YAML but a poor fit for a visual editor (the dashboard's
+add-component form, the section editor, third-party schema-driven tooling, …). ESPHome's
+`cv.Optional` and `cv.Required` accept a single opt-in `visibility=` keyword argument backed by
+the `cv.Visibility` `StrEnum` that lets the field's author decide how editors should render it.
+The kwarg is **purely advisory** — it doesn't affect validation in any way; ESPHome itself
+ignores it at runtime — it just flows through the schema dump
+(`script/build_language_schema.py`) so downstream consumers can act on it.
+
+| Value | Semantics | Use when |
+|---|---|---|
+| _(unset, the default)_ | Render the field on the editor's main form. | The field is normal config — the user genuinely wants to see it. |
+| `cv.Visibility.ADVANCED` | Render the field, but tuck it under the editor's "advanced settings" disclosure. | The default is right for ~all users; power users can still tune the YAML directly without crowding the form. |
+| `cv.Visibility.YAML_ONLY` | Never render the field in a visual editor. | The knob is dangerous to expose in a UI even as advanced — a casual click could break boot or otherwise misconfigure the component. |
+
+The values are points along a single axis of strictness:
+`YAML_ONLY` > `ADVANCED` > _unset_. The single-axis shape encodes "yaml-only is strictly stronger
+than advanced" at the type level — there's no way to ask for both at once, and no way to set a
+contradictory state.
+
+!!!example "Visibility kwarg in practice"
+    ```python
+    # Field belongs on the editor's "advanced settings" section
+    cv.Optional(CONF_FOO, default=42, visibility=cv.Visibility.ADVANCED): cv.int_
+
+    # Field never shows in a visual editor — YAML escape hatch
+    # stays available for the rare power-user override.
+    cv.Optional(CONF_BAR, visibility=cv.Visibility.YAML_ONLY): cv.string
+
+    # Required accepts the same kwarg for symmetry. Use it
+    # cautiously: hiding a Required field behind an advanced
+    # disclosure can let users submit with the field unfilled.
+    cv.Required(CONF_BAZ, visibility=cv.Visibility.ADVANCED): cv.boolean
+    ```
+
+For helpers that produce schemas behind a function call (like `cv.polling_component_schema`), prefer
+adding an opt-in kwarg to the helper so callers stay declarative — for example,
+`polling_component_schema` exposes `visibility=` so a time-platform call site can opt the inherited
+`update_interval` into the advanced section without affecting sensors and other polling components.
+
+##### Cascading
+
+A stricter parent forces every descendant at least as strict. Schema consumers (the device-builder
+catalog generator and similar) walk the parent chain when computing the *effective* visibility for
+each field — a child can only ever be **stricter** than its parent, never more visible:
+
+- A NESTED block marked `ADVANCED` puts every inner field under the same disclosure. An inner field
+  with no `visibility` setting still ends up in the "advanced" section because the parent is.
+- A NESTED block marked `YAML_ONLY` hides every descendant — otherwise the editor would render an
+  unrooted control with no surrounding context to interpret it.
+- An inner field marked `YAML_ONLY` under an `ADVANCED` parent stays hidden — the strictness
+  ordering is monotonic.
+
+The schema marker itself is per-field as the author wrote it; the cascade is a consumer concern,
+not a mutation of the schema. This keeps the dump faithful to what's at each call site.
+
+When in doubt:
+
+- Don't set `visibility`. The default keeps the field on the main form, which is the right answer
+  for the long tail of normal config keys.
+- Reach for `Visibility.ADVANCED` when the field is *valid* but you'd be answering the user's
+  question with a question if you led with it ("How often should I sync time?" — they don't know,
+  the default is fine).
+- Reach for `Visibility.YAML_ONLY` only when surfacing the field in a UI is actively unsafe.
+  `setup_priority` is the canonical example: it exists on every component (via
+  `core.COMPONENT_SCHEMA`'s extends), the default is correct in essentially every case, and a
+  visual editor putting "Setup Priority" on every component's Advanced section is a foot-gun even
+  there.
+
+Adding a `visibility` value to an existing field is **not** a breaking change for YAML users — the
+YAML still validates the same way. It can be a meaningful change for a visual editor, though, so
+coordinate with downstream catalog consumers (e.g. esphome/device-builder) before flipping a
+previously-shown field to `Visibility.YAML_ONLY`.
+
 #### Python Functions and Classes
 
 Unlike C++, most Python code in ESPHome is **internal implementation** unless explicitly documented:

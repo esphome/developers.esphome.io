@@ -25,7 +25,10 @@ The core `RingBuffer` was an ESP32-only implementation used exclusively by audio
 
 Moving it into a real component (`esphome::ring_buffer::RingBuffer`) lets audio consumers `AUTO_LOAD` it the same way every other shared utility is pulled in, and opens the door to iterating on the implementation without touching core.
 
-The old `esphome/core/ring_buffer.h` header now forwards to the new location with a compile-time deprecation warning. It will be removed in **2026.11.0** per the standard 6-month policy.
+The old `esphome/core/ring_buffer.h` header now forwards to the new location and is removed in **2026.11.0** per the standard 6-month policy. The behavior of the shim depends on whether your component declares `AUTO_LOAD = ["ring_buffer"]`:
+
+- **With `AUTO_LOAD`:** the shim forwards `esphome::RingBuffer` to `esphome::ring_buffer::RingBuffer` via a `using` alias marked `ESPDEPRECATED(...)`. Code keeps compiling, but each use emits a deprecation warning at the call site.
+- **Without `AUTO_LOAD`:** the new header isn't on the include path, so the shim fires a hard `#error` telling you exactly what to do: *"`esphome/components/ring_buffer/ring_buffer.h` not found. Add 'ring_buffer' to your component's AUTO_LOAD list to use esphome::ring_buffer::RingBuffer."* The build fails immediately rather than producing a confusing missing-header diagnostic from somewhere else.
 
 ## What's Changing
 
@@ -85,7 +88,21 @@ All in-tree consumers (`audio`, `i2s_audio`, `micro_wake_word`, `mixer`, `resamp
     +esphome::ring_buffer::RingBuffer::create(size);
     ```
 
-    If you have many callsites and they all live in your component's own namespace, a single `using esphome::ring_buffer::RingBuffer;` at the top of the file lets the rest of the code stay unchanged.
+    If you have many callsites, you can avoid editing each one by adding a `using esphome::ring_buffer::RingBuffer;` declaration **inside your component's own namespace block** so `RingBuffer` resolves correctly from unqualified references:
+
+    ```cpp
+    namespace esphome::my_component {
+
+    using esphome::ring_buffer::RingBuffer;   // ← here, not at file scope
+
+    class MyComponent : public Component {
+      std::unique_ptr<RingBuffer> buf_;        // unqualified still works
+    };
+
+    }  // namespace esphome::my_component
+    ```
+
+    Avoid putting the `using` at file scope (outside any namespace) — that pulls the name into the global namespace, which works for `::RingBuffer` lookups but doesn't help code inside `esphome::my_component` that previously relied on `esphome::RingBuffer` being a sibling.
 
 3. Add `AUTO_LOAD` in your component's `__init__.py`:
 

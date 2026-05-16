@@ -17,7 +17,7 @@ This is a **breaking change** for external components and YAML configs that driv
 
 **[PR #15998](https://github.com/esphome/esphome/pull/15998): Gate FloatOutput power scaling fields behind USE_OUTPUT_FLOAT_POWER_SCALING**
 
-`min_power_`, `max_power_`, and `zero_means_zero_` cost **12 bytes per instance** on every PWM channel, DAC channel, LEDC output, and dimmer-chip channel — paid by every device with any `output:` block, regardless of whether the user touches the feature. Repo-wide YAML usage of `min_power` / `max_power` / `zero_means_zero` is on the order of 17 lines, mostly test fixtures. The `output.set_min_power` / `output.set_max_power` runtime actions (added in #8934) have no usage outside their own test fixture.
+`min_power_`, `max_power_`, and `zero_means_zero_` cost **12 bytes per instance** on every PWM channel, DAC channel, LEDC output, and dimmer-chip channel — paid by every device with any `output:` block, regardless of whether the user touches the feature. Inside `esphome/esphome`, total YAML usage of `min_power` / `max_power` / `zero_means_zero` is on the order of 17 lines, mostly in test fixtures. The `output.set_min_power` / `output.set_max_power` runtime actions (added in #8934) have no callers outside the action's own test fixture.
 
 This follows the same pattern the entity base classes already use — `USE_POWER_SUPPLY` gates `BinaryOutput::power_`, and `USE_ENTITY_ICON` / `USE_ENTITY_DEVICE_CLASS` / `USE_ENTITY_UNIT_OF_MEASUREMENT` gate string members of `EntityBase`. Configs that opt in pay the cost; configs that don't get it stripped.
 

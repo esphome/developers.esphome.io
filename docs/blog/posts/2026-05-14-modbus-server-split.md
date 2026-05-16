@@ -7,7 +7,7 @@ comments: true
 
 # Modbus Server Split Out of modbus_controller
 
-Modbus server mode has been split out of `modbus_controller` into a new dedicated `modbus_server` component. Configurations that ran `modbus_controller` with `role: server` must move their `server_registers:` and `server_courtesy_response:` blocks under a top-level `modbus_server:` entry.
+Modbus server mode has been split out of `modbus_controller` into a new dedicated `modbus_server` component. Configurations that used `modbus_controller` as a Modbus server (the `role: server` setting lives on the `modbus:` bus, not on `modbus_controller`) must move their `server_registers:` and `server_courtesy_response:` blocks under a new top-level `modbus_server:` entry.
 
 This is a **breaking change** for YAML configurations using server mode in **ESPHome 2026.5.0 and later**.
 
@@ -83,7 +83,30 @@ modbus_server:
 
 If you have both roles on the same bus (a device that is both a Modbus server *and* a client of some downstream Modbus device), keep the `modbus_controller:` entry for the client side and add a separate `modbus_server:` entry for the server side. They share the same `modbus:` bus instance.
 
-## References
+## Timeline
+
+- **2026.5.0:** Server-mode keys removed from `modbus_controller`; new `modbus_server` component active.
+
+This is a clean break — there is no deprecation period or migration shim. `modbus_controller` configs that still contain `server_registers:` or `server_courtesy_response:` will fail validation on 2026.5.0.
+
+## Finding Code That Needs Updates
+
+```bash
+# YAML — find server-mode keys still under modbus_controller
+grep -rn 'server_registers:\|server_courtesy_response:' your_configs/
+
+# Find modbus_controller entries that might be server-mode
+grep -rn -A 3 '^modbus_controller:' your_configs/ | grep -B 1 'server_'
+```
+
+## Questions?
+
+If you have questions about migrating your configuration, please ask in:
+
+- [ESPHome Discord](https://discord.gg/KhAMKrd) - #devs channel
+- [ESPHome GitHub Discussions](https://github.com/esphome/esphome/discussions)
+
+## Related Documentation
 
 - [PR #15509](https://github.com/esphome/esphome/pull/15509) — Split modbus_server from modbus_controller
 - [PR #15291](https://github.com/esphome/esphome/pull/15291) and [PR #14172](https://github.com/esphome/esphome/pull/14172) — Earlier helper-function refactor that enabled this split ([blog post](2026-04-09-modbus-helpers-refactor.md))

@@ -7,9 +7,9 @@ comments: true
 
 # Main Loop Cadence Decoupled from Scheduler Wake Timing
 
-Every component's `loop()` now runs at the configured `loop_interval_` (default ~62 Hz) instead of being pulled forward to ~128 Hz by unrelated scheduler activity. Background events (MQTT RX, USB RX, BLE events, ESPNOW, camera, `micro_wake_word`, speaker, USB host/CDC, lwIP socket) still wake their component within one tick via the existing `wake_loop_*` paths. `App.set_loop_interval()` — the documented knob for power savings — finally works.
+Every component's `loop()` now runs at the configured `loop_interval_` (default ~62 Hz). Previously, **when other scheduler activity was running** — `set_interval` / `set_timeout` / `PollingComponent` updates with sub-`loop_interval_` cadences — the component phase got pulled forward up to ~128 Hz; quiet configs with no such scheduler entries were unaffected and always ran at the documented rate. Background events (MQTT RX, USB RX, BLE events, ESPNOW, camera, `micro_wake_word`, speaker, USB host/CDC, lwIP socket) still wake their component within one tick via the existing `wake_loop_*` paths. `App.set_loop_interval()` — the documented knob for power savings — finally works.
 
-This is a **behavior change** in **ESPHome 2026.5.0 and later** with no API break, but it affects every external component whose `loop()` implicitly depended on running at ~2× the configured rate.
+This is a **behavior change** in **ESPHome 2026.5.0 and later** with no API break, but it affects every component whose `loop()` implicitly depended on running at ~2× the configured rate when scheduler activity was driving the pull-forward.
 
 <!-- more -->
 
@@ -57,47 +57,59 @@ The `delay_time / 2` floor is removed entirely. Zero-delay `set_interval(0, ...)
 
 ## Who This Affects
 
-**Every external component**, but most won't notice. Specifically:
+**Every component that overrides `loop()`** — in-tree and external alike — but most won't notice. Specifically:
 
-- **Components whose `loop()` depended on running at ~128 Hz** — animations stepping per loop tick, debounce / state-machine timing keyed to loop count, anything that implicitly assumed the doubled rate. Those will now step at ~62 Hz.
-- **Components that need sub-`loop_interval_` cadence** — use `HighFrequencyLoopRequester` to keep Phase B running while the request is active. This is the long-standing mechanism and is unchanged.
-- **Background-event producers** — already wired up. Every existing `wake_loop_*` caller (MQTT RX, USB RX, BLE events, ESPNOW, camera, `micro_wake_word`, speaker, USB host/CDC, lwIP socket, and per-component `enable_loop_soon_any_context()` calls) now sets a wake-request flag before signalling the platform so that Phase B runs in the next tick. No external action needed.
+- **Components whose `loop()` depended on running at ~128 Hz** — animations stepping per loop tick, debounce / state-machine timing keyed to loop count, anything that implicitly assumed the doubled rate. Those will now step at ~62 Hz when scheduler activity was previously providing the pull-forward.
+- **Background-event producers** — already wired up. Every existing `wake_loop_*` caller (MQTT RX, USB RX, BLE events, ESPNOW, camera, `micro_wake_word`, speaker, USB host/CDC, lwIP socket, and per-component `enable_loop_soon_any_context()` calls) now sets a wake-request flag before signalling the platform so that Phase B runs in the next tick. No action needed in callers.
+- **Components that need sub-`loop_interval_` cadence** — see the migration guide below for the preferred event-driven pattern. `HighFrequencyLoopRequester` is available but should be a last resort.
 - **Power-managed configs** using `App.set_loop_interval()` — this knob now actually saves power. If you previously bumped `loop_interval_` to 100 ms and saw no power reduction, expect a real change this release.
 
 ## Migration Guide
 
 For most components, **do nothing**. Your `loop()` will simply run at the documented rate.
 
-If your component genuinely needs faster wakes:
+If your component genuinely needs to run more often than `loop_interval_`, the **preferred pattern is event-driven, not high-frequency**: keep the loop disabled while there's nothing to do, and have your event source re-enable it. The `Component` base class has the primitives you need:
+
+| API | Where you call it | Purpose |
+|---|---|---|
+| `this->disable_loop()` | Main thread (typically the tail of `loop()` once your work is done) | Take the component out of the iteration list — its `loop()` won't be called again until something re-enables it. |
+| `this->enable_loop()` | Main thread | Put the component back in the iteration list. |
+| `this->enable_loop_soon_any_context()` | **ISR, FreeRTOS task, or any thread** | ISR-safe enable. Sets a pending flag that the main loop drains on the next tick. There is intentionally no `disable_loop_soon_any_context()` — use `disable_loop()` from `loop()` itself. |
+| `App.wake_loop_threadsafe()` | FreeRTOS task / non-ISR thread (BLE callbacks, network events, platform task callbacks) | Forces Phase B in the next tick globally; lets every enabled component drain queued work without changing per-component enable state. |
+| `App.wake_loop_any_context()` / `App.wake_loop_isrsafe()` | ISR context | ISR-safe global wake. See [Waking from ISR](../../architecture/components/advanced.md#waking-from-isr) for per-platform IRAM and `xHigherPriorityTaskWoken` notes. |
+
+The typical event-driven pattern looks like this:
 
 ```cpp
 #include "esphome/core/application.h"
 #include "esphome/core/component.h"
-#include "esphome/core/helpers.h"
 
-class MyFastComponent : public Component {
+class MyEventDrivenComponent : public Component {
  public:
   void setup() override {
-    this->high_freq_.start();   // keep Phase B running every tick
+    // ... register hardware / callbacks ...
+    this->disable_loop();  // nothing to do until an event arrives
   }
+
   void loop() override {
-    // ... time-sensitive work ...
-    if (this->done_) {
-      this->high_freq_.stop();  // release when no longer needed
+    this->drain_queued_events_();
+    if (this->queue_empty_()) {
+      this->disable_loop();  // re-enable from on_event()
     }
   }
 
- protected:
-  HighFrequencyLoopRequester high_freq_;
+  // Called from a FreeRTOS task / network callback / etc.
+  void on_event(Event e) {
+    this->queue_.push(e);
+    this->enable_loop_soon_any_context();  // ISR-safe; also wakes the main loop
+  }
 };
 ```
 
-If your component publishes data from a background producer, pick the right wake primitive for where the producer runs:
+`enable_loop_soon_any_context()` both flips the component's enable bit *and* wakes the main loop, so `loop()` runs within a tick of the event landing — regardless of where `loop_interval_` is set. This composes cleanly with `App.set_loop_interval(...)` for power-managed configs: idle current drops because the loop sleeps; latency stays low because events wake it.
 
-- **From a FreeRTOS task / non-ISR thread context** (BLE callbacks, network events, platform task callbacks, USB host CDC callbacks): call `App.wake_loop_threadsafe()` from the producer.
-- **From an ISR** (UART RX ISR, GPIO ISR, timer ISR): use `enable_loop_soon_any_context()` on your component (auto-detects ISR vs task context), or `App.wake_loop_any_context()` if you don't have a component handle. If you already know you're in ISR context and want to forward the FreeRTOS `xHigherPriorityTaskWoken` flag yourself, use `App.wake_loop_isrsafe()` directly. Per-platform IRAM/ISR notes — including which calls are IRAM-resident and which platforms have no FreeRTOS task to notify — are in [Waking from ISR](../../architecture/components/advanced.md#waking-from-isr).
-
-In every case, the wake sets the wake-request flag and forces Phase B in the next tick, so your component's `loop()` will drain the queued event without waiting up to `loop_interval_` ms.
+!!! warning "`HighFrequencyLoopRequester` is a last resort"
+    `HighFrequencyLoopRequester::start()` keeps Phase B running every tick unconditionally. It exists for genuinely time-critical workloads (e.g. tight bit-banged protocol timing where you can't wait for an event), and even there, scoping the request as narrowly as possible — `start()` only while the critical work is in flight, `stop()` immediately after — is the supported usage. If you're reaching for it because "I just need faster wakes," prefer `disable_loop()` / `enable_loop_soon_any_context()` first — it gets you the same latency at a fraction of the wakeup count.
 
 The full architectural rationale, including how to decide between `loop()`, `set_interval()`, and the scheduler under the new cadence rules, is documented in [Choosing Between loop() and the Scheduler](../../architecture/components/advanced.md#choosing-between-loop-and-the-scheduler).
 

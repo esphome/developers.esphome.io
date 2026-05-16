@@ -104,8 +104,13 @@ The full architectural rationale, including how to decide between `loop()`, `set
 ## Finding Code That Needs Updates
 
 ```bash
-# Components with a loop() override (the work you might want to review)
+# Components with a loop() override (the work you might want to review).
+# The narrower `override`-style pattern catches modern code; the wider one
+# also picks up older external components that declared `void loop();` without
+# `override` and is precisely where you're most likely to find code that
+# implicitly depended on the old ~128 Hz cadence.
 grep -rn 'void loop() override' your_component/
+grep -rEn 'void[[:space:]]+loop[[:space:]]*\([[:space:]]*\)' your_component/
 
 # Zero-delay set_interval calls — previously busy-looped the component phase
 grep -rEn 'set_interval\(\s*0\s*,' your_component/
@@ -117,7 +122,7 @@ grep -rn 'wake_loop_threadsafe\|enable_loop_soon_any_context\|wake_loop_any_cont
 grep -rn 'HighFrequencyLoopRequester' your_component/
 ```
 
-If your `loop()` was implicitly relying on the ~128 Hz emergent rate and now needs ~62 Hz to be insufficient, switch to `HighFrequencyLoopRequester` (for sustained fast wakes) or a wake primitive driven from your event source (for event-driven wakes).
+If your `loop()` was implicitly relying on the ~128 Hz emergent rate and ~62 Hz is now insufficient, switch to `HighFrequencyLoopRequester` (for sustained fast wakes) or a wake primitive driven from your event source (for event-driven wakes).
 
 ## Questions?
 

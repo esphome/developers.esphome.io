@@ -93,7 +93,7 @@ All in-tree consumers (`audio`, `i2s_audio`, `micro_wake_word`, `mixer`, `resamp
     AUTO_LOAD = ["ring_buffer"]
     ```
 
-The API of `RingBuffer` itself (`create()`, `read()`, `write()`, `available()`, `discard_bytes()`, etc.) is unchanged — only its location and namespace move.
+The API of `RingBuffer` itself (`create()`, `read()`, `write()`, `write_without_replacement()`, `available()`, etc.) is unchanged — only its location and namespace move.
 
 ## Timeline
 

@@ -467,7 +467,7 @@ correctly. Breaking changes must be:
 
 When you need to make a C++ breaking change:
 
-1. **Migrate all in-codebase usage to the new API first.** Update every caller in the ESPHome repository (core,
+1. **Migrate all in-tree usage to the new API first.** Update every caller in the ESPHome repository (core,
    components, tests) to use the new pattern before any deprecation warning is added. Marking something deprecated
    while internal callers still use it produces a stream of warnings from our own codebase, which drowns out the
    warnings users actually need to see, churns across dev cycles, and erodes the signal that deprecation warnings
@@ -485,7 +485,7 @@ When you need to make a C++ breaking change:
     releases and the cleanup tends to stall.
 
     This rule applies to in-tree code only. External components and user configurations are exactly who the
-    deprecation warning is for, and the 6 month compatibility window gives them time to react.
+    deprecation warning is for, and the 6-month compatibility window gives them time to react.
 
 !!!note "C++ Compatibility Window"
     ESPHome aims to maintain backward compatibility for 6 months when possible. However, some C++ breaking changes

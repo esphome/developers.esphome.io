@@ -44,7 +44,7 @@ The following ten methods have been removed from `ClimateTraits`:
 
 ## Who This Affects
 
-**External climate components in C++** that still call the old accessors. The repo-wide search for external usage found ~20+ such components — heat-pump IR drivers, mini-split bridges, brand-specific climate integrations (Haier, Daikin IR, Ecodan, Sanyou, Sharp, Mill Heat, …).
+**External climate components in C++** that still call the old accessors. A GitHub code search for the removed identifiers across public repositories turned up ~20+ such components — heat-pump IR drivers, mini-split bridges, brand-specific climate integrations (Haier, Daikin IR, Ecodan, Sanyou, Sharp, Mill Heat, …).
 
 **YAML configurations are not affected.** Built-in climate platforms migrated in 2025.11.0 and any user-facing config keys are unchanged.
 

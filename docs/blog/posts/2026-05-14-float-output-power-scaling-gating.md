@@ -25,7 +25,7 @@ This follows the same pattern the entity base classes already use — `USE_POWER
 
 Built with the unmodified example configs from devices.esphome.io for two real ESP8266 PWM lights — neither uses `min_power` / `max_power` / `zero_means_zero` / scaling actions:
 
-**[H801 RGBWW LED Controller](https://devices.esphome.io/devices/H801-RGBW-LED-Controller/)** — 5 PWM outputs:
+**[H801 RGBW LED Controller](https://devices.esphome.io/devices/H801-RGBW-LED-Controller/)** — 5 PWM outputs (RGB + cold-white + warm-white, the "RGBWW" `light:` platform):
 
 | Metric | Baseline | PR | Δ |
 |---|---|---|---|
@@ -111,13 +111,16 @@ If your component ships its own `output.*` C++ and depends on the scaling setter
 
 ```bash
 # C++ — find calls to the gated setters from lambdas or component code
-grep -rn 'set_min_power\|set_max_power\|set_zero_means_zero' your_component/
+grep -rEn 'set_min_power|set_max_power|set_zero_means_zero' your_component/
 
 # YAML — find lambdas that call the setters
-grep -rn 'set_min_power\|set_max_power\|set_zero_means_zero' your_configs/
+grep -rEn 'set_min_power|set_max_power|set_zero_means_zero' your_configs/
 
-# YAML — check if any output entry already enables the feature (no action needed if so)
-grep -rEn '^[[:space:]]+(min_power|max_power|zero_means_zero):' your_configs/
+# YAML — check if any output entry already enables the feature (no action needed if so).
+# Drop ^ to also catch top-level entries; expect false positives from unrelated
+# components that happen to use a same-named key — visually confirm matches are
+# under an output: entry before concluding you've already opted in.
+grep -rEn '(min_power|max_power|zero_means_zero):' your_configs/
 ```
 
 ## Questions?

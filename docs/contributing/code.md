@@ -273,9 +273,12 @@ This applies with particular force to:
 
 **How to gate a feature:**
 
-1. Add the `USE_*` name to `esphome/core/defines.h`. This header lists every define ESPHome can produce so static
-   analysis tools and IDEs see the symbol; entries here do **not** unconditionally enable the feature — `defines.h`
-   is not consulted at firmware build time, only the codegen output is.
+1. Add a plain `#define USE_*` line to `esphome/core/defines.h` (follow the alphabetical / surrounding pattern in
+   that file). The checked-in `defines.h` deliberately defines every `USE_*` macro unconditionally so static analysis
+   tools, IDEs, and `clangd` can resolve every guarded code path. **It is not consulted at firmware build time** —
+   the comment at the top of the file says as much: the runtime build uses a separate, generated `defines.h` that
+   contains only the macros the user's codegen actually emitted (via `cg.add_define()`). Adding your entry here makes
+   the symbol visible to tooling without enabling it on real devices.
 2. Set the define from the component's `to_code()` function only when the user actually configures the feature, e.g.
    `cg.add_define("USE_LIGHT_COLOR_TINT")` inside an `if config.get(CONF_COLOR_TINT) is not None:` branch (see the
    full Python example below). Use `cg.add_define()` for anything that changes the layout, size, or members of a
@@ -317,7 +320,8 @@ class LightState : public EntityBase {
 ```
 
 ```python
-# components/light/__init__.py
+# components/light/__init__.py  (imports and CONF_COLOR_TINT / CONF_RED / CONF_GREEN /
+# CONF_BLUE / CONF_AMOUNT constants omitted)
 async def to_code(config):
     var = await light.new_light(config)
     if (tint := config.get(CONF_COLOR_TINT)) is not None:

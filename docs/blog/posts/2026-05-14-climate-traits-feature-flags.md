@@ -84,7 +84,7 @@ traits.add_feature_flags(
     climate::CLIMATE_SUPPORTS_ACTION);
 ```
 
-`has_feature_flags()` returns true only when *all* requested flags are set, which is the usual intent for capability checks. Pass a single flag to test for one.
+`has_feature_flags()` is a bitwise-AND check: it returns true when **any** of the bits in the argument are set on the traits. For most capability checks you'll be testing one flag at a time, which behaves exactly like the old `get_supports_*()` boolean — pass a single flag. If you pass several OR'd together, the result is "is at least one of these supported," not "are all of these supported."
 
 ## Timeline
 

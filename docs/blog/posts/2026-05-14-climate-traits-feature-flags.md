@@ -91,7 +91,28 @@ traits.add_feature_flags(
 - **2025.11.0:** Feature-flag API added; boolean accessors marked `ESPDEPRECATED`.
 - **2026.5.0:** Boolean accessors removed.
 
-## References
+## Finding Code That Needs Updates
+
+```bash
+# Find any of the removed boolean accessors
+grep -rn 'set_supports_current_temperature\|get_supports_current_temperature' your_component/
+grep -rn 'set_supports_current_humidity\|get_supports_current_humidity' your_component/
+grep -rn 'set_supports_two_point_target_temperature\|get_supports_two_point_target_temperature' your_component/
+grep -rn 'set_supports_target_humidity\|get_supports_target_humidity' your_component/
+grep -rn 'set_supports_action\|get_supports_action' your_component/
+
+# One-liner that catches all ten
+grep -rEn '(set|get)_supports_(current_temperature|current_humidity|two_point_target_temperature|target_humidity|action)' your_component/
+```
+
+## Questions?
+
+If you have questions about migrating your external component, please ask in:
+
+- [ESPHome Discord](https://discord.gg/KhAMKrd) - #devs channel
+- [ESPHome GitHub Discussions](https://github.com/esphome/esphome/discussions)
+
+## Related Documentation
 
 - [PR #16289](https://github.com/esphome/esphome/pull/16289) — Remove climate / ektf2232 deprecations
 - [2025.11.0 Climate optimizations blog post](2025-11-07-climate-entity-optimizations.md) — the deprecation that started the clock

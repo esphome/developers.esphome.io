@@ -92,8 +92,9 @@ This is a clean break — there is no deprecation period or migration shim. `mod
 ## Finding Code That Needs Updates
 
 ```bash
-# YAML — find server-mode keys still under modbus_controller (sufficient on its own)
-grep -rn 'server_registers:\|server_courtesy_response:' your_configs/
+# YAML — find server-mode keys still under modbus_controller.
+# -E (extended regex) keeps the alternation portable across GNU and BSD/macOS grep.
+grep -rEn 'server_registers:|server_courtesy_response:' your_configs/
 ```
 
 ## Questions?

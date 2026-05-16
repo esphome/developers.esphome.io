@@ -29,11 +29,11 @@ Built with the unmodified example configs from devices.esphome.io for two real E
 
 | Metric | Baseline | PR | Δ |
 |---|---|---|---|
-| RAM (.bss + .data) | 30 416 B | 30 352 B | **−64 B** |
-| Flash | 346 047 B | 345 799 B | **−248 B** |
-| `sizeof(ESP8266PWM)` | 40 B | 28 B | **−12 B** |
+| RAM (.bss + .data) | 30,416 B | 30,352 B | **-64 B** |
+| Flash | 346,047 B | 345,799 B | **-248 B** |
+| `sizeof(ESP8266PWM)` | 40 B | 28 B | **-12 B** |
 
-**H802 RGBW LED Controller** — 4 PWM outputs: −48 B RAM, −248 B flash, same 12 B per channel.
+**H802 RGBW LED Controller** — 4 PWM outputs: -48 B RAM, -248 B flash, same 12 B per channel.
 
 Per-instance .bss savings scale linearly with channel count (12 B × N). Flash savings (~248 B per binary) come from the elided multiply/subtract in `set_level()` and the dropped scaling-related strings/branches in `dump_config()`.
 
@@ -107,7 +107,27 @@ If your component ships its own `output.*` C++ and depends on the scaling setter
 
     The `output` component will then include the fields and setters regardless of YAML.
 
-## References
+## Finding Code That Needs Updates
+
+```bash
+# C++ — find calls to the gated setters from lambdas or component code
+grep -rn 'set_min_power\|set_max_power\|set_zero_means_zero' your_component/
+
+# YAML — find lambdas that call the setters
+grep -rn 'set_min_power\|set_max_power\|set_zero_means_zero' your_configs/
+
+# YAML — check if any output entry already enables the feature (no action needed if so)
+grep -rEn '^[[:space:]]+(min_power|max_power|zero_means_zero):' your_configs/
+```
+
+## Questions?
+
+If you have questions about migrating your external component or configuration, please ask in:
+
+- [ESPHome Discord](https://discord.gg/KhAMKrd) - #devs channel
+- [ESPHome GitHub Discussions](https://github.com/esphome/esphome/discussions)
+
+## Related Documentation
 
 - [PR #15998](https://github.com/esphome/esphome/pull/15998) — Gate FloatOutput power scaling fields behind USE_OUTPUT_FLOAT_POWER_SCALING
 - [Output component documentation](https://esphome.io/components/output/) — `min_power` / `max_power` / `zero_means_zero` reference

@@ -35,17 +35,17 @@ PollingComponent() : update_interval_(SCHEDULER_DONT_RUN) {}
 // → does not poll until set_update_interval() is called
 ```
 
-`SCHEDULER_DONT_RUN` is `UINT32_MAX`. The scheduler already treats this value as disabled (see `scheduler.cpp:137`, `component.cpp:446`), and `LOG_UPDATE_INTERVAL` already prints `Update Interval: never` for this value — so the dump_config output is also self-describing.
+`SCHEDULER_DONT_RUN` is `UINT32_MAX`. The scheduler already treats this value as disabled, and `LOG_UPDATE_INTERVAL` already prints `Update Interval: never` for this value — so the `dump_config` output is also self-describing. See [PR #15832](https://github.com/esphome/esphome/pull/15832) for the full picture of how the scheduler and `Component` handle this sentinel.
 
 ## Who This Affects
 
-External components that meet **all three** of these conditions:
+External components written in C++ that meet **all three** of these conditions:
 
-1. Subclass `PollingComponent` (or `polling_component_schema` equivalents)
-2. Construct it via the no-argument `PollingComponent()` constructor
+1. Inherit from `PollingComponent` in C++
+2. Construct the instance via the no-argument `PollingComponent()` constructor (not `PollingComponent(interval)`)
 3. Never call `set_update_interval()` afterwards
 
-Codegen-driven components are unaffected — codegen always passes the configured (or default-from-schema) interval.
+Components driven by ESPHome's Python code generation (`cv.polling_component_schema(...)`, `sensor.sensor_schema()`, etc.) are unaffected — the codegen always passes the configured (or schema-default) interval through to the constructor, so the default value never matters for them.
 
 A known example is [`psvanstrom/esphome-p1reader`](https://github.com/psvanstrom/esphome-p1reader/pull/110), which independently switched to `PollingComponent(10)` ahead of this change.
 
@@ -83,7 +83,30 @@ class MyComponent : public Component {
 
 If you see `Update Interval: never` in your device's startup log and the component used to poll, you're hitting this case — pick option 1 or 2.
 
-## References
+## Finding Code That Needs Updates
+
+```bash
+# Find subclasses of PollingComponent
+grep -rEn ': *public *PollingComponent' your_component/
+grep -rn 'PollingComponent {' your_component/
+
+# Find no-arg PollingComponent constructor calls (likely affected)
+grep -rEn 'PollingComponent\(\)' your_component/
+
+# Find whether set_update_interval is ever called
+grep -rn 'set_update_interval' your_component/
+```
+
+If your component has `PollingComponent()` (no argument) and no `set_update_interval()` call anywhere, you'll need to add one of the three options above before 2026.5.0.
+
+## Questions?
+
+If you have questions about migrating your external component, please ask in:
+
+- [ESPHome Discord](https://discord.gg/KhAMKrd) - #devs channel
+- [ESPHome GitHub Discussions](https://github.com/esphome/esphome/discussions)
+
+## Related Documentation
 
 - [PR #15832](https://github.com/esphome/esphome/pull/15832) — Default PollingComponent() to not run when codegen is bypassed
 - [PR #15831](https://github.com/esphome/esphome/pull/15831) — Prerequisite: encode the old runtime coerce as a compile-time no-op

@@ -273,12 +273,16 @@ This applies with particular force to:
 
 **How to gate a feature:**
 
-1. Add a `USE_*` define in `esphome/core/defines.h` (so static analysis and CI see it).
-2. Set the define from Python only when the user actually configures the feature, e.g.
-   `cg.add_define("USE_LIGHT_COLOR_TINT")`. Always set it via `cg.add_define()`, which writes to the central defines
-   header consumed by every translation unit; never set it via per-target `cg.add_build_flag("-D...")`, since every
-   translation unit that sees the class header must agree on whether the gated field exists or you will get silent
-   ODR violations.
+1. Add the `USE_*` name to `esphome/core/defines.h`. This header lists every define ESPHome can produce so static
+   analysis tools and IDEs see the symbol; entries here do **not** unconditionally enable the feature — `defines.h`
+   is not consulted at firmware build time, only the codegen output is.
+2. Set the define from the component's `to_code()` function only when the user actually configures the feature, e.g.
+   `cg.add_define("USE_LIGHT_COLOR_TINT")` inside an `if config.get(CONF_COLOR_TINT) is not None:` branch (see the
+   full Python example below). Use `cg.add_define()` for anything that changes the layout, size, or members of a
+   header-visible class — it writes to the central defines header consumed by every translation unit, so the gated
+   field exists or does not exist consistently across the whole build. Per-target `cg.add_build_flag("-D...")` is
+   reserved for flags that don't affect header layout (e.g. tuning thresholds inside a `.cpp`), because if different
+   translation units see the same class header with different `#ifdef` state you'll get silent ODR violations.
 3. Wrap the C++ fields, methods, and call sites in `#ifdef USE_LIGHT_COLOR_TINT` / `#endif`.
 
 **Example, gating new fields on a base class** (hypothetical color tint overlay on `LightState`):
@@ -313,15 +317,19 @@ class LightState : public EntityBase {
 ```
 
 ```python
+# components/light/__init__.py
 async def to_code(config):
     var = await light.new_light(config)
     if (tint := config.get(CONF_COLOR_TINT)) is not None:
+        # Both cg.add_define() and the setter call live inside the same `if` block, so the
+        # define is set exactly when the setter is called. If the user didn't configure the
+        # tint, neither runs and the gated fields/methods don't exist in this build.
         cg.add_define("USE_LIGHT_COLOR_TINT")
         cg.add(var.set_color_tint(tint[CONF_RED], tint[CONF_GREEN], tint[CONF_BLUE], tint[CONF_AMOUNT]))
 ```
 
-Note that the `cg.add(var.set_color_tint(...))` call is also inside the `if` block; the setter only exists when the
-define is set, so unconditional calls would fail to compile in builds that do not enable the feature.
+The setter only exists when the define is set, so calling it unconditionally — outside the `if` — would fail to
+compile in builds that do not enable the feature.
 
 Without the `#ifdef`, every `LightState` instance on every device carries the four bytes and the blend code in the
 output path, even on the vast majority of configurations that never enable it.

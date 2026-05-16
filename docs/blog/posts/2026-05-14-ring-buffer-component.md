@@ -19,13 +19,13 @@ This is a **breaking change** for external components in **ESPHome 2026.5.0 and 
 
 The core `RingBuffer` was an ESP32-only implementation used exclusively by audio components — `audio`, `i2s_audio`, `micro_wake_word`, `mixer`, `resampler`, `sound_level`, `speaker`, `voice_assistant`. Nothing outside that audio cluster touches it. Living in `esphome/core/` meant:
 
-- The `ring_buffer.h` header was parsed for every build, regardless of platform or whether audio was in use. Linker stripping does keep unused code out of the final binary, but build-time parsing and tooling overhead still applied universally.
+- The `ring_buffer.h` header was parsed for every build, regardless of platform or whether audio was in use. Linker stripping kept unused code out of the final binary, but build-time parsing and tooling overhead applied universally.
 - Changes to `RingBuffer` couldn't be staged in an `external_components` PR — they always required a core change.
 - The ESP32-only implementation lived alongside genuinely cross-platform core code.
 
 Moving it into a real component (`esphome::ring_buffer::RingBuffer`) lets audio consumers `AUTO_LOAD` it the same way every other shared utility is pulled in, and opens the door to iterating on the implementation without touching core.
 
-The old `esphome/core/ring_buffer.h` header now forwards to the new location and is removed in **2026.11.0** per the standard 6-month policy. The behavior of the shim depends on whether your component declares `AUTO_LOAD = ["ring_buffer"]`:
+The old `esphome/core/ring_buffer.h` header now forwards to the new location and will be removed in **2026.11.0** per the standard 6-month policy. The behavior of the shim depends on whether your component declares `AUTO_LOAD = ["ring_buffer"]`:
 
 - **With `AUTO_LOAD`:** the shim forwards `esphome::RingBuffer` to `esphome::ring_buffer::RingBuffer` via a `using` alias marked `ESPDEPRECATED(...)`. Code keeps compiling, but each use emits a deprecation warning at the call site.
 - **Without `AUTO_LOAD`:** the new header isn't on the include path, so the shim fires a hard `#error` telling you exactly what to do: *"`esphome/components/ring_buffer/ring_buffer.h` not found. Add 'ring_buffer' to your component's AUTO_LOAD list to use esphome::ring_buffer::RingBuffer."* The build fails immediately rather than producing a confusing missing-header diagnostic from somewhere else.

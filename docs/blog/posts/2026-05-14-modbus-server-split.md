@@ -19,7 +19,7 @@ This is a **breaking change** for YAML configurations using server mode in **ESP
 
 Server-mode register handling was wedged into `modbus_controller` alongside its client-mode polling. The two roles share a transport (the `modbus:` bus) but almost nothing else: server mode dispatches inbound requests to user lambdas, while client mode polls outbound register reads on a schedule. Keeping both in the same component made the controller heavier than it needed to be, complicated review of server-side fixes, and prevented the server logic from sharing helpers with future modbus-based components.
 
-`modbus_server` is a thin `ModbusServerDevice` subclass that owns the register table and the optional courtesy response, with no client-mode machinery. The migration in this PR is intentionally close to a copy/paste — functional improvements to server mode (out-of-range handling, multi-register transactions, etc.) come in follow-up PRs.
+`modbus_server` is a thin `Component` that implements `modbus::ModbusDevice` and owns the register table plus the optional courtesy response, with no client-mode machinery. The migration in this PR is intentionally close to a copy/paste — functional improvements to server mode (out-of-range handling, multi-register transactions, etc.) come in follow-up PRs.
 
 ### Flash savings (approximate)
 

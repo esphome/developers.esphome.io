@@ -87,16 +87,13 @@ If you have both roles on the same bus (a device that is both a Modbus server *a
 
 - **2026.5.0:** Server-mode keys removed from `modbus_controller`; new `modbus_server` component active.
 
-This is a clean break — there is no deprecation period or migration shim. `modbus_controller` configs that still contain `server_registers:` or `server_courtesy_response:` will fail validation on 2026.5.0.
+This is a clean break — there is no deprecation period or migration shim. `modbus_controller` configs that still contain `server_registers:` or `server_courtesy_response:` will fail validation on 2026.5.0. (For contrast, the earlier `modbus_controller` → `modbus::helpers` namespace refactor in 2026.4.0 kept deprecation shims through 2026.10.0 — that pattern doesn't apply here because there's no in-place rename to forward, and the affected configs are caught at config-validation time with a precise error message rather than at runtime.)
 
 ## Finding Code That Needs Updates
 
 ```bash
-# YAML — find server-mode keys still under modbus_controller
+# YAML — find server-mode keys still under modbus_controller (sufficient on its own)
 grep -rn 'server_registers:\|server_courtesy_response:' your_configs/
-
-# Find modbus_controller entries that might be server-mode
-grep -rn -A 3 '^modbus_controller:' your_configs/ | grep -B 1 'server_'
 ```
 
 ## Questions?

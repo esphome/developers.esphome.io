@@ -65,7 +65,11 @@ class MyComponent : public PollingComponent {
 ```cpp
 // Option 2: keep the no-arg constructor and let codegen set the interval before registration.
 class MyComponent : public PollingComponent {
-  // (no setup() override needed — the interval is set from Python below)
+ public:
+  void update() override;       // your periodic work
+  void dump_config() override;
+  // (no need to override setup() or pass an interval to the constructor —
+  // the Python codegen below calls set_update_interval() for you)
 };
 ```
 
@@ -110,9 +114,9 @@ If you see `Update Interval: never` in your device's startup log and the compone
 ## Finding Code That Needs Updates
 
 ```bash
-# Find subclasses of PollingComponent
-grep -rEn ': *public *PollingComponent' your_component/
-grep -rn 'PollingComponent {' your_component/
+# Find subclasses of PollingComponent (also catches forward declarations and
+# struct/class variations on the same line).
+grep -rEn 'class .* PollingComponent|struct .* PollingComponent|: *public *PollingComponent' your_component/
 
 # Find no-arg PollingComponent constructor calls (likely affected)
 grep -rEn 'PollingComponent\(\)' your_component/

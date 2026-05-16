@@ -17,7 +17,7 @@ This is a **breaking change** for external components in **ESPHome 2026.5.0 and 
 
 **[PR #16289](https://github.com/esphome/esphome/pull/16289): Remove deprecations scheduled for 2026.5.0**
 
-When `ClimateTraits` migrated to a packed bitmask in 2025.11.0 ([blog post](2025-11-07-climate-entity-optimizations.md)), the old boolean getter/setter pairs were kept as thin shims and marked `ESPDEPRECATED("...", "2025.11.0")` to give external components a 6-month window. That window has now closed and the shims are gone.
+In 2025.11.0 the old boolean getter/setter pairs were superseded by an `add_feature_flags()` / `has_feature_flags()` bitmask API on `ClimateTraits`. The booleans were kept as thin shims marked `ESPDEPRECATED("...", "2025.11.0")` to give external components a 6-month window. That window has now closed and the shims are gone. (The same release also migrated other `ClimateTraits` enum sets to packed-bitmask storage in a separate change; see the [climate entity class optimizations](2025-11-07-climate-entity-optimizations.md) post for that adjacent story.)
 
 The replacement API has been the canonical way to express climate capabilities since 2025.11.0, and every in-tree climate component (heat-pump IR codecs, mini-split bridges, thermostat platform, etc.) has been on it for months.
 
@@ -40,7 +40,7 @@ The following ten methods have been removed from `ClimateTraits`:
 
 ### Watch for `two_point_target_temperature`
 
-`set_supports_two_point_target_temperature(true)` maps to **`CLIMATE_REQUIRES_TWO_POINT_TARGET_TEMPERATURE`**, not `CLIMATE_SUPPORTS_TWO_POINT_TARGET_TEMPERATURE`. The bitmask flag name reflects the actual semantic — when set, the climate device *requires* both `target_temperature_low` and `target_temperature_high` to be specified instead of a single `target_temperature`. Most external HVAC components want this flag.
+`set_supports_two_point_target_temperature(true)` maps to **`CLIMATE_REQUIRES_TWO_POINT_TARGET_TEMPERATURE`**, not `CLIMATE_SUPPORTS_TWO_POINT_TARGET_TEMPERATURE`. The bitmask flag name reflects the actual semantic — when set, the climate device *requires* both `target_temperature_low` and `target_temperature_high` to be specified instead of a single `target_temperature`. If your old code called `set_supports_two_point_target_temperature(true)`, this is the flag you want — but double-check that your device actually requires both setpoints (rare for single-setpoint heat-pump and IR-controlled units) rather than just optionally supporting them, since the new name reflects the stricter semantic.
 
 ## Who This Affects
 
@@ -94,14 +94,9 @@ traits.add_feature_flags(
 ## Finding Code That Needs Updates
 
 ```bash
-# Find any of the removed boolean accessors
-grep -rn 'set_supports_current_temperature\|get_supports_current_temperature' your_component/
-grep -rn 'set_supports_current_humidity\|get_supports_current_humidity' your_component/
-grep -rn 'set_supports_two_point_target_temperature\|get_supports_two_point_target_temperature' your_component/
-grep -rn 'set_supports_target_humidity\|get_supports_target_humidity' your_component/
-grep -rn 'set_supports_action\|get_supports_action' your_component/
-
-# One-liner that catches all ten
+# Find any of the ten removed boolean accessors in one pass.
+# The two alternation groups isolate the accessor side (set/get) and the trait name,
+# so the output line tells you exactly which one to migrate.
 grep -rEn '(set|get)_supports_(current_temperature|current_humidity|two_point_target_temperature|target_humidity|action)' your_component/
 ```
 

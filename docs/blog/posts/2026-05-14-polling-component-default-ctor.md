@@ -63,32 +63,39 @@ class MyComponent : public PollingComponent {
 ```
 
 ```cpp
-// Option 2: keep the no-arg constructor and configure from Python codegen
-// before App.register_component() is called.
+// Option 2: keep the no-arg constructor and let codegen set the interval before registration.
 class MyComponent : public PollingComponent {
-  // (no setup() override needed)
+  // (no setup() override needed — the interval is set from Python below)
 };
 ```
 
 ```python
-# Python side — runs during config generation, before App.register_component()
+# Python side — use polling_component_schema; cg.register_component() handles set_update_interval
+# automatically when CONF_UPDATE_INTERVAL is in config.
+CONFIG_SCHEMA = cv.Schema({
+    cv.GenerateID(): cv.declare_id(MyComponent),
+    # ...
+}).extend(cv.polling_component_schema("60s"))
+
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
-    cg.add(var.set_update_interval(config[CONF_UPDATE_INTERVAL].total_milliseconds))
-    await cg.register_component(var, config)
+    await cg.register_component(var, config)   # ← this sets the update interval for you
 ```
 
-!!! warning "Don't call `set_update_interval()` from inside `setup()`"
-    `PollingComponent::call_setup()` runs `start_poller()` **before** the subclass's `setup()` — see
-    [`component.cpp:490`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.cpp). By the time
-    `setup()` executes, the scheduler interval has already been registered with whatever `update_interval_` held
-    at registration time (`SCHEDULER_DONT_RUN` if the default constructor was used). Calling
-    `set_update_interval()` from `setup()` only updates the field — it does **not** re-register the interval, so
-    polling stays disabled.
+`cg.register_component()` (in `esphome/cpp_helpers.py`) calls `set_update_interval(config[CONF_UPDATE_INTERVAL])` before it registers the variable with `App`, so by the time `App::register_component()` triggers `call_setup()` → `start_poller()`, `update_interval_` already holds the user's configured value.
 
-    If you genuinely cannot set the interval before `App.register_component()` runs (rare), you can
-    `stop_poller()` → `set_update_interval(ms)` → `start_poller()` inside `setup()` to restart the interval with
-    the new value. Setting it before registration is much cleaner.
+!!! warning "Don't call `set_update_interval()` from inside `setup()`"
+    `PollingComponent::call_setup()` runs `start_poller()` **before** the subclass's `setup()` — see [the
+    implementation](https://github.com/esphome/esphome/blob/dev/esphome/core/component.cpp) (search for
+    `PollingComponent::call_setup`). By the time `setup()` executes, the scheduler interval has already been
+    registered with whatever `update_interval_` held at registration time (`SCHEDULER_DONT_RUN` if the default
+    constructor was used). Calling `set_update_interval()` from `setup()` only updates the field — it does **not**
+    re-register the interval, so polling stays disabled.
+
+    The header comment for `call_setup` explicitly says the poller starts first "allowing setup to cancel it if
+    desired." So if you really need a runtime decision inside `setup()` to change the cadence, the supported
+    pattern is `stop_poller()` → `set_update_interval(ms)` → `start_poller()`. Setting the interval before
+    registration (Option 2 above, or via the constructor in Option 1) is much cleaner.
 
 ```cpp
 // Option 3: if you want the component to behave like a plain Component (no polling),

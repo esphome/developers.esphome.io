@@ -19,7 +19,7 @@ This is a **breaking change** for YAML configurations using server mode in **ESP
 
 Server-mode register handling was wedged into `modbus_controller` alongside its client-mode polling. The two roles share a transport (the `modbus:` bus) but almost nothing else: server mode dispatches inbound requests to user lambdas, while client mode polls outbound register reads on a schedule. Keeping both in the same component made the controller heavier than it needed to be, complicated review of server-side fixes, and prevented the server logic from sharing helpers with future modbus-based components.
 
-`modbus_server` is a thin `Component` that implements `modbus::ModbusDevice` and owns the register table plus the optional courtesy response, with no client-mode machinery. The migration in this PR is intentionally close to a copy/paste — functional improvements to server mode (out-of-range handling, multi-register transactions, etc.) come in follow-up PRs.
+`modbus_server` is a thin `Component` that implements `modbus::ModbusDevice` and owns the register table plus the optional courtesy response, with no client-mode machinery. The migration in this PR is intentionally close to a copy/paste — functional improvements to server mode (out-of-range handling, multi-register transactions, parser fixes, etc.) come in follow-up PRs.
 
 ### Flash savings (approximate)
 
@@ -81,7 +81,7 @@ modbus_server:
       register_value: 0
 ```
 
-If you have both roles on the same bus (a device that is both a Modbus server *and* a client of some downstream Modbus device), keep the `modbus_controller:` entry for the client side and add a separate `modbus_server:` entry for the server side. They share the same `modbus:` bus instance.
+A `modbus:` bus has a single role and your device occupies one side of it: `modbus_controller` requires `role: client`, `modbus_server` requires `role: server`, and the bus schema enforces this — you cannot mix the two on the same `modbus:` instance. Modbus only allows one client per bus, so the "both on one device" pattern was never valid; if a previous config had `server_registers:` under a client-mode `modbus_controller`, those registers were silently inactive. Run a second `modbus:` bus on a different UART if you need a device that's both a server on one wire and a client on another.
 
 ## Timeline
 

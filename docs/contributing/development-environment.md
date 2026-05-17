@@ -54,22 +54,23 @@ cd NAME_OF_FORK
 git remote add upstream https://github.com/esphome/esphome.git
 ```
 
-## Run the `setup` script if on Linux/macOS
+## Run the `setup` script
 
 Once the local clone is set up, you can now run the setup script.
+
+Linux/macOS
 
 ```bash
 script/setup
 ```
 
-This will create a Python virtual environment and install various other requirements.
-
-On Windows with python install manager, the venv can be created with:
+On Windows with python install manager:
 
 ```powershell
-python --version
-python -m venv venv
+script\setup.bat
 ```
+
+This will create a Python virtual environment and install various other requirements.
 
 ## Activate the virtual environment
 

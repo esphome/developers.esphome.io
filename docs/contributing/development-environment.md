@@ -54,7 +54,7 @@ cd NAME_OF_FORK
 git remote add upstream https://github.com/esphome/esphome.git
 ```
 
-## Run the `setup` script
+## Run the `setup` script if on Linux/macOS
 
 Once the local clone is set up, you can now run the setup script.
 
@@ -63,6 +63,13 @@ script/setup
 ```
 
 This will create a Python virtual environment and install various other requirements.
+
+On Windows with python install manager, the venv can be created with:
+
+```PS
+python --version
+python -m venv venv
+```
 
 ## Activate the virtual environment
 
@@ -75,7 +82,7 @@ source venv/bin/activate
 ```
 Windows (PowerShell):
 ```powershell
-venv\Scripts\Activate
+venv\Scripts\Activate.ps1
 ```
 
 ## Run `esphome`
@@ -96,7 +103,7 @@ esphome run some-config-file.yaml --device /dev/tty.your_usb_device
 At this point, it is also good to create an empty directory named `config`. You should store all of your ESPHome
 configurations in this directory.
 
-This folder is listed in the ESPHome `.gitignore` file, so it will not be added to git.
+This folder is conveniently listed in the ESPHome `.gitignore` file, so it will not be added to git.
 
 ## Create your own working branch
 

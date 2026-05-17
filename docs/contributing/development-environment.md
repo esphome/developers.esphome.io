@@ -66,7 +66,7 @@ This will create a Python virtual environment and install various other requirem
 
 On Windows with python install manager, the venv can be created with:
 
-```PS
+```powershell
 python --version
 python -m venv venv
 ```

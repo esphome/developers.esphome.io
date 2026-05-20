@@ -238,6 +238,120 @@ Choose containers carefully on embedded systems:
 Note: Avoiding heap allocation after `setup()` is always required regardless of component type. The prioritization above
 is about the effort spent on container optimization (e.g., migrating from `std::vector` to `StaticVector`).
 
+### Gating optional features behind conditional compilation
+
+ESPHome runs on devices with very limited RAM and flash. Every byte added to a base class, core component, or widely
+used entity is paid by **every user**, on **every device**, whether they use the feature or not. Bloat is cumulative:
+a 24 byte field here, a 200 byte method there, and over a few releases we have pushed users off the edge of what their
+hardware can hold. This shows up as out of memory crashes, failed OTA updates on nearly full flash, and heap exhaustion
+on devices that have been up for a long time.
+
+**Rule of thumb:** if a new feature does not provide a clear, demonstrable benefit to the large majority of users of
+the affected component, it must be gated behind a `USE_*` `#ifdef`. PRs that add such features without gating to base
+entity classes, core components, or other widely used code paths will not be accepted until they are gated.
+
+Exceptions are rare. Do not assume your feature qualifies; the default answer is "gate it."
+
+Gating is a hard requirement, but it is not on its own a guarantee that the feature will be merged. The bar gets
+higher as the user base for the feature gets smaller, and for truly niche features (those used by only a small
+fraction of users) that touch base entity classes or shared component infrastructure, we also weigh the size of the
+gated code path itself, the maintenance surface it introduces, and whether the same need could be met by a standalone
+component, a lambda, or an external component.
+
+We try to flag this concern early in review so contributors don't invest heavily in a direction we won't merge, but it
+isn't always apparent right away, and we don't always have a good read on how many people will use a feature. PRs in
+that gray area sometimes go stale because we can't reach a clear answer. The best way to avoid that is to ask in the
+`#devs` channel on the [ESPHome Discord](https://esphome.io/chat) before writing the PR, so we can talk through the
+design and gauge interest before code is written. When in doubt, gate aggressively and start the conversation early.
+
+This applies with particular force to:
+
+- **Base entity classes** (`Sensor`, `BinarySensor`, `Light`, `Switch`, `Climate`, `Cover`, `Fan`, and so on). Every
+  entity instance carries the cost, so adding 16 bytes to `Sensor` multiplies across every sensor on every device.
+- **Shared base classes** such as `Component`, `LightOutput`, `AddressableLight`, and similar infrastructure.
+- **Core components** (`api`, `wifi`, `mdns`, `logger`, `network`).
+
+**How to gate a feature:**
+
+1. Add a plain `#define USE_*` line to `esphome/core/defines.h` (follow the alphabetical / surrounding pattern in
+   that file). The checked-in `defines.h` deliberately defines every `USE_*` macro unconditionally so static analysis
+   tools, IDEs, and `clangd` can resolve every guarded code path. **It is not consulted at firmware build time** —
+   the comment at the top of the file says as much: the runtime build uses a separate, generated `defines.h` that
+   contains only the macros the user's codegen actually emitted (via `cg.add_define()`). Adding your entry here makes
+   the symbol visible to tooling without enabling it on real devices.
+2. Set the define from the component's `to_code()` function only when the user actually configures the feature, e.g.
+   `cg.add_define("USE_LIGHT_COLOR_TINT")` inside an `if config.get(CONF_COLOR_TINT) is not None:` branch (see the
+   full Python example below). Use `cg.add_define()` for anything that changes the layout, size, or members of a
+   header-visible class — it writes to the central defines header consumed by every translation unit, so the gated
+   field exists or does not exist consistently across the whole build. Per-target `cg.add_build_flag("-D...")` is
+   reserved for flags that don't affect header layout (e.g. tuning thresholds inside a `.cpp`), because if different
+   translation units see the same class header with different `#ifdef` state you'll get silent ODR violations.
+3. Wrap the C++ fields, methods, and call sites in `#ifdef USE_LIGHT_COLOR_TINT` / `#endif`.
+
+**Example, gating new fields on a base class** (hypothetical color tint overlay on `LightState`):
+
+```cpp
+class LightState : public EntityBase {
+ public:
+#ifdef USE_LIGHT_COLOR_TINT
+  void set_color_tint(uint8_t r, uint8_t g, uint8_t b, uint8_t amount) {
+    this->tint_r_ = r;
+    this->tint_g_ = g;
+    this->tint_b_ = b;
+    this->tint_amount_ = amount;
+  }
+#endif
+  void apply_output(Color &c) {
+#ifdef USE_LIGHT_COLOR_TINT
+    if (this->tint_amount_ > 0)
+      c = c.blend(Color(this->tint_r_, this->tint_g_, this->tint_b_), this->tint_amount_);
+#endif
+    // ...remaining output processing...
+  }
+
+ protected:
+#ifdef USE_LIGHT_COLOR_TINT
+  uint8_t tint_r_{0};
+  uint8_t tint_g_{0};
+  uint8_t tint_b_{0};
+  uint8_t tint_amount_{0};
+#endif
+};
+```
+
+```python
+# components/light/__init__.py  (imports and CONF_COLOR_TINT / CONF_RED / CONF_GREEN /
+# CONF_BLUE / CONF_AMOUNT constants omitted)
+async def to_code(config):
+    var = await light.new_light(config)
+    if (tint := config.get(CONF_COLOR_TINT)) is not None:
+        # Both cg.add_define() and the setter call live inside the same `if` block, so the
+        # define is set exactly when the setter is called. If the user didn't configure the
+        # tint, neither runs and the gated fields/methods don't exist in this build.
+        cg.add_define("USE_LIGHT_COLOR_TINT")
+        cg.add(var.set_color_tint(tint[CONF_RED], tint[CONF_GREEN], tint[CONF_BLUE], tint[CONF_AMOUNT]))
+```
+
+The setter only exists when the define is set, so calling it unconditionally — outside the `if` — would fail to
+compile in builds that do not enable the feature.
+
+Without the `#ifdef`, every `LightState` instance on every device carries the four bytes and the blend code in the
+output path, even on the vast majority of configurations that never enable it.
+
+**Why we enforce this:**
+
+- **RAM is shared.** Wi-Fi, networking stacks, BLE on chips that have it, and the application all draw from the same
+  heap. Unused features that occupy RAM reduce the contiguous block available for everything else and bring users
+  closer to the fragmentation cliff described above.
+- **Flash fills up.** Many supported chips ship with as little as 1 MB of flash, much of it consumed by the partition
+  table and OTA slot. New code paths that 95% of users never use still cost flash for 100% of users.
+- **The cost is invisible to the contributor.** A feature looks "free" if it compiles and the contributor's device
+  still boots, but the contributor is not the one running it on a 1 MB ESP8266 with 30 sensors.
+- **We cannot remove bloat after the fact.** Once a field exists on a public base class, removing it is a breaking
+  change that requires the deprecation process documented below.
+
+If you are unsure whether a feature clears the bar to remain ungated, gate it. Gating is cheap, removing is expensive.
+
 ### Use of external libraries
 
 In general, we try to avoid use of external libraries.

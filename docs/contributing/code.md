@@ -776,7 +776,7 @@ When you need to make a Python breaking change:
 1. **Add a deprecation warning** during configuration validation
 2. **Maintain backward compatibility** for 6 months when possible
 3. **Document the migration path** clearly in warnings and the PR description (which generates release notes)
-4. **Update all examples** in esphome-docs to use the new configuration format
+4. **Update all examples** in esphome.io to use the new configuration format
 
 !!!note "Python Compatibility Window"
     ESPHome aims to maintain backward compatibility for Python/configuration changes for 6 months. Python changes
@@ -902,7 +902,7 @@ Before making a breaking change (C++ or Python), ensure you:
 - [ ] Documented the migration path clearly in the PR description
 - [ ] Included migration instructions in the PR description (they will be used to generate release notes)
 - [ ] Updated all internal usage to the new API
-- [ ] Updated esphome-docs examples and documentation
+- [ ] Updated esphome.io examples and documentation
 - [ ] Tested that existing configurations still work (for deprecations)
 - [ ] Considered the impact on external components
 - [ ] Written a blog post (if the change affects core functions, core entity classes, or represents a significant architectural change)

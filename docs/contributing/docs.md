@@ -1,6 +1,6 @@
 ![logo-docs](/images/logo-docs.svg)
 
-# Contributing to `esphome-docs`
+# Contributing to `esphome.io`
 
 Our documentation can always be improved. We rely on contributions from our users to do so. If you notice an issue (for
 example, spelling/grammar mistakes) or if you want to share your awesome new setup, we encourage you to submit a pull
@@ -26,7 +26,7 @@ use components. If you're not familiar with Markdown, see [Markdown syntax](#mar
     - If you need an image for your new component/platform, use our
       [component image generator](https://github.com/esphome/component-image-generator). You can run this in a
       container locally to generate the image or summon our bot to do so by adding a comment to your PR in the
-      `esphome-docs` repository: `@esphomebot generate image MyNewComponent`
+      `esphome.io` repository: `@esphomebot generate image MyNewComponent`
 - If a component/platform is used exclusively/primarily on a single specific board (perhaps with dedicated pin
   numbers), a complete configuration for the component/platform on that specific board may be included as an example
   _at the end of the document._ This example must be clearly identified as being for that specific hardware and it may
@@ -36,7 +36,7 @@ use components. If you're not familiar with Markdown, see [Markdown syntax](#mar
   [https://tinypng.com](https://tinypng.com).
 - When using highly accurate, domain-specific terminology, be sure that it does not interfere with a new user's ability
   to understand the content.
-- Be sure to target the correct **base branch** of the `esphome-docs` repository:
+- Be sure to target the correct **base branch** of the `esphome.io` repository:
     - **Fixes/improvements** for documentation must target the `current` branch.
     - **New features** must target the `next` branch.
 - **Create new branches in your fork** for each pull request; to avoid confusion (and other potential issues), do not
@@ -99,7 +99,7 @@ errors. If, however, more errors are discovered, simply repeat the process above
 ## Build
 
 To check your documentation changes locally, you first need [Node.js](https://nodejs.org/) (v18 or later). Then, from
-the root of the `esphome-docs` repository:
+the root of the `esphome.io` repository:
 
 ```bash
 npm install
@@ -380,10 +380,10 @@ convert -sampling-factor 4:2:0 -strip -interlace Plane -quality 80% -resize 300x
 
 ### Project structure
 
-For reference, the `esphome-docs` repository is organized as follows:
+For reference, the `esphome.io` repository is organized as follows:
 
 ```text
-esphome-docs/
+esphome.io/
 ├── src/
 │   ├── assets/                      # Static assets (logos, etc.)
 │   ├── components/                  # Astro components (Figure, APIRef, etc.)

@@ -15,7 +15,7 @@ Start developing your own components for ESPHome!
 All project code and documentation is hosted on [GitHub](https://github.com):
 
 - [ESPHome](https://github.com/esphome/esphome)
-- [ESPHome-Docs](https://github.com/esphome/esphome-docs)
+- [ESPHome-Docs](https://github.com/esphome/esphome.io)
 
 ---
 

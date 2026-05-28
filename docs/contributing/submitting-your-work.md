@@ -244,7 +244,7 @@ git fetch upstream dev
 git rebase upstream/dev
 ```
 
-Note that you can use this procedure for other branches, too, such as `next` or `current` from `esphome-docs`.
+Note that you can use this procedure for other branches, too, such as `next` or `current` from `esphome.io`.
 
 ### Do not force-push!
 

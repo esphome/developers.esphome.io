@@ -67,7 +67,7 @@ directory with the given name. In this example, the first entry causes ESPHome t
 `esphome/components/hello1/__init__.py` file and the second entry tells ESPHome to look for
 `esphome/components/hello2/sensor.py` or `esphome/components/hello2/sensor/__init__.py`.
 
-Let's leave the content of those files for [the next section](config-validation), but for now you should also know
+Let's leave the content of those files for [the next section](#config-validation), but for now you should also know
 that, whenever a component is loaded, all the C++ source files in the directory of the component are automatically
 copied into the generated PlatformIO project. All you need to do is add the C++ source files in the component's directory
 and the ESPHome core will copy them with no additional code required by the component developer.

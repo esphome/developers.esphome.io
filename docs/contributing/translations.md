@@ -15,8 +15,8 @@ The English strings are the single source of truth. They live in `src/translatio
 The flow looks like this:
 
 1. A developer adds or changes an English string in `en.json` and merges it to `main`.
-2. CI automatically uploads the new/changed English keys to Lokalise. Existing translations are never overwritten —
-   only new keys are added.
+2. CI automatically uploads the new and changed English source strings to Lokalise. Your translations in other
+   languages are never touched — only the English base strings are updated, and new keys are added.
 3. You (the translator) fill in or improve the translations for your language on Lokalise.
 4. When a new release is built, the latest translations are downloaded from Lokalise and bundled into the released
    wheel.
@@ -66,19 +66,13 @@ discovered_count_singular   →  Discovered {count} device
 discovered_count_plural     →  Discovered {count} devices
 ```
 
-```text
-labels_bulk_dialog_title_one    →  Labels for 1 device
-labels_bulk_dialog_title_other  →  Labels for {count} devices
-```
-
-Translate each variant using the form that is correct for that count in your language. Some languages have more plural
-categories than English (e.g. *zero*, *few*, *many*) — translate each one naturally for the quantity it represents.
+Translate each variant using the wording that is correct for that count in your language.
 
 ## Rules
 
 - **Only native speakers should submit translations.** A fluent, natural translation is far better than a literal one.
 - **Don't translate proper nouns** such as *ESPHome*, *Home Assistant*, or *Wi-Fi*.
-- **Keep placeholders intact.** Never translate or rename the text inside `{ }` (see above).
+- **Keep placeholders intact.** Never translate or rename the text inside `{}` (see above).
 - **Keep translations concise.** The dashboard UI has limited space; buttons and labels that grow too long may
   overflow or be truncated. Where possible, check that your translation fits.
 - **Match the tone of the source.** The dashboard uses friendly, plain language — avoid overly formal or technical

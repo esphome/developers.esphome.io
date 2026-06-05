@@ -161,6 +161,14 @@ If the config value is not set, then we do not call the setter function.
 
 ### Further information
 
+- `ALIASES`: A list of legacy names that should transparently route to this component's canonical name. This allows a
+  component to be renamed without breaking existing user configurations: a legacy top-level YAML key is rewritten to the
+  canonical name during validation (emitting a one-shot deprecation warning), and `esphome.components.<alias>` imports
+  resolve to the canonical package so `DEPENDENCIES`/`AUTO_LOAD` and direct imports keep working under either spelling.
+  If both the legacy and canonical keys are present in a configuration, validation fails rather than silently dropping
+  one.
+- `ALIAS_REMOVAL_VERSION`: An optional version string (e.g. `"2027.6.0"`) cited in the deprecation warning emitted when
+  an alias from `ALIASES` is used, telling users when the legacy name will stop working.
 - `AUTO_LOAD`: A list of components that will be automatically loaded if they are not already specified in the
   configuration. This can be a method that can be run with access to the `CORE` information like the target platform.
 - `CONFLICTS_WITH`: A list of components which conflict with this component. If the user has one of them in their

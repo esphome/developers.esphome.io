@@ -89,7 +89,9 @@ nav:
       - API:
           - Overview: architecture/api/index.md
           - Protocol Details: architecture/api/protocol_details.md
-      - Logging Best Practices: architecture/logging.md
+      - Logging:
+          - Overview: architecture/logging/overview.md
+          - Best Practices: architecture/logging/best_practices.md
       - CI:
           - Overview: architecture/ci/index.md
           - Tests: architecture/ci/component_tests.md

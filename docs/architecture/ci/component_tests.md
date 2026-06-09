@@ -91,6 +91,27 @@ should be added to/omitted from the list above as appropriate. This is often onl
 for some specific hardware component built into the microcontroller. The
 [ADC](https://esphome.io/components/sensor/adc) is one example of this.
 
+### Config-only tests (`validate.*.yaml`)
+
+Sometimes a test only needs to exercise configuration validation — for example, a deprecated-syntax migration
+path, a schema edge case, or a platform-specific validation branch — where actually building firmware adds no
+extra signal. For these cases you can use a `validate.*.yaml` file instead of a `test.*.yaml` file.
+
+`validate.*.yaml` files are run with `esphome config` only and are **never compiled**. The naming grammar mirrors
+`test.*.yaml`:
+
+- `validate.<platform>.yaml` — base config-only test (for example, `validate.esp32-idf.yaml`)
+- `validate-<variant>.<platform>.yaml` — config-only variant (for example, `validate-legacy.esp32-idf.yaml`)
+
+A component may have any mix of `test.*.yaml` and `validate.*.yaml` files. Unlike `test.*.yaml` files, validate
+files never participate in bus-grouping; each one runs as its own `esphome config` invocation.
+
+!!! note
+    If a PR changes only a component's `validate.*.yaml` files — no source changes, no `test.*.yaml` changes, and
+    the component isn't pulled in as a dependency of another changed component — CI skips the compile stage for
+    that component entirely and runs config validation only. This keeps CI fast for changes that can't affect the
+    compiled output.
+
 ### Running the tests
 
 You can run the tests locally simply by invoking the test script:
@@ -98,5 +119,8 @@ You can run the tests locally simply by invoking the test script:
 ```shell
 script/test_build_components -e compile -c dht12
 ```
+
+Use `-e config` instead of `-e compile` to run validation only. This is the stage that exercises `validate.*.yaml`
+files, which are skipped when compiling.
 
 Our CI will also run this script when you create or update your pull request (PR).

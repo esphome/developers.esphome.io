@@ -100,17 +100,17 @@ extra signal. For these cases you can use a `validate.*.yaml` file instead of a 
 `validate.*.yaml` files are run with `esphome config` only and are **never compiled**. The naming grammar mirrors
 `test.*.yaml`:
 
-- `validate.<platform>.yaml` — base config-only test
-- `validate-<variant>.<platform>.yaml` — config-only variant
+- `validate.<platform>.yaml` — base config-only test (for example, `validate.esp32-idf.yaml`)
+- `validate-<variant>.<platform>.yaml` — config-only variant (for example, `validate-legacy.esp32-idf.yaml`)
 
 A component may have any mix of `test.*.yaml` and `validate.*.yaml` files. Unlike `test.*.yaml` files, validate
 files never participate in bus-grouping; each one runs as its own `esphome config` invocation.
 
 !!! note
-    When the only changes a PR makes to a component are to its `validate.*.yaml` files (no source changes, no
-    `test.*.yaml` changes, and the component isn't pulled in as a dependency of another changed component), CI
-    skips the compile stage for that component entirely and runs config validation only. This keeps CI fast for
-    changes that can't affect the compiled output.
+    If a PR changes only a component's `validate.*.yaml` files — no source changes, no `test.*.yaml` changes, and
+    the component isn't pulled in as a dependency of another changed component — CI skips the compile stage for
+    that component entirely and runs config validation only. This keeps CI fast for changes that can't affect the
+    compiled output.
 
 ### Running the tests
 

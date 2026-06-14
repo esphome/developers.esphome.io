@@ -58,15 +58,21 @@ naturally in your language.
 
 ### Plurals
 
-Plurals are handled with separate keys rather than special syntax inside a single string. Where English needs
-different wording for one item versus many, you'll see paired keys such as:
+Plurals are handled inside a single string using [ICU MessageFormat](https://lokalise.com/blog/complete-guide-to-icu-message-format/#pluralization),
+not with separate keys. A plural string looks like this:
 
 ```text
-discovered_count_singular   →  Discovered {count} device
-discovered_count_plural     →  Discovered {count} devices
+{count, plural, one {Discovered # device} other {Discovered # devices}}
 ```
 
-Translate each variant using the wording that is correct for that count in your language.
+The `{count, plural, …}` wrapper tells the dashboard to choose the wording that matches the value of `count`, and the
+`#` is replaced with that number. Each branch (`one`, `other`, and so on) holds the text for one plural category.
+
+Languages have different plural categories. English only needs `one` and `other`, but yours may need more — Polish, for
+example, uses `one`, `few`, `many`, and `other`. Lokalise shows the categories your language requires and gives you an
+input box for each one; fill in the wording that is correct for that category.
+
+The old `_singular` / `_plural` key suffixes are no longer used.
 
 ## Rules
 

@@ -8,6 +8,10 @@ ESPHome automations consist of three building blocks:
 
 This page covers how to implement all three in a component. For a minimal working example, see the [empty_automation starter component](https://github.com/esphome/starter-components/tree/main/components/empty_automation).
 
+!!! note "Mark primitives `final`"
+
+    The `Action`, `Trigger`, and `Condition` subclasses shown below are leaf classes — nothing in ESPHome derives from them — so they are marked `final`. See [Marking leaf classes as `final`](/contributing/code/#marking-leaf-classes-as-final) for the rationale.
+
 !!! note
 
     All Python examples below assume the standard ESPHome imports are present: `esphome.codegen as cg`, `esphome.config_validation as cv`, relevant constants from `esphome.const`, and typing imports (`ConfigType` from `esphome.types`, `MockObj` from `esphome.cpp_generator`, `TemplateArgsType` from `esphome.automation`).
@@ -171,7 +175,7 @@ async def to_code(config: ConfigType) -> None:
 Define the trigger class in `automation.h`. This example fires only on the off-to-on transition, requiring mutable state (`last_on_`) that cannot be stored in a pointer-sized forwarder:
 
 ```cpp
-class TurnOnTrigger : public Trigger<> {
+class TurnOnTrigger final : public Trigger<> {
  public:
   explicit TurnOnTrigger(MyComponent *parent) : parent_(parent) {
     parent->add_on_state_callback([this](bool state) {
@@ -227,7 +231,7 @@ Set `synchronous=True` if the action completes immediately (no async operations 
 ### C++
 
 ```cpp
-template<typename... Ts> class MyAction : public Action<Ts...> {
+template<typename... Ts> class MyAction final : public Action<Ts...> {
  public:
   explicit MyAction(MyComponent *parent) : parent_(parent) {}
 
@@ -243,7 +247,7 @@ template<typename... Ts> class MyAction : public Action<Ts...> {
 For actions that accept templatable values from the user config:
 
 ```cpp
-template<typename... Ts> class SetValueAction : public Action<Ts...> {
+template<typename... Ts> class SetValueAction final : public Action<Ts...> {
  public:
   explicit SetValueAction(MyComponent *parent) : parent_(parent) {}
   TEMPLATABLE_VALUE(bool, state)
@@ -307,7 +311,7 @@ async def my_condition_to_code(
 ### C++
 
 ```cpp
-template<typename... Ts> class MyCondition : public Condition<Ts...> {
+template<typename... Ts> class MyCondition final : public Condition<Ts...> {
  public:
   explicit MyCondition(MyComponent *parent) : parent_(parent) {}
   bool check(const Ts &...) override { return this->parent_->is_active(); }

@@ -96,6 +96,44 @@ class Buffer {
 };
 ```
 
+#### Marking leaf classes as `final`
+
+Mark a class with the C++ `final` specifier when nothing in the ESPHome tree derives from it. This applies to:
+
+- **User-configurable component and platform classes** — the class the user instantiates through their YAML (a specific
+  sensor, switch, display, etc.).
+- **Automation primitives** — the `Action`, `Trigger`, and `Condition` subclasses a component registers.
+
+```cpp
+// Leaf component class — nothing in the tree derives from it
+class MySensor final : public PollingComponent, public sensor::Sensor {
+  // ...
+};
+
+// Automation primitives are leaves too
+template<typename... Ts> class MyAction final : public Action<Ts...> { /* ... */ };
+template<typename... Ts> class MyTrigger final : public Trigger<Ts...> { /* ... */ };
+template<typename... Ts> class MyCondition final : public Condition<Ts...> { /* ... */ };
+```
+
+**Only mark a class `final` if it is never used as a base class anywhere in the ESPHome tree.** Hub classes, the
+`*Component` base classes that platform classes extend, and any class with an in-tree subclass are *not* leaves and
+must not be marked `final`. When in doubt, confirm that no other class derives from it before adding the keyword.
+
+Why we do this:
+
+- **It hardens the API surface.** External components can no longer subclass the class, so its undocumented
+  `public`/`protected` members remain free to change without breaking out-of-tree code (see
+  [What is Considered Public C++ API?](#what-is-considered-public-c-api)). Because external components *can* currently
+  subclass these classes, adding `final` is a [developer breaking change](#what-constitutes-a-c-breaking-change).
+- **It documents intent.** `final` states explicitly that the class is a terminal, configurable unit rather than an
+  extension point.
+- **It helps the compiler.** Marking a class `final` lets the compiler devirtualize calls made through it, which can
+  reduce flash usage.
+
+This was applied across the ESPHome tree in a series of PRs beginning with
+[esphome/esphome#16952](https://github.com/esphome/esphome/pull/16952).
+
 ### Memory management and heap allocation
 
 ESP devices run for months with small heaps shared between Wi-Fi, BLE, LWIP, and application code. Over time, repeated

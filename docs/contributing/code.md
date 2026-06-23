@@ -722,6 +722,48 @@ YAML still validates the same way. It can be a meaningful change for a visual ed
 coordinate with downstream catalog consumers (e.g. esphome/device-builder) before flipping a
 previously-shown field to `Visibility.YAML_ONLY`.
 
+#### Sensitive field marker (`cv.sensitive`)
+
+`cv.sensitive` is a sibling to `visibility`: another opt-in, advisory marker an author attaches to a
+schema field that flows through to tooling without changing validation. It flags a field as holding
+a secret — a password, encryption key, PSK, or token — so that frontends mask the input and
+ESPHome's config dump redacts the value.
+
+Wrap any validator in `cv.sensitive(...)`; the inner validator does all the actual validation (it
+defaults to `cv.string`). The wrapper only tags the *result*: a validated `str` comes back as a
+`SensitiveStr` marker subclass so `esphome config` can conceal it. Non-string results and
+already-tagged values pass through unchanged, which keeps nested or repeated applications
+idempotent.
+
+!!!example "Sensitive marker in practice"
+    ```python
+    import esphome.config_validation as cv
+
+    # Plainest form — validate as a string, mark it sensitive.
+    cv.Optional(CONF_PASSWORD): cv.sensitive()
+
+    # Any inner validator works; validation behavior is unchanged.
+    cv.Optional(CONF_PASSWORD): cv.sensitive(cv.string_strict)
+    cv.Required(CONF_KEY): cv.sensitive(validate_encryption_key)
+
+    # Composes with other wrappers such as cv.templatable.
+    cv.Optional(CONF_PASSWORD): cv.sensitive(cv.templatable(cv.string))
+    ```
+
+`esphome config` redacts sensitive values by default, wrapping them in ANSI conceal codes (rendered
+as literal `\033[8m…\033[28m` text that downstream parsers such as device-builder understand). Pass
+`--show-secrets` to print the real values. A value sourced from a `!secret` tag keeps its `!secret`
+rendering instead of being concealed, so the dump still reflects how the user wrote it.
+
+Until every secret-bearing field is migrated, ESPHome also runs a substring fallback: validators
+that *aren't* wrapped still get masked when their key matches a known fragment (`password`, `token`,
+`api_key`, `psk`, …). This is a safety net for unmigrated and third-party schemas, and it logs a
+warning naming the field. Prefer the explicit marker — the heuristic is slated for removal in
+2026.12.0.
+
+Adding `cv.sensitive` to an existing field is **not** a breaking change for YAML users: validation
+is identical, only the dump and editor presentation change.
+
 #### Python Functions and Classes
 
 Unlike C++, most Python code in ESPHome is **internal implementation** unless explicitly documented:

@@ -209,7 +209,7 @@ This represents the minimum required code to implement a component in ESPHome:
 
   namespace esphome::example_component {
 
-  class ExampleComponent : public Component {
+  class ExampleComponent final : public Component {
   public:
     void setup() override;
     void loop() override;
@@ -270,6 +270,10 @@ Any component exists as at least one C++ `class`. In ESPHome, components always 
 `PollingComponent` classes. The latter of these defines an additional `update()` method which is called on a periodic
 basis based on user configuration. This is often useful for hardware such as sensors which are queried periodically for
 a new measurement/reading.
+
+Note that `ExampleComponent` above is marked `final`: it is a *leaf* class that nothing else in ESPHome derives from.
+Mark your own user-configurable component and platform classes `final` unless another in-tree class subclasses them.
+See [Marking leaf classes as `final`](/contributing/code/#marking-leaf-classes-as-final) for details.
 
 ### Common methods
 

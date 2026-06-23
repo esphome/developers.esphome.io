@@ -88,7 +88,9 @@ The old `_singular` / `_plural` key suffixes are no longer used.
 
 Adding a new language is **just a Lokalise change** — there is no code change required.
 
-1. Request the new language in the Lokalise project (or ask a maintainer to add it).
+1. If you haven't already, [join the project on Lokalise](https://app.lokalise.com/public/974668436a17ffd6803f51.79180045/)
+   (see [Getting started](#getting-started)), then leave a comment tagging `@ESPHome` to request that your language be
+   added.
 2. Translate the strings. Be sure to fill in the two top-level keys that the language picker needs:
     - `language` — the language's own name (autonym), e.g. `Français`, `Deutsch`, `日本語`.
     - `flag` — a flag emoji to show next to it in the picker, e.g. `🇫🇷`.

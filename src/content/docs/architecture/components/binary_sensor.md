@@ -1,0 +1,5 @@
+---
+title: "Binary Sensor"
+---
+
+

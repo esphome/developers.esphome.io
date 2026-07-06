@@ -10,3 +10,17 @@
   to = "/blog/2025/05/14/schema-deprecations/"
   status = 301
   force = true
+
+# The MkDocs Material site published two RSS feeds; starlight-blog publishes
+# one. Point existing feed subscriptions at the new feed.
+[[redirects]]
+  from = "/feed_rss_created.xml"
+  to = "/blog/rss.xml"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/feed_rss_updated.xml"
+  to = "/blog/rss.xml"
+  status = 301
+  force = true

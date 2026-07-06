@@ -30,7 +30,7 @@ The original `FlushResult::SUCCESS` value collided with the Realtek RTL SDK's `#
 
 **External components that implement `UARTComponent::flush()` and reference the `FlushResult` type or enum values.**
 
-This only affects components updated for the 2026.3.0 `flush()` return type change. If you haven't updated your `flush()` override yet, see the [2026.3.0 UART flush blog post](/blog/2026-03-12-uart-flush-result) first.
+This only affects components updated for the 2026.3.0 `flush()` return type change. If you haven't updated your `flush()` override yet, see the [2026.3.0 UART flush blog post](/blog/2026/03/12/uart-flush-now-returns-flushresult/) first.
 
 ## Migration Guide
 

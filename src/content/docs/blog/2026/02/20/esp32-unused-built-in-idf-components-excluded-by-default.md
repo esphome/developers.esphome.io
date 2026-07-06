@@ -64,7 +64,7 @@ ESPHome's built-in components already call `include_builtin_idf_component()` to 
 **Standard YAML configurations are not affected** — ESPHome's built-in components automatically re-enable the IDF components they need.
 
 > [!NOTE]
-> Arduino framework builds have additional exclusions for Arduino-specific managed components. See the [ESP32 Arduino Selective Compilation](/blog/2026-02-12-esp32-arduino-selective-compilation) post for details on Arduino library changes.
+> Arduino framework builds have additional exclusions for Arduino-specific managed components. See the [ESP32 Arduino Selective Compilation](/blog/2026/02/12/esp32-arduino-selective-compilation-libraries-disabled-by-default/) post for details on Arduino library changes.
 
 ## Migration Guide
 

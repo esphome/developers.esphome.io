@@ -289,7 +289,7 @@ async def set_state_to_code(
 
 Same imports as the earlier Python snippets on this page apply (`cg`, `cv`, `automation`, constants, typing aliases); `CONF_STATE` and `SetValueAction` are defined by the component itself.
 
-Passing a raw value such as `cg.add(var.set_state(config[CONF_STATE]))` worked on 2026.3.x and earlier for literal constants but fails to compile on 2026.4.0 and later, because trivially copyable types use `TemplatableFn` (pointer-sized function-pointer storage, 4 bytes on 32-bit platforms), for which implicit conversion from raw values is not possible. See the [TemplatableFn blog post](/blog/2026-04-09-templatable-fn) for details.
+Passing a raw value such as `cg.add(var.set_state(config[CONF_STATE]))` worked on 2026.3.x and earlier for literal constants but fails to compile on 2026.4.0 and later, because trivially copyable types use `TemplatableFn` (pointer-sized function-pointer storage, 4 bytes on 32-bit platforms), for which implicit conversion from raw values is not possible. See the [TemplatableFn blog post](/blog/2026/04/09/templatablefn-4-byte-templatable-storage-for-trivially-copyable-types/) for details.
 
 ## Conditions
 

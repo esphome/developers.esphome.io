@@ -34,7 +34,7 @@ Every component with a real `loop()` was running at **~2× the configured `loop_
 
 Two recent trends made this bite harder: (1) more components are `PollingComponent`s, each of which is a `set_interval` under the hood; (2) more components use `set_interval` / `set_timeout` directly for retries, debouncing, animations, and protocol timing. `App.set_loop_interval()` — the documented knob for power savings — was silently defeated by the same coupling.
 
-Removing the floor is safe now because **`wake_loop_threadsafe()` is accessible everywhere as of 2026.4.0** (see the [2026.4.0 wake_loop blog post](/blog/2026-04-09-wake-loop-moved-to-core)). Any component that needs to wake the loop sooner than `loop_interval_` has a proper way to do it without the floor papering over missing wake-ups.
+Removing the floor is safe now because **`wake_loop_threadsafe()` is accessible everywhere as of 2026.4.0** (see the [2026.4.0 wake_loop blog post](/blog/2026/04/09/wake_loop-moved-from-socket-component-into-core/)). Any component that needs to wake the loop sooner than `loop_interval_` has a proper way to do it without the floor papering over missing wake-ups.
 
 ## What's Changing
 
@@ -147,4 +147,4 @@ If you have questions about migrating your external component, please ask in:
 - [PR #15792](https://github.com/esphome/esphome/pull/15792) — decouple main loop cadence from scheduler wake timing
 - [PR #15846](https://github.com/esphome/esphome/pull/15846) — prerequisite WDT-feed rate-limit adjustment
 - [Architecture doc: loop control and main-loop cadence](/architecture/components/advanced)
-- [2026.4.0 blog: wake_loop moved to core](/blog/2026-04-09-wake-loop-moved-to-core) — provided the unconditional wake primitive that made this fix safe
+- [2026.4.0 blog: wake_loop moved to core](/blog/2026/04/09/wake_loop-moved-from-socket-component-into-core/) — provided the unconditional wake primitive that made this fix safe

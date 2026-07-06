@@ -14,7 +14,7 @@ This is a **breaking change** for external components in **ESPHome 2026.5.0 and 
 
 **[PR #16289](https://github.com/esphome/esphome/pull/16289): Remove deprecations scheduled for 2026.5.0**
 
-In 2025.11.0 the old boolean getter/setter pairs were superseded by an `add_feature_flags()` / `has_feature_flags()` bitmask API on `ClimateTraits`. The booleans were kept as thin shims marked `ESPDEPRECATED("...", "2025.11.0")` to give external components a 6-month window. That window has now closed and the shims are gone. (The same release also migrated other `ClimateTraits` enum sets to packed-bitmask storage in a separate change; see the [climate entity class optimizations](/blog/2025-11-07-climate-entity-optimizations) post for that adjacent story.)
+In 2025.11.0 the old boolean getter/setter pairs were superseded by an `add_feature_flags()` / `has_feature_flags()` bitmask API on `ClimateTraits`. The booleans were kept as thin shims marked `ESPDEPRECATED("...", "2025.11.0")` to give external components a 6-month window. That window has now closed and the shims are gone. (The same release also migrated other `ClimateTraits` enum sets to packed-bitmask storage in a separate change; see the [climate entity class optimizations](/blog/2025/11/07/climate-entity-class-finitesetmask-and-flash-storage-optimizations/) post for that adjacent story.)
 
 The replacement API has been the canonical way to express climate capabilities since 2025.11.0, and every in-tree climate component (heat-pump IR codecs, mini-split bridges, thermostat platform, etc.) has been on it for months.
 
@@ -107,5 +107,5 @@ If you have questions about migrating your external component, please ask in:
 ## Related Documentation
 
 - [PR #16289](https://github.com/esphome/esphome/pull/16289) — Remove climate / ektf2232 deprecations
-- [2025.11.0 Climate optimizations blog post](/blog/2025-11-07-climate-entity-optimizations) — the deprecation that started the clock
-- [2026.4.0 Climate fan custom mode storage blog post](/blog/2026-04-09-climate-fan-custom-mode-storage) — related climate-API tightening
+- [2025.11.0 Climate optimizations blog post](/blog/2025/11/07/climate-entity-class-finitesetmask-and-flash-storage-optimizations/) — the deprecation that started the clock
+- [2026.4.0 Climate fan custom mode storage blog post](/blog/2026/04/09/climate-and-fan-custom-mode-vectors-moved-to-entity/) — related climate-API tightening

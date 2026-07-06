@@ -104,6 +104,6 @@ If you have questions about migrating your configuration, please ask in:
 ## Related Documentation
 
 - [PR #15509](https://github.com/esphome/esphome/pull/15509) — Split modbus_server from modbus_controller
-- [PR #15291](https://github.com/esphome/esphome/pull/15291) and [PR #14172](https://github.com/esphome/esphome/pull/14172) — Earlier helper-function refactor that enabled this split ([blog post](/blog/2026-04-09-modbus-helpers-refactor))
+- [PR #15291](https://github.com/esphome/esphome/pull/15291) and [PR #14172](https://github.com/esphome/esphome/pull/14172) — Earlier helper-function refactor that enabled this split ([blog post](/blog/2026/04/09/modbus-helper-functions-moved-to-modbushelpers/))
 - [ESPHome Modbus Server documentation](https://esphome.io/components/modbus_server/) (new page)
 - [ESPHome Modbus Controller documentation](https://esphome.io/components/modbus_controller/)

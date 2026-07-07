@@ -1015,7 +1015,7 @@ CONFIG_SCHEMA = cv.All(
 > generate release notes, so ensure it includes clear migration instructions for any breaking changes.
 >
 > Blog posts should be submitted to the [developers.esphome.io](https://github.com/esphome/developers.esphome.io)
-> repository in the `docs/blog/posts/` directory.
+> repository in the `src/content/docs/blog/` directory, under a `YYYY/MM/DD/` folder matching the post's date.
 
 ### Breaking Changes Checklist
 

@@ -70,6 +70,44 @@ By including `common.yaml`, all test configurations maintain the same structure 
 platform-specific substitutions such as pin assignments. This approach simplifies managing multiple test cases across
 different hardware platforms.
 
+## Tests that need a display
+
+Some platforms — touchscreens are the common case — require a
+[`display`](https://esphome.io/components/display/) to be present only so they can read its dimensions. Instantiating a
+real display driver in these tests is wasteful: it occupies GPIO pins (which then tend to collide with the pins the
+component under test needs) and pulls in unrelated bus dependencies.
+
+For these cases, use the shared `test_display` package. It provides a no-op display that draws nothing and uses no pins
+and no bus, so it never competes for GPIOs. Include it alongside your component's `common.yaml` using named packages:
+
+```yaml
+# tests/components/<your_component>/test.esp32-idf.yaml
+packages:
+  test_display: !include ../../test_build_components/common/test_display/test_display.yaml
+  <your_component>: !include common.yaml
+```
+
+Then point your component at the `test_display_screen` display that the package provides:
+
+```yaml
+# tests/components/<your_component>/common.yaml
+touchscreen:
+  - platform: <your_component>
+    display: test_display_screen
+    interrupt_pin: ${interrupt_pin}
+```
+
+The package declares its own `external_components` entry (the `test_display` platform lives under `tests/components/`,
+not in the shipped component tree), so your test does not need to declare it. Because the package sits alongside the
+shared bus packages (`i2c`, `spi`, `uart`, …) under `tests/test_build_components/common/`, tests that use it are still
+batch-grouped together and share the single `test_display_screen` instance.
+
+> [!NOTE]
+> The provided `test_display_screen` reports a size of 240×320. If your component depends on specific dimensions,
+> keep the package for the `external_components` entry and add your own instance with `platform: test_display`, a
+> unique `id`, and the `dimensions:` you need (for example `dimensions: 320x240`). The `id` cannot be `test_display`
+> itself, since an `id` may not match the name of a platform.
+
 ## Which tests do I need?
 
 **We require a test for each framework/architecture combination** the component/platform supports. *Most*

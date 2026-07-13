@@ -53,22 +53,23 @@ sensor:
 It's a shared configuration file that defines common settings used across all hardware platforms. Having a "common"
 file like this minimizes duplication and ensures test consistency across all platforms.
 
-To use `common.yaml` in a test configuration, YAML substitutions and the insertion operator are used (see
-[substitutions](https://esphome.io/components/substitutions)). This allows the test YAML file to reference and include
-the shared configuration. For the `dht12` platform, one of the test files is named `test.esp32-ard.yaml` and it contains
-this:
+To use `common.yaml` in a test configuration, YAML substitutions and a [package](https://esphome.io/components/packages)
+are used (see [substitutions](https://esphome.io/components/substitutions)). This allows the test YAML file to reference
+and include the shared configuration. For the `dht12` platform, one of the test files is named `test.esp32-ard.yaml` and
+it contains this:
 
 ```yaml
 substitutions:
   scl_pin: GPIO16
   sda_pin: GPIO17
 
-<<: !include common.yaml
+packages:
+  dht12: !include common.yaml
 ```
 
-By including `common.yaml`, all test configurations maintain the same structure while allowing flexibility for
-platform-specific substitutions such as pin assignments. This approach simplifies managing multiple test cases across
-different hardware platforms.
+By including `common.yaml` as a named package, all test configurations maintain the same structure while allowing
+flexibility for platform-specific substitutions such as pin assignments. This approach simplifies managing multiple test
+cases across different hardware platforms.
 
 ## Which tests do I need?
 

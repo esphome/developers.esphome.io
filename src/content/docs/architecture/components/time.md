@@ -39,7 +39,7 @@ my_time_ns = cg.esphome_ns.namespace("my_time")
 MyTime = my_time_ns.class_("MyTime", time_.RealTimeClock)
 ```
 
-`time.RealTimeClock` already inherits `cg.PollingComponent`, so no separate component base is needed. The component
+`time_.RealTimeClock` already inherits `cg.PollingComponent`, so no separate component base is needed. The component
 is imported as `time_` to avoid shadowing Python's own `time` module.
 
 ### Configuration schema

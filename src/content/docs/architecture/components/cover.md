@@ -92,17 +92,17 @@ class MyCover : public cover::Cover, public Component {
 ### Command flow
 
 Unlike a [switch](/architecture/components/switch), where the front-end calls a single public setter, a cover command
-is built up as a `CoverCall` object: the front-end (or your own code) calls `make_call()` to get one, sets whichever
+is built up as a `cover::CoverCall` object: the front-end (or your own code) calls `make_call()` to get one, sets whichever
 fields it wants to change (`set_position()`, `set_tilt()`, `set_command_open()`, `set_stop()`, ...), and then calls
 `perform()` on it. This in turn dispatches to your protected virtual `control()` method with the finished call.
 
-The two methods you *must* implement are `control(const CoverCall &call)` and `get_traits()`.
+The two methods you *must* implement are `control(const cover::CoverCall &call)` and `get_traits()`.
 
 ```cpp
-void MyCover::control(const CoverCall &call) {
+void MyCover::control(const cover::CoverCall &call) {
   if (call.get_stop()) {
     this->stop_hardware_();
-    this->current_operation = COVER_OPERATION_IDLE;
+    this->current_operation = cover::COVER_OPERATION_IDLE;
     this->publish_state();
   }
 
@@ -133,7 +133,7 @@ A few important details:
 - Inspect `call.get_position()`, `call.get_tilt()` and `call.get_stop()` to find out what the caller actually asked
   for; only the fields the caller set will be present (`get_position()`/`get_tilt()` are `optional<float>`, so check
   `has_value()` before dereferencing).
-- `get_position()` and `get_tilt()` range from `0.0` (`COVER_CLOSED`) to `1.0` (`COVER_OPEN`) - use these constants
+- `get_position()` and `get_tilt()` range from `0.0` (`cover::COVER_CLOSED`) to `1.0` (`cover::COVER_OPEN`) - use these constants
   rather than the raw literals where it improves readability.
 - After driving the hardware, update `this->position` (and `this->tilt`, if supported) and set `this->current_operation`
   before calling `publish_state()`, so the front-end sees an accurate, up-to-date state.
@@ -150,10 +150,10 @@ controls rather than trusting the reported position as ground truth.
 
 ### Useful members
 
-- `position`: the current reported position, `0.0` (closed) to `1.0` (open). Use `COVER_OPEN` / `COVER_CLOSED` for the
+- `position`: the current reported position, `0.0` (closed) to `1.0` (open). Use `cover::COVER_OPEN` / `cover::COVER_CLOSED` for the
   extremes.
 - `tilt`: the current reported tilt, on the same `0.0`-`1.0` scale.
-- `current_operation`: one of `COVER_OPERATION_IDLE`, `COVER_OPERATION_OPENING`, `COVER_OPERATION_CLOSING`.
+- `current_operation`: one of `cover::COVER_OPERATION_IDLE`, `cover::COVER_OPERATION_OPENING`, `cover::COVER_OPERATION_CLOSING`.
 - `is_fully_open()` / `is_fully_closed()`: convenience helpers comparing `position` against `1.0` / `0.0`.
 - `publish_state(bool save = true)`: report the current `position`/`tilt`/`current_operation` to the front-end; pass
   `save = false` to skip persisting the state to flash.

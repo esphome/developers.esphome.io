@@ -96,8 +96,8 @@ class MyOutput : public output::FloatOutput, public Component {
 
 ### Writing state to hardware
 
-The one method you *must* implement is the protected virtual `write_state()`. There is no `control()`/`Call` object here
-- callers (other components, or the `output.turn_on` / `output.set_level` actions) call the public `turn_on()`,
+The one method you *must* implement is the protected virtual `write_state()`. There is no `control()`/`Call` object
+here - callers (other components, or the `output.turn_on` / `output.set_level` actions) call the public `turn_on()`,
 `turn_off()`, `set_state(bool)` or `set_level(float)` methods on the base class, which apply inversion (and, for
 `FloatOutput`, power-supply requesting plus min/max power scaling when `USE_OUTPUT_FLOAT_POWER_SCALING` is enabled)
 before calling your `write_state()` with the already-adjusted value:

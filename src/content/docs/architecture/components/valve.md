@@ -88,18 +88,18 @@ class MyValve : public valve::Valve, public Component {
 
 ### Command flow
 
-As with [cover](/architecture/components/cover#command-flow), a valve command is built up as a `ValveCall` object: the
+As with [cover](/architecture/components/cover#command-flow), a valve command is built up as a `valve::ValveCall` object: the
 front-end (or your own code) calls `make_call()` to get one, sets whichever fields it wants to change
 (`set_position()`, `set_command_open()`, `set_stop()`, ...), and then calls `perform()` on it. This in turn dispatches
 to your protected virtual `control()` method with the finished call.
 
-The two methods you *must* implement are `control(const ValveCall &call)` and `get_traits()`.
+The two methods you *must* implement are `control(const valve::ValveCall &call)` and `get_traits()`.
 
 ```cpp
-void MyValve::control(const ValveCall &call) {
+void MyValve::control(const valve::ValveCall &call) {
   if (call.get_stop()) {
     this->stop_hardware_();
-    this->current_operation = VALVE_OPERATION_IDLE;
+    this->current_operation = valve::VALVE_OPERATION_IDLE;
     this->publish_state();
   }
 
@@ -125,7 +125,7 @@ A few important details:
 - Inspect `call.get_position()` and `call.get_stop()` to find out what the caller actually asked for; only the fields
   the caller set will be present (`get_position()` is an `optional<float>`, so check `has_value()` before
   dereferencing).
-- `get_position()` ranges from `0.0` (`VALVE_CLOSED`) to `1.0` (`VALVE_OPEN`) - use these constants rather than the raw
+- `get_position()` ranges from `0.0` (`valve::VALVE_CLOSED`) to `1.0` (`valve::VALVE_OPEN`) - use these constants rather than the raw
   literals where it improves readability. A simple binary valve will only ever be commanded to one of these two
   extremes.
 - After driving the hardware, update `this->position` and set `this->current_operation` before calling
@@ -142,9 +142,9 @@ controls rather than trusting the reported position as ground truth.
 
 ### Useful members
 
-- `position`: the current reported position, `0.0` (closed) to `1.0` (open). Use `VALVE_OPEN` / `VALVE_CLOSED` for the
+- `position`: the current reported position, `0.0` (closed) to `1.0` (open). Use `valve::VALVE_OPEN` / `valve::VALVE_CLOSED` for the
   extremes.
-- `current_operation`: one of `VALVE_OPERATION_IDLE`, `VALVE_OPERATION_OPENING`, `VALVE_OPERATION_CLOSING`.
+- `current_operation`: one of `valve::VALVE_OPERATION_IDLE`, `valve::VALVE_OPERATION_OPENING`, `valve::VALVE_OPERATION_CLOSING`.
 - `is_fully_open()` / `is_fully_closed()`: convenience helpers comparing `position` against `1.0` / `0.0`.
 - `publish_state(bool save = true)`: report the current `position`/`current_operation` to the front-end; pass
   `save = false` to skip persisting the state to flash.

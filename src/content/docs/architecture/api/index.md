@@ -63,6 +63,21 @@ regenerate the `api_pb2` files based on the changes made in the `.proto` files.
 This is the Python client for ESPHome which runs in Home Assistant; it must be updated to be consistent with the
 changes made to ESPHome itself.
 
+### Device network information
+
+The Native API exposes information about the network interface used by
+the device.
+
+The network type is represented by the `NetworkType` enum:
+
+```protobuf
+enum NetworkType {
+  NETWORK_TYPE_UNKNOWN = 0;
+  NETWORK_TYPE_WIFI = 1;
+  NETWORK_TYPE_ETHERNET = 2;
+  NETWORK_TYPE_THREAD = 3;
+}
+
 ### Home Assistant core
 
 Support must be implemented to integrate the ESPHome implementation into Home Assistant.

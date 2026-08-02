@@ -77,6 +77,7 @@ enum NetworkType {
   NETWORK_TYPE_ETHERNET = 2;
   NETWORK_TYPE_THREAD = 3;
 }
+```
 
 ### Home Assistant core
 

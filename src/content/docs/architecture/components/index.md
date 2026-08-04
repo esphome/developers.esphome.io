@@ -236,9 +236,10 @@ The contract:
   prefetch are remembered for the rest of the run, so that call returns the cached bytes without touching the network,
   and a failed download is reported once with the proper configuration path instead of timing out again for every
   entry that references it.
-- For platform components, the hook is declared in the platform module and receives only that platform's entries. A
-  platform that shares another platform's file handling can re-export the hook with a simple assignment, as the
-  `animation` platform does with the `image` file platform's hook.
+- For platform components, the hook is usually declared in the platform module and receives only that platform's
+  entries. A hook on the domain module is honored too and receives every entry; duplicate files between the two are
+  downloaded only once. A platform that shares another platform's file handling can re-export the hook with a simple
+  assignment, as the `animation` platform does with the `image` file platform's hook.
 
 Prefetching only changes how fast files arrive, never whether a configuration is valid, so a component works
 identically with or without the hook. It is worth adding whenever a realistic configuration references more than a

@@ -206,12 +206,14 @@ without any further network traffic.
 downloads each yielded batch before resuming the generator:
 
 ```python
-from esphome import external_files
+from collections.abc import Iterable
+
 from esphome.external_files import RemoteFile
+from esphome.types import ConfigType
 
 
-def PREFETCH_FILES(entries):
-    files = []
+def PREFETCH_FILES(entries: list[ConfigType]) -> Iterable[list[RemoteFile]]:
+    files: list[RemoteFile] = []
     for entry in entries:
         if isinstance(url := entry.get(CONF_URL), str):
             files.append(RemoteFile(url, _cache_path(url)))

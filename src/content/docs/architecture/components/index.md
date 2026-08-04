@@ -181,7 +181,7 @@ If the config value is not set, then we do not call the setter function.
 - `MULTI_CONF_NO_DEFAULT`: This is a special flag that allows the component to be auto-loaded without an instance of
   the configuration. An example of this is the `uart` component. This component can be auto-loaded so that all of the
   UART headers will be available but potentially there is no native UART instance, but one provided by another
-  component such an an external i2c UART expander.
+  component such as an external I2C UART expander.
 - `PREFETCH_FILES`: A generator that lets a component's remote files be downloaded in one parallel batch before schema
   validation instead of one at a time during it. See [Remote file prefetching](#remote-file-prefetching).
 
@@ -197,10 +197,10 @@ For example, many components that rely on `uart` can use the `FINAL_VALIDATE_SCH
 ### Remote file prefetching
 
 Components that download remote files during validation (fonts, icons, firmware blobs, configuration data) can declare
-a module level `PREFETCH_FILES` hook. Without it, each config entry downloads its files one at a time while its schema
+a module-level `PREFETCH_FILES` hook. Without it, each config entry downloads its files one at a time while its schema
 is validated. With it, ESPHome collects the remote files of every component before schema validation starts and
-downloads them together in one parallel batch, then the schema validators read them straight from the local cache
-without any further network traffic.
+downloads them together in one parallel batch, then the schema validators read them straight from the local cache,
+normally with no further network traffic.
 
 `PREFETCH_FILES` is a generator. ESPHome calls it once per run with the raw list of the component's config entries and
 downloads each yielded batch before resuming the generator:
@@ -208,13 +208,14 @@ downloads each yielded batch before resuming the generator:
 ```python
 from collections.abc import Iterable
 
+from esphome import external_files
 from esphome.external_files import RemoteFile
 from esphome.types import ConfigType
 
 
 def PREFETCH_FILES(entries: list[ConfigType]) -> Iterable[list[RemoteFile]]:
     yield [
-        RemoteFile(url, _cache_path(url))
+        RemoteFile(url, external_files.compute_local_file_path(DOMAIN, url))
         for entry in entries
         if isinstance(url := entry.get(CONF_URL), str)
     ]

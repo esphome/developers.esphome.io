@@ -182,6 +182,8 @@ If the config value is not set, then we do not call the setter function.
   the configuration. An example of this is the `uart` component. This component can be auto-loaded so that all of the
   UART headers will be available but potentially there is no native UART instance, but one provided by another
   component such an an external i2c UART expander.
+- `PREFETCH_FILES`: A generator that lets a component's remote files be downloaded in one parallel batch before schema
+  validation instead of one at a time during it. See [Remote file prefetching](#remote-file-prefetching).
 
 ### Final validation
 
@@ -191,6 +193,54 @@ any other components and potentially fail the validation stage if an important d
 
 For example, many components that rely on `uart` can use the `FINAL_VALIDATE_SCHEMA` to ensure that the `tx_pin` and/or
 `rx_pin` are configured.
+
+### Remote file prefetching
+
+Components that download remote files during validation (fonts, icons, firmware blobs, configuration data) can declare
+a module level `PREFETCH_FILES` hook. Without it, each config entry downloads its files one at a time while its schema
+is validated. With it, ESPHome collects the remote files of every component before schema validation starts and
+downloads them together in one parallel batch, then the schema validators read them straight from the local cache
+without any further network traffic.
+
+`PREFETCH_FILES` is a generator. ESPHome calls it once per run with the raw list of the component's config entries and
+downloads each yielded batch before resuming the generator:
+
+```python
+from esphome import external_files
+from esphome.external_files import RemoteFile
+
+
+def PREFETCH_FILES(entries):
+    files = []
+    for entry in entries:
+        if isinstance(url := entry.get(CONF_URL), str):
+            files.append(RemoteFile(url, _cache_path(url)))
+    yield files
+```
+
+The contract:
+
+- The hook runs before schema validation, so the entries are raw and unvalidated: keys may be missing, shorthand may
+  not be expanded and values may be the wrong type. Skip anything the hook does not recognize; never raise for invalid
+  configuration. The schema validators remain the only place that reports configuration errors.
+- Each yield is one download stage: a list of `esphome.external_files.RemoteFile(url, path)`. Most components yield a
+  single batch. When the address of one file is only known from the content of another, yield again: the generator only
+  resumes after the previous stage finished downloading, so the second stage can read the fetched files. The `font`
+  component uses this to fetch the Google Fonts CSS first and then the font file the CSS points to.
+- Compute cache paths with the same helper functions the schema validator uses, for example
+  `external_files.compute_local_file_path(DOMAIN, url)`, so the prefetched file lands exactly where the validator
+  looks. A wrong path only wastes one download; the validator still fetches the file itself.
+- The schema validator should download through `external_files.download_content(url, path)`. Files fetched by the
+  prefetch are remembered for the rest of the run, so that call returns the cached bytes without touching the network,
+  and a failed download is reported once with the proper configuration path instead of timing out again for every
+  entry that references it.
+- For platform components, the hook is declared in the platform module and receives only that platform's entries. A
+  platform that shares another platform's file handling can re-export the hook with a simple assignment, as the
+  `animation` platform does with the `image` file platform's hook.
+
+Prefetching only changes how fast files arrive, never whether a configuration is valid, so a component works
+identically with or without the hook. It is worth adding whenever a realistic configuration references more than a
+couple of remote files.
 
 ## C++ component structure
 

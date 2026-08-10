@@ -202,24 +202,26 @@ is validated. With it, ESPHome collects the remote files of every component befo
 downloads them together in one parallel batch, then the schema validators read them straight from the local cache,
 normally with no further network traffic.
 
-`PREFETCH_FILES` is a generator. ESPHome calls it once per run with the raw list of the component's config entries and
-downloads each yielded batch before resuming the generator:
+For the common case of one remote file per config entry, build the hook from a per-entry extractor with
+`external_files.single_stage_prefetch`:
 
 ```python
-from collections.abc import Iterable
-
 from esphome import external_files
 from esphome.external_files import RemoteFile
 from esphome.types import ConfigType
 
 
-def PREFETCH_FILES(entries: list[ConfigType]) -> Iterable[list[RemoteFile]]:
-    yield [
-        RemoteFile(url, external_files.compute_local_file_path(DOMAIN, url))
-        for entry in entries
-        if isinstance(url := entry.get(CONF_URL), str)
-    ]
+def _extract_file(entry: ConfigType) -> RemoteFile | None:
+    if isinstance(url := entry.get(CONF_URL), str):
+        return RemoteFile(url, external_files.compute_local_file_path(DOMAIN, url))
+    return None
+
+
+PREFETCH_FILES = external_files.single_stage_prefetch(_extract_file)
 ```
+
+Components with staged downloads write `PREFETCH_FILES` as a generator instead. ESPHome calls it once per run with
+the raw list of the component's config entries and downloads each yielded batch before resuming the generator.
 
 The contract:
 
@@ -230,6 +232,9 @@ The contract:
   single batch. When the address of one file is only known from the content of another, yield again: the generator only
   resumes after the previous stage finished downloading, so the second stage can read the fetched files. The `font`
   component uses this to fetch the Google Fonts CSS first and then the font file the CSS points to.
+- When nothing downstream can verify the bytes (for example firmware without a checksum), pass
+  `RemoteFile(url, path, allow_stale=False)`: a cached copy that could not be revalidated against the server is then
+  an error rather than a silent fallback.
 - Compute cache paths with the same helper functions the schema validator uses, for example
   `external_files.compute_local_file_path(DOMAIN, url)`, so the prefetched file lands exactly where the validator
   looks. A wrong path only wastes one download; the validator still fetches the file itself.

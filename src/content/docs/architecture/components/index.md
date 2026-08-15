@@ -176,6 +176,14 @@ If the config value is not set, then we do not call the setter function.
   update the `CODEOWNERS` file.
 - `DEPENDENCIES`: A list of components that this component depends on. If these components are not present in the
    configuration, or loaded by another component, validation will fail and the user will be shown an error.
+- `DOC_URL`: An explicit documentation link for this component, e.g. `DOC_URL = "https://example.com/my_component"`.
+  Only meaningful for a component loaded via [`external_components:`](https://esphome.io/components/external_components/),
+  since built-in components already link to esphome.io automatically. This is one of two ways to give ESPHome a
+  documentation link for an external component: setting `DOC_URL` here points *this specific* component's errors at
+  an exact page, taking priority over the other way — the source-level
+  [`doc_url`](https://esphome.io/components/external_components/#documentation-links) key in the user's
+  `external_components:` entry, which applies to every component from that source by combining the base URL with
+  the component's name.
 - `MULTI_CONF`: If set to `True`, the user can use this component multiple times in their configuration. If set to a
   number, the user can use this component that number of times.
 - `MULTI_CONF_NO_DEFAULT`: This is a special flag that allows the component to be auto-loaded without an instance of

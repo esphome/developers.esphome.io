@@ -181,7 +181,9 @@ If the config value is not set, then we do not call the setter function.
 - `MULTI_CONF_NO_DEFAULT`: This is a special flag that allows the component to be auto-loaded without an instance of
   the configuration. An example of this is the `uart` component. This component can be auto-loaded so that all of the
   UART headers will be available but potentially there is no native UART instance, but one provided by another
-  component such an an external i2c UART expander.
+  component such as an external I2C UART expander.
+- `PREFETCH_FILES`: A generator that lets a component's remote files be downloaded in one parallel batch before schema
+  validation instead of one at a time during it. See [Remote file prefetching](#remote-file-prefetching).
 
 ### Final validation
 
@@ -191,6 +193,64 @@ any other components and potentially fail the validation stage if an important d
 
 For example, many components that rely on `uart` can use the `FINAL_VALIDATE_SCHEMA` to ensure that the `tx_pin` and/or
 `rx_pin` are configured.
+
+### Remote file prefetching
+
+Components that download remote files during validation (fonts, icons, firmware blobs, configuration data) can declare
+a module-level `PREFETCH_FILES` hook. Without it, each config entry downloads its files one at a time while its schema
+is validated. With it, ESPHome collects the remote files of every component before schema validation starts and
+downloads them together in one parallel batch, then the schema validators read them straight from the local cache,
+normally with no further network traffic.
+
+For the common case of one remote file per config entry, build the hook from a per-entry extractor with
+`external_files.single_stage_prefetch`:
+
+```python
+from esphome import external_files
+from esphome.external_files import RemoteFile
+from esphome.types import ConfigType
+
+
+def _extract_file(entry: ConfigType) -> RemoteFile | None:
+    if isinstance(url := entry.get(CONF_URL), str):
+        return RemoteFile(url, external_files.compute_local_file_path(DOMAIN, url))
+    return None
+
+
+PREFETCH_FILES = external_files.single_stage_prefetch(_extract_file)
+```
+
+Components with staged downloads write `PREFETCH_FILES` as a generator instead. ESPHome calls it once per run with
+the raw list of the component's config entries and downloads each yielded batch before resuming the generator.
+
+The contract:
+
+- The hook runs before schema validation, so the entries are raw and unvalidated: keys may be missing, shorthand may
+  not be expanded and values may be the wrong type. Skip anything the hook does not recognize; never raise for invalid
+  configuration. The schema validators remain the only place that reports configuration errors. A hook that raises
+  anyway is caught and logged and the config still validates; it only loses the batching speedup.
+- Each yield is one download stage: a list of `esphome.external_files.RemoteFile(url, path)`. Most components yield a
+  single batch. When the address of one file is only known from the content of another, yield again: the generator only
+  resumes after the previous stage finished downloading, so the second stage can read the fetched files. The `font`
+  component uses this to fetch the Google Fonts CSS first and then the font file the CSS points to.
+- When nothing downstream can verify the bytes (for example firmware without a checksum), pass
+  `RemoteFile(url, path, allow_stale=False)`: a cached copy that could not be revalidated against the server is then
+  an error rather than a silent fallback. `allow_stale` defaults to `True`.
+- Compute cache paths with the same helper functions the schema validator uses, for example
+  `external_files.compute_local_file_path(DOMAIN, url)`, so the prefetched file lands exactly where the validator
+  looks. A wrong path only wastes one download; the validator still fetches the file itself.
+- The schema validator should download through `external_files.download_content(url, path)`. Files fetched by the
+  prefetch are remembered for the rest of the run, so that call returns the cached bytes without touching the network,
+  and a failed download is reported once with the proper configuration path instead of timing out again for every
+  entry that references it.
+- For platform components, the hook is usually declared in the platform module and receives only that platform's
+  entries. A hook on the domain module is honored too and receives every entry; duplicate files between the two are
+  downloaded only once. A platform that shares another platform's file handling can re-export the hook with a simple
+  assignment, as `animation`'s image platform does by re-exporting the `file` image platform's hook.
+
+Prefetching only changes how fast files arrive, never whether a configuration is valid, so a component works
+identically with or without the hook. It is worth adding whenever a realistic configuration references more than a
+couple of remote files.
 
 ### Exposing multiple entities
 

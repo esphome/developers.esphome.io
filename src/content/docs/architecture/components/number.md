@@ -108,8 +108,11 @@ void MyNumber::control(float value) {
 
 A few important details:
 
-- `control()` is only called with a value that has already been validated against the configured `min_value:`,
-  `max_value:` and `step:` bounds, so you do not need to re-validate it yourself.
+- `control()` is only called with a value that has already been checked against the configured `min_value:` and
+  `max_value:`; `NumberCall` drops an out-of-range call, with a warning, before it reaches you.
+- `step:` is **not** enforced for a plain "set value" call. It is used to compute the target of the increment and
+  decrement operations, and is otherwise forwarded to the front-end as metadata - nothing snaps an incoming value onto
+  a step boundary. If your hardware needs that, round the value yourself in `control()`.
 - You should call `publish_state()` yourself once the hardware has been driven; the base class does *not* do this for
   you. This lets you report the *actual* achieved value, which may differ slightly from the requested one (for
   example if the hardware only supports coarser steps).

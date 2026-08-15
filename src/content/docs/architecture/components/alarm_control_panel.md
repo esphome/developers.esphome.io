@@ -83,7 +83,7 @@ class MyAlarm : public alarm_control_panel::AlarmControlPanel, public Component 
   bool get_requires_code_to_arm() const override { return this->requires_code_to_arm_; }
 
   void set_code(const std::string &code) { this->code_ = code; }
-  void set_requires_code_to_arm(bool requires) { this->requires_code_to_arm_ = requires; }
+  void set_requires_code_to_arm(bool code_to_arm) { this->requires_code_to_arm_ = code_to_arm; }
 
  protected:
   void control(const alarm_control_panel::AlarmControlPanelCall &call) override;

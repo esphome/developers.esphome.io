@@ -28,7 +28,9 @@ The typical imports and class declaration look like this:
 ```python
 import esphome.codegen as cg
 import esphome.config_validation as cv
+from esphome import pins
 from esphome.components import display
+from esphome.const import CONF_RESET_PIN
 
 my_display_ns = cg.esphome_ns.namespace("my_display")
 MyDisplay = my_display_ns.class_("MyDisplay", cg.PollingComponent, display.DisplayBuffer)
@@ -49,7 +51,7 @@ extend the full schema with their own hardware-specific options:
 CONFIG_SCHEMA = display.FULL_DISPLAY_SCHEMA.extend(
     {
         cv.GenerateID(): cv.declare_id(MyDisplay),
-        cv.Optional(cv.CONF_RESET_PIN): pins.gpio_output_pin_schema,
+        cv.Optional(CONF_RESET_PIN): pins.gpio_output_pin_schema,
     }
 ).extend(cv.polling_component_schema("1s"))
 ```

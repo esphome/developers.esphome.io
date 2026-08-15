@@ -107,8 +107,10 @@ void MyText::control(const std::string &value) {
 
 A few important details:
 
-- `control()` is only called with a value that has already been validated against the configured `min_length:`,
-  `max_length:` and `pattern:` (if any), so you do not need to re-validate it yourself.
+- `control()` is only called with a value that has already been checked against the configured `min_length:` and
+  `max_length:`; `TextCall` drops a call violating either, with a warning, before it reaches you.
+- `pattern:` is **not** enforced on-device. It is forwarded to the front-end as metadata for client-side validation
+  only, so nothing validates it before `control()` runs. If your hardware depends on the format, check it yourself.
 - You should call `publish_state()` yourself once the hardware has been driven; the base class does *not* do this for
   you. This lets you report the *actual* stored value, which may differ from the requested one.
 - If the entity's `mode:` is `PASSWORD`, `publish_state()` automatically redacts the value in the logs (via

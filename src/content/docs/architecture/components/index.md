@@ -252,6 +252,19 @@ Prefetching only changes how fast files arrive, never whether a configuration is
 identically with or without the hook. It is worth adding whenever a realistic configuration references more than a
 couple of remote files.
 
+### Exposing multiple entities
+
+Hardware frequently maps to more than one entity: a temperature/humidity sensor exposes two readings, a relay board
+exposes several switches, a multi-zone controller exposes a climate entity per zone. ESPHome has two established ways to
+model this, both valid and both common in-tree. One nests the entities as optional sub-configs under a single platform
+entry; the other, useful where a top-level hub component already exists, gives each entity its own platform entry
+distinguished by a `type` key (via `cv.typed_schema()`). Which one fits depends on whether the entities are facets of a
+single measurement cycle or independent things sharing a connection.
+
+Both patterns are worked through in full, with real in-tree examples, in
+[Exposing multiple sensors from one component](/architecture/components/sensor#exposing-multiple-sensors-from-one-component).
+The entity-type pages in the navigation tree each describe the equivalent for their own type.
+
 ## C++ component structure
 
 Given the example Python code above, let's consider the following C++ code:

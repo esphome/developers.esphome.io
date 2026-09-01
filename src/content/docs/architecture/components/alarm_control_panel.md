@@ -87,6 +87,7 @@ class MyAlarm : public alarm_control_panel::AlarmControlPanel, public Component 
 
  protected:
   void control(const alarm_control_panel::AlarmControlPanelCall &call) override;
+  bool is_code_valid_(const optional<std::string> &code);
 
   std::string code_{};
   bool requires_code_to_arm_{false};
@@ -107,38 +108,58 @@ the front-end whether a code is needed to disarm, and whether that same code is 
 
 The one method you *must* implement is `control()`. The front-end (or an automation) builds an
 `AlarmControlPanelCall` - via helpers like `arm_away()`, `arm_home()`, `disarm()` on the entity itself, or directly
-via `make_call()` - and the base class dispatches it here after validating any code. Inspect `call.get_state()` for
-the requested state:
+via `make_call()` - and the base class dispatches it here. The base class checks only that the state transition is
+legal and supported; **it never looks at the code**, so enforcing it is entirely your job. Inspect `call.get_state()`
+for the requested state:
 
 ```cpp
-void MyAlarm::control(const alarm_control_panel::AlarmControlPanelCall &call) {
-  if (call.get_code().has_value() && !this->is_code_valid_(*call.get_code())) {
-    return;
-  }
+// Takes the optional itself, so an absent code is handled here rather than
+// by the caller. Returns true when no code is configured at all.
+bool MyAlarm::is_code_valid_(const optional<std::string> &code) {
+  if (this->code_.empty())
+    return true;
+  return code.has_value() && *code == this->code_;
+}
 
-  if (call.get_state().has_value()) {
-    switch (*call.get_state()) {
-      case alarm_control_panel::ACP_STATE_ARMED_AWAY:
-        this->arm_hardware_(alarm_control_panel::ACP_STATE_ARMED_AWAY);
-        break;
-      case alarm_control_panel::ACP_STATE_ARMED_HOME:
-        this->arm_hardware_(alarm_control_panel::ACP_STATE_ARMED_HOME);
-        break;
-      case alarm_control_panel::ACP_STATE_DISARMED:
-        this->disarm_hardware_();
-        break;
-      default:
-        break;
-    }
+void MyAlarm::control(const alarm_control_panel::AlarmControlPanelCall &call) {
+  if (!call.get_state().has_value())
+    return;
+
+  switch (*call.get_state()) {
+    case alarm_control_panel::ACP_STATE_ARMED_AWAY:
+    case alarm_control_panel::ACP_STATE_ARMED_HOME:
+      // Arming only needs a code when the user asked for one.
+      if (this->requires_code_to_arm_ && !this->is_code_valid_(call.get_code())) {
+        ESP_LOGW(TAG, "Not arming: code doesn't match");
+        return;
+      }
+      this->arm_hardware_(*call.get_state());
+      break;
+
+    case alarm_control_panel::ACP_STATE_DISARMED:
+      // Disarming always needs a valid code when one is configured.
+      if (!this->is_code_valid_(call.get_code())) {
+        ESP_LOGW(TAG, "Not disarming: code doesn't match");
+        return;
+      }
+      this->disarm_hardware_();
+      break;
+
+    default:
+      break;
   }
 }
 ```
 
 A few important details:
 
-- `AlarmControlPanelCall`'s getters (`get_state()`, `get_code()`) return `optional<T>`; the base class has already
-  run its own validation (e.g. rejecting an arm request when `get_requires_code_to_arm()` is true and no/incorrect
-  code was supplied) before `control()` is ever called.
+- `AlarmControlPanelCall`'s getters (`get_state()`, `get_code()`) return `optional<T>`. The base class's
+  `validate_()` only rejects illegal or unsupported state transitions (arming when not disarmed, arming a mode absent
+  from `get_supported_features()`, and so on). It does **not** check the code, so `control()` can be reached with no
+  code, or the wrong one, even when `get_requires_code_to_arm()` is true.
+- Because of that, check the code against the `optional` itself rather than only when it has a value. A guard like
+  `if (call.get_code().has_value() && !valid)` silently lets a code-less disarm straight through. Log a warning when
+  you reject a command, otherwise the command vanishes with no indication of why.
 - Once your hardware has actually reached the new state (which may take time - e.g. an exit delay before fully
   arming), call `publish_state(AlarmControlPanelState)` yourself to report it. The base class does not do this for
   you, which lets you model intermediate states like `ACP_STATE_ARMING` or `ACP_STATE_PENDING` before settling on

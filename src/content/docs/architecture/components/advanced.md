@@ -314,7 +314,7 @@ The threshold ratchets: after a warning the component's own threshold becomes th
 
 ### `UnavoidableBlockingScope`
 
-A few steps done from a loop pass have no shorter form and cannot be split across passes: turning on the ESP32 Bluetooth controller once the network is up, reconnecting Wi-Fi after the link dropped, generating the key pair for the next encrypted API connection. Wrapping only that step in an `UnavoidableBlockingScope` (from `esphome/core/application.h`) leaves it out of the measurement for the current pass:
+A few steps done from a loop pass have no shorter form and cannot be split across passes: turning on a radio, the first Wi-Fi connect, a key generation whose cost is the algorithm itself. Wrapping only that step in an `UnavoidableBlockingScope` (from `esphome/core/application.h`) leaves it out of the measurement for the current pass:
 
 ```cpp
 void MyComponent::loop() {

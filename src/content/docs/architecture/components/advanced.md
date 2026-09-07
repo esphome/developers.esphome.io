@@ -302,6 +302,34 @@ A `loop()` method costs one pointer in the application's `looping_components_` l
 - **`set_timeout`** — one-shots and self-rescheduling timers with variable delays. Don't chain it as a hand-rolled `set_interval`.
 - **`defer`** — run-once on the next main-loop iteration; use it to break recursion or escape interrupt context, not as a task queue.
 
+## The Loop Blocking Warning
+
+Every component `loop()`, `update()`, `setup()` and scheduled callback runs under a guard that measures how long it held the main loop. When one pass exceeds the threshold (`WARN_IF_BLOCKING_OVER_MS`, 50 ms by default) the log shows:
+
+```text
+[W][component:420]: wifi took a long time for an operation (73 ms), max is 50 ms
+```
+
+The threshold ratchets: after a warning the component's own threshold becomes the measured time plus 10 ms, so a component that blocks once for 70 ms during boot is only reported again when it blocks for more than 80 ms. The warning is the main tool for finding work that should be a state machine, a cached value or a `set_timeout`; fix the cause rather than the message.
+
+### `UnavoidableBlockingScope`
+
+A few steps have no shorter form and cannot be split across passes: bringing up a radio, the first connect of a network stack, a key generation whose cost is the algorithm itself. Wrapping only that step in an `UnavoidableBlockingScope` (from `esphome/core/application.h`) leaves it out of the measurement for the current pass:
+
+```cpp
+void MyRadio::setup() {
+  {
+    UnavoidableBlockingScope scope;
+    this->bring_up_radio_();  // 120 ms of driver initialisation, nothing to split
+  }
+  this->configure_();  // still measured
+}
+```
+
+When the scope ends it moves the pass start time forward by the time spent inside it, so the guard still reports everything else in the pass and the component's threshold does not ratchet up over the one step nothing can be done about. Code after the scope that reads `App.get_loop_component_start_time()` sees the adjusted time, which is closer to "now" than the original pass start.
+
+Never use it to paper over a problem that can be solved. A slow driver call, a loop that could be a state machine, a computation that could be cached or deferred, a blocking read that could be polled: those are what the warning exists to find, and wrapping them hides the bug instead of fixing it. If in doubt, leave the warning in. The scope does not change the `Setup ... took N ms` line logged at boot, which still reports the full setup time.
+
 ## Waking the Main Loop from Background Threads
 
 For components that receive events in background threads/FreeRTOS tasks (BLE callbacks, network events, platform callbacks, etc.) and need low-latency processing, use `App.wake_loop_threadsafe()` to immediately wake the main loop instead of waiting 0-16ms for the next loop timeout.

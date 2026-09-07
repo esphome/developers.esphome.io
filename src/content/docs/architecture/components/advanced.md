@@ -310,7 +310,7 @@ Every component `loop()`, `update()` and scheduled callback runs under a guard t
 [W][component:XXX]: wifi took a long time for an operation (73 ms), max is 50 ms
 ```
 
-The threshold ratchets: after a warning the component's own threshold becomes the measured time plus 10 ms, so a component that blocks once for 73 ms is only reported again when it blocks for more than 83 ms, for the rest of the run. The warning is the main tool for finding work that should be a state machine, a cached value or a `set_timeout`; fix the cause rather than the message.
+The threshold ratchets: after a warning the component's own threshold becomes the measured time plus 10 ms, rounded down to a 10 ms step, so a component that blocks once for 73 ms is only reported again when it blocks for more than 80 ms, for the rest of the run. The warning is the main tool for finding work that should be a state machine, a cached value or a `set_timeout`; fix the cause rather than the message.
 
 ### `UnavoidableBlockingScope`
 

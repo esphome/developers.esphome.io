@@ -334,7 +334,7 @@ Never use it to paper over a problem that can be solved. A slow driver call, a l
 >
 > - Only work timed by the guard is affected: a component's `loop()` or `update()`, or a scheduler callback. The scope does nothing in `setup()`.
 > - Use the scope from the main loop task only.
-> - The watchdog is not fed inside the scope, so the work must still finish within the watchdog timeout.
+> - The watchdog is not fed inside the scope, so the work must finish within the watchdog timeout, or be paired with a `watchdog::WatchdogManager` (from `esphome/components/watchdog/watchdog.h`) that raises the timeout for the same stretch.
 
 ## Waking the Main Loop from Background Threads
 

@@ -328,7 +328,7 @@ void MyRadio::setup() {
 
 When the scope ends it moves the pass start time forward by the time spent inside it, so the guard still reports everything else in the pass and the component's threshold does not ratchet up over the one step nothing can be done about. Code after the scope that reads `App.get_loop_component_start_time()` sees the adjusted time, which is closer to "now" than the original pass start.
 
-Never use it to paper over a problem that can be solved. A slow driver call, a loop that could be a state machine, a computation that could be cached or deferred, a blocking read that could be polled: those are what the warning exists to find, and wrapping them hides the bug instead of fixing it. If in doubt, leave the warning in. The scope does not change the `Setup ... took N ms` line logged at boot, which still reports the full setup time.
+Never use it to paper over a problem that can be solved. A slow driver call, a loop that could be a state machine, a computation that could be cached or deferred, a blocking read that could be polled: those are what the warning exists to find, and wrapping them hides the bug instead of fixing it. If in doubt, leave the warning in. Use it from the main loop task only, and keep the work inside it under the watchdog timeout, since the watchdog is not fed inside the scope. The scope does not change the `Setup ... took N ms` line logged at boot, which still reports the full setup time.
 
 ## Waking the Main Loop from Background Threads
 

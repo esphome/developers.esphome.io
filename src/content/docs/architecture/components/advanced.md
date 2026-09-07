@@ -307,10 +307,10 @@ A `loop()` method costs one pointer in the application's `looping_components_` l
 Every component `loop()`, `update()`, `setup()` and scheduled callback runs under a guard that measures how long it held the main loop. When one pass exceeds the threshold (`WARN_IF_BLOCKING_OVER_MS`, 50 ms by default) the log shows:
 
 ```text
-[W][component:420]: wifi took a long time for an operation (73 ms), max is 50 ms
+[W][component:XXX]: wifi took a long time for an operation (73 ms), max is 50 ms
 ```
 
-The threshold ratchets: after a warning the component's own threshold becomes the measured time plus 10 ms, so a component that blocks once for 70 ms during boot is only reported again when it blocks for more than 80 ms. The warning is the main tool for finding work that should be a state machine, a cached value or a `set_timeout`; fix the cause rather than the message.
+The threshold ratchets: after a warning the component's own threshold becomes the measured time plus 10 ms, so a component that blocks once for 73 ms is only reported again when it blocks for more than 83 ms, for the rest of the run. The warning is the main tool for finding work that should be a state machine, a cached value or a `set_timeout`; fix the cause rather than the message.
 
 ### `UnavoidableBlockingScope`
 
@@ -328,7 +328,13 @@ void MyRadio::setup() {
 
 When the scope ends it moves the pass start time forward by the time spent inside it, so the guard still reports everything else in the pass and the component's threshold does not ratchet up over the one step nothing can be done about. Code after the scope that reads `App.get_loop_component_start_time()` sees the adjusted time, which is closer to "now" than the original pass start.
 
-Never use it to paper over a problem that can be solved. A slow driver call, a loop that could be a state machine, a computation that could be cached or deferred, a blocking read that could be polled: those are what the warning exists to find, and wrapping them hides the bug instead of fixing it. If in doubt, leave the warning in. Use it from the main loop task only, and keep the work inside it under the watchdog timeout, since the watchdog is not fed inside the scope. The scope does not change the `Setup ... took N ms` line logged at boot, which still reports the full setup time.
+Never use it to paper over a problem that can be solved. A slow driver call, a loop that could be a state machine, a computation that could be cached or deferred, a blocking read that could be polled: those are what the warning exists to find, and wrapping them hides the bug instead of fixing it. If in doubt, leave the warning in.
+
+> [!WARNING]
+>
+> - Use the scope from the main loop task only.
+> - The watchdog is not fed inside the scope, so the work must still finish within the watchdog timeout.
+> - The `Setup ... took N ms` line logged at boot is not affected and still reports the full setup time.
 
 ## Waking the Main Loop from Background Threads
 

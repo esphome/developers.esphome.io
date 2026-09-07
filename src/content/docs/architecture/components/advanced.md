@@ -404,4 +404,5 @@ void IRAM_ATTR MyComponent::gpio_isr(MyComponent *arg) {
 
 - Component Loop Control: [`esphome/core/component.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.h) and [`esphome/core/component.cpp`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.cpp)
 - Wake Loop Threadsafe: PR [#11681](https://github.com/esphome/esphome/pull/11681)
+- Loop Blocking Warning and `UnavoidableBlockingScope`: PR [#19020](https://github.com/esphome/esphome/pull/19020)
 - [Socket Consumption API](/architecture/components/socket_consumption_api) - For components that use network sockets

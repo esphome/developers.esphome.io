@@ -304,7 +304,7 @@ A `loop()` method costs one pointer in the application's `looping_components_` l
 
 ## The Loop Blocking Warning
 
-Every component `loop()`, `update()`, `setup()` and scheduled callback runs under a guard that measures how long it held the main loop. When one pass exceeds the threshold (`WARN_IF_BLOCKING_OVER_MS`, 50 ms by default) the log shows:
+Every component `loop()`, `update()` and scheduled callback runs under a guard that measures how long it held the main loop; `setup()` is not measured, its time is only reported in the `Setup ... took N ms` line. When one pass exceeds the threshold (`WARN_IF_BLOCKING_OVER_MS`, 50 ms by default) the log shows:
 
 ```text
 [W][component:XXX]: wifi took a long time for an operation (73 ms), max is 50 ms
@@ -314,27 +314,27 @@ The threshold ratchets: after a warning the component's own threshold becomes th
 
 ### `UnavoidableBlockingScope`
 
-A few steps have no shorter form and cannot be split across passes: bringing up a radio, the first connect of a network stack, a key generation whose cost is the algorithm itself. Wrapping only that step in an `UnavoidableBlockingScope` (from `esphome/core/application.h`) leaves it out of the measurement for the current pass:
+A few steps have no shorter form and cannot be split across passes: enabling a radio, the first connect of a network stack, a key generation whose cost is the algorithm itself. Wrapping only that step in an `UnavoidableBlockingScope` (from `esphome/core/application.h`) leaves it out of the measurement for the current pass:
 
 ```cpp
-void MyRadio::setup() {
-  {
+void MyComponent::loop() {
+  if (this->needs_key_) {
     UnavoidableBlockingScope scope;
-    this->bring_up_radio_();  // 120 ms of driver initialisation, nothing to split
+    this->generate_key_();  // 60 ms of arithmetic, nothing to split
   }
-  this->configure_();  // still measured
+  this->poll_();  // still measured
 }
 ```
 
-When the scope ends it moves the pass start time forward by the time spent inside it, so the guard still reports everything else in the pass and the component's threshold does not ratchet up over the one step nothing can be done about. Code after the scope that reads `App.get_loop_component_start_time()` sees the adjusted time, which is closer to "now" than the original pass start.
+When the scope ends it moves the pass start time forward by the time spent inside it, so the guard still reports everything else in the pass and the component's threshold does not ratchet up over the one step nothing can be done about. Code after the scope that reads `App.get_loop_component_start_time()` sees the adjusted time, which is closer to "now" than the original pass start. Scopes may nest; the outermost one decides how much of the pass is left out.
 
 Never use it to paper over a problem that can be solved. A slow driver call, a loop that could be a state machine, a computation that could be cached or deferred, a blocking read that could be polled: those are what the warning exists to find, and wrapping them hides the bug instead of fixing it. If in doubt, leave the warning in.
 
 > [!WARNING]
 >
+> - Only work timed by the guard is affected: a component's `loop()` or `update()`, or a scheduler callback. The scope does nothing in `setup()`.
 > - Use the scope from the main loop task only.
 > - The watchdog is not fed inside the scope, so the work must still finish within the watchdog timeout.
-> - The `Setup ... took N ms` line logged at boot is not affected and still reports the full setup time.
 
 ## Waking the Main Loop from Background Threads
 

@@ -314,7 +314,7 @@ The threshold ratchets: after a warning the component's own threshold becomes th
 
 ### `UnavoidableBlockingScope`
 
-A few steps have no shorter form and cannot be split across passes: enabling a radio, the first connect of a network stack, a key generation whose cost is the algorithm itself. Wrapping only that step in an `UnavoidableBlockingScope` (from `esphome/core/application.h`) leaves it out of the measurement for the current pass:
+A few steps have no shorter form and cannot be split across passes: enabling a radio, the first connect of a network stack, a key generation whose cost is the algorithm itself. When such a step runs from `loop()`, `update()` or a scheduler callback, wrapping only that step in an `UnavoidableBlockingScope` (from `esphome/core/application.h`) leaves it out of the measurement for the current pass:
 
 ```cpp
 void MyComponent::loop() {

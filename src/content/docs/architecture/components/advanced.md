@@ -366,8 +366,38 @@ void IRAM_ATTR MyComponent::gpio_isr(MyComponent *arg) {
 }
 ```
 
+## Answering a Modbus Bus While the Loop Is Blocked
+
+A Modbus client normally reports a server that stops replying as an error, not as a device that has gone away. A component that derives from `modbus::ModbusServerDevice` may therefore have to keep replying during a bounded wait that the main loop does not cover, such as telling the client about an upcoming restart.
+
+`ModbusServerDevice::service_bus_()` runs one pass of its hub: it sends a reply that was held back because the wire was busy, then receives and dispatches whatever has arrived. It is `protected`, so only a class deriving from `ModbusServerDevice` can call it, and only for its own hub.
+
+```cpp
+#include "esphome/core/application.h"
+
+void MyDevice::on_shutdown() {
+  const uint32_t started = millis();
+  // announcement_done_() is your own completion check.
+  while (!this->announcement_done_() && millis() - started < TIMEOUT_MS) {
+    App.feed_wdt();
+    this->service_bus_();
+    delay(1);
+  }
+  // One more pass, so a reply the last one held back still reaches the wire.
+  this->service_bus_();
+}
+```
+
+`service_bus_()` returns `false` without doing anything before the device is registered, and while the hub is dispatching a frame. The second case guards against re-entry: if a request handler called it, the hub could answer a newer request before finishing the one it is handling.
+
+The pass runs the device's own request handlers, so the state the loop is watching can change inside `service_bus_()`. A wait that a handler or an automation can reach needs its own in-progress flag, or it will be entered a second time from within itself.
+
+> [!WARNING]
+> This is for a wait that is already unavoidable, not a way to poll the bus faster; during normal operation the hub's `loop()` does this. A component must otherwise not block, see [Codebase standards](/contributing/code/#c). `teardown()` looks like the better hook for a shutdown, but `App.reboot()` skips teardown entirely, which is the path taken when `wifi`, `api` or `mqtt` give up on `reboot_timeout`.
+
 ## See Also
 
 - Component Loop Control: [`esphome/core/component.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.h) and [`esphome/core/component.cpp`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.cpp)
 - Wake Loop Threadsafe: PR [#11681](https://github.com/esphome/esphome/pull/11681)
+- Modbus Server Device: PR [#19042](https://github.com/esphome/esphome/pull/19042)
 - [Socket Consumption API](/architecture/components/socket_consumption_api) - For components that use network sockets

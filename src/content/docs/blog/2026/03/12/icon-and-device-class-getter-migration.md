@@ -51,7 +51,7 @@ The following `EntityBase` setters have been removed and packed into the existin
 - `set_icon()`
 - `set_device_class()`
 - `set_unit_of_measurement()`
-- `set_internal()` (kept for existing projects that call it during setup since 2026.10.0, not recommended for new code, see [Hiding Entities at Boot](/architecture/components/advanced#hiding-entities-at-boot))
+- `set_internal()` (supported again during setup since 2026.10.0, prefer the `internal:` YAML key when possible, see [Hiding Entities at Boot](/architecture/components/advanced#hiding-entities-at-boot))
 - `set_disabled_by_default()`
 - `set_entity_category()`
 

@@ -368,9 +368,9 @@ void IRAM_ATTR MyComponent::gpio_isr(MyComponent *arg) {
 
 ## Hiding Entities at Boot
 
-`EntityBase::set_internal(bool)` changes whether an entity is exposed outside ESPHome (API, MQTT, web server, Prometheus). It is kept for existing projects that decide the flag at boot and is not recommended for new designs; use the `internal:` YAML key instead. It is only valid before setup finishes: call it from `on_boot` at the default priority, or from a component's `setup()` that runs above `setup_priority::AFTER_WIFI`. Calls after setup log an error and are ignored.
+`EntityBase::set_internal(bool)` changes whether an entity is exposed outside ESPHome (API, MQTT, web server, Prometheus). Prefer the `internal:` YAML key whenever possible: it is guaranteed and has none of the limitations below. Use `set_internal()` only when the decision can only be made at boot. It is only valid before setup finishes: call it from `on_boot` at the default priority, or from a component's `setup()` that runs above `setup_priority::AFTER_WIFI`. Calls after setup log an error and are ignored.
 
-Existing projects use it when one firmware serves several hardware variants and the variant is decided once per boot, for example from a stored preference:
+The typical case is one firmware serving several hardware variants, with the variant decided once per boot from a stored preference:
 
 ```yaml
 esphome:

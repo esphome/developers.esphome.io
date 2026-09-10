@@ -384,7 +384,7 @@ esphome:
 
 ### Limitations
 
-These are by design and will not be changed:
+These are known limitations, not bugs, so please do not open issue reports for them. A PR that removes one with no RAM or performance cost would be considered.
 
 - No consumer is notified of a change, so the flag can only be decided once per boot.
 - A call from a priority below `AFTER_WIFI` still passes the guard, but MQTT (`AFTER_CONNECTION`) and the API camera listener (`AFTER_WIFI`) have already read the flag and keep the old value. An API client that connects while setup is stalled on a slow component has also already listed the entities.

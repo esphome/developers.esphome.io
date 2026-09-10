@@ -394,8 +394,8 @@ bool MyClimate::can_proceed() {
     this->zone_2_switch_->set_internal(!this->features_.zones);
     return true;
   }
-  // Give up after 10 s and leave the optional entities hidden
-  return App.get_loop_component_start_time() - this->handshake_started_ > 10000;
+  // Give up after 2 s and leave the optional entities hidden
+  return App.get_loop_component_start_time() - this->handshake_started_ > 2000;
 }
 ```
 

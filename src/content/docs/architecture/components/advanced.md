@@ -368,13 +368,35 @@ void IRAM_ATTR MyComponent::gpio_isr(MyComponent *arg) {
 
 ## Hiding Entities at Boot
 
-Prefer the `internal:` YAML key; it is guaranteed and has none of the limitations below. When the decision can only be made at boot, `EntityBase::set_internal(bool)` may be called from `on_boot` at the default priority or from a `setup()` above `setup_priority::AFTER_WIFI`. Calls after setup log an error and are ignored.
+Prefer the `internal:` YAML key; it is guaranteed and has none of the limitations below. When the decision can only be made at boot, `EntityBase::set_internal(bool)` may be called from `on_boot` at the default priority or from a component's `setup()` above `setup_priority::AFTER_WIFI`. Calls after setup are undefined behavior: the flag is still written and an error is logged, and from 2027.3.0 the call is ignored.
 
 ```yaml
 esphome:
   on_boot:
     then:
       - lambda: id(hp2_temperature).set_internal(id(setup_pref).load());
+```
+
+### Waiting for a device handshake
+
+If the answer comes from the device itself, hold setup with `can_proceed()` until it arrives. `Application::setup()` keeps running the loops of components already set up while it waits, so the handshake can proceed, and the API and MQTT have not run yet when the flag is written. Always add a timeout so a missing device does not block boot.
+
+```cpp
+void MyClimate::setup() {
+  this->handshake_started_ = App.get_loop_component_start_time();
+  this->start_handshake_();
+}
+
+void MyClimate::loop() { this->process_uart_data_(); }
+
+bool MyClimate::can_proceed() {
+  if (this->features_known_) {
+    this->zone_2_switch_->set_internal(!this->features_.zones);
+    return true;
+  }
+  // Give up after 10 s and leave the optional entities hidden
+  return App.get_loop_component_start_time() - this->handshake_started_ > 10000;
+}
 ```
 
 Known limitations, not bugs; a PR removing one with no RAM or performance cost would be considered:

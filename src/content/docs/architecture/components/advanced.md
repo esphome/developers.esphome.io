@@ -368,18 +368,24 @@ void IRAM_ATTR MyComponent::gpio_isr(MyComponent *arg) {
 
 ## Hiding Entities at Boot
 
-Prefer the `internal:` YAML key; it is guaranteed and has none of the limitations below. When the decision can only be made at boot, `EntityBase::set_internal(bool)` may be called from `on_boot` at the default priority or from a component's `setup()` above `setup_priority::AFTER_WIFI`. Calls after setup are undefined behavior: the flag is still written and an error is logged, and from 2027.3.0 the call is ignored.
+Prefer the `internal:` YAML key; it is guaranteed and has none of the limitations below. When the decision can only be made at boot, `EntityBase::set_internal(bool)` may be called from `on_boot` at its default priority or from a component's `setup()` that runs before `setup_priority::AFTER_WIFI` (a numerically higher priority). Requires ESPHome 2026.10.0 or later ([PR #19069](https://github.com/esphome/esphome/pull/19069)). Calls after setup are unsupported: the flag is still written and an error is logged, and from 2027.3.0 the call is ignored.
 
 ```yaml
+globals:
+  - id: second_unit_installed
+    type: bool
+    restore_value: true
+    initial_value: "false"
+
 esphome:
   on_boot:
     then:
-      - lambda: id(hp2_temperature).set_internal(id(setup_pref).load());
+      - lambda: id(unit_2_temperature).set_internal(!id(second_unit_installed));
 ```
 
 ### Waiting for a device handshake
 
-If the answer comes from the device itself, hold setup with `can_proceed()` until it arrives. `Application::setup()` keeps running the loops of components already set up while it waits, so the handshake can proceed, and the API and MQTT have not run yet when the flag is written. Always add a timeout so a missing device does not block boot.
+If the answer comes from the device itself, hold setup with `can_proceed()` until it arrives. `Application::setup()` keeps running the loops of components already set up while it waits, so the handshake can proceed, and the API and MQTT have not run yet when the flag is written. The component must keep the default `setup_priority::DATA` or another priority before `AFTER_WIFI`. Always add a timeout so a missing device does not block boot.
 
 ```cpp
 void MyClimate::setup() {
@@ -389,20 +395,22 @@ void MyClimate::setup() {
 
 void MyClimate::loop() { this->process_uart_data_(); }
 
+// Called from process_uart_data_() once the device has reported its features
+void MyClimate::on_features_(const Features &features) {
+  this->zone_2_switch_->set_internal(!features.zones);
+  this->features_known_ = true;
+}
+
 bool MyClimate::can_proceed() {
-  if (this->features_known_) {
-    this->zone_2_switch_->set_internal(!this->features_.zones);
-    return true;
-  }
-  // Give up after 2 s and leave the optional entities hidden
-  return App.get_loop_component_start_time() - this->handshake_started_ > 2000;
+  // Give up after 2 s; entities then keep their YAML internal: value
+  return this->features_known_ || App.get_loop_component_start_time() - this->handshake_started_ > 2000;
 }
 ```
 
-Known limitations, not bugs; a PR removing one with no RAM or performance cost would be considered:
+Known limitations. These are not bugs, so please do not open issue reports for them; a PR that removes one with no RAM or performance cost would be considered.
 
 - Consumers are not notified, so the flag is decided once per boot.
-- Below `AFTER_WIFI`, MQTT and the API camera listener have already read the flag.
+- After `setup_priority::AFTER_WIFI` the API camera listener has already read the flag; after `setup_priority::AFTER_CONNECTION`, MQTT has too.
 - Un-hiding a YAML `internal: true` entity skips the duplicate name check, and Zigbee never registers it.
 
 ## See Also

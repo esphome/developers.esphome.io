@@ -51,13 +51,13 @@ The following `EntityBase` setters have been removed and packed into the existin
 - `set_icon()`
 - `set_device_class()`
 - `set_unit_of_measurement()`
-- `set_internal()` (supported again during setup since 2026.10.0, prefer the `internal:` YAML key when possible, see [Hiding Entities at Boot](/architecture/components/advanced#hiding-entities-at-boot))
+- `set_internal()` (supported again during setup starting with 2026.10.0, prefer the `internal:` YAML key when possible, see [Hiding Entities at Boot](/architecture/components/advanced#hiding-entities-at-boot))
 - `set_disabled_by_default()`
 - `set_entity_category()`
 
 Additionally, `set_device()` has been renamed to `set_device_()` and made `protected`.
 
-These were codegen-only setters — calling them at runtime was unsafe and could silently corrupt state or crash the device (undefined behavior). If you were calling `set_icon()` from lambdas to dynamically change icons at runtime, move the icon logic to the Home Assistant side (e.g., using template sensors with `icon` templates).
+These were codegen-only setters — calling them at runtime was unsafe and could silently corrupt state or crash the device (undefined behavior). `set_internal()` is the exception starting with 2026.10.0, the rest remain codegen-only. If you were calling `set_icon()` from lambdas to dynamically change icons at runtime, move the icon logic to the Home Assistant side (e.g., using template sensors with `icon` templates).
 
 See [PR #14171](https://github.com/esphome/esphome/pull/14171), [PR #14437](https://github.com/esphome/esphome/pull/14437), [PR #14443](https://github.com/esphome/esphome/pull/14443), and [PR #14564](https://github.com/esphome/esphome/pull/14564).
 
@@ -163,7 +163,8 @@ grep -rn 'get_device_class_ref\|get_device_class()' your_component/
 grep -rn 'traits\.get_device_class\|traits\.get_unit_of_measurement' your_component/
 
 # Find removed EntityBase setters
-grep -rn 'set_icon\|set_device_class\|set_unit_of_measurement\|set_internal\|set_disabled_by_default\|set_entity_category\|set_name(' your_component/
+grep -rn 'set_icon\|set_device_class\|set_unit_of_measurement\|set_disabled_by_default\|set_entity_category\|set_name(' your_component/
+# set_internal() is supported again during setup starting with 2026.10.0, see "Hiding Entities at Boot"
 ```
 
 ## Questions?

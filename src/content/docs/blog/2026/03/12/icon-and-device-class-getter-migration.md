@@ -51,7 +51,7 @@ The following `EntityBase` setters have been removed and packed into the existin
 - `set_icon()`
 - `set_device_class()`
 - `set_unit_of_measurement()`
-- `set_internal()`
+- `set_internal()` (supported again during setup since 2026.10.0, see [this post](/blog/2026/09/10/set_internal-supported-during-setup/))
 - `set_disabled_by_default()`
 - `set_entity_category()`
 

@@ -366,8 +366,34 @@ void IRAM_ATTR MyComponent::gpio_isr(MyComponent *arg) {
 }
 ```
 
+## Hiding Entities at Boot
+
+`EntityBase::set_internal(bool)` changes whether an entity is exposed outside ESPHome (API, MQTT, web server, Prometheus). It is only valid before setup finishes: call it from `on_boot` at the default priority, or from a component's `setup()` that runs above `setup_priority::AFTER_WIFI`. Calls after setup log an error and are ignored.
+
+Use this when one firmware serves several hardware variants and the variant is decided once per boot, for example from a stored preference:
+
+```yaml
+esphome:
+  on_boot:
+    then:
+      - lambda: |-
+          bool single_unit = id(setup_pref).load();
+          id(hp2_temperature).set_internal(single_unit);
+          id(hp2_power).set_internal(single_unit);
+```
+
+### Limitations
+
+These are by design and will not be changed:
+
+- No consumer is notified of a change, so the flag can only be decided once per boot.
+- A call from a priority below `AFTER_WIFI` still passes the guard, but MQTT (`AFTER_CONNECTION`) and the API camera listener (`AFTER_WIFI`) have already read the flag and keep the old value. An API client that connects while setup is stalled on a slow component has also already listed the entities.
+- Un-hiding an entity declared `internal: true` in YAML skips the duplicate name check codegen runs for exposed entities, so a name collision can surface at runtime. Entities with only an `id:` are forced internal and use the id as their name.
+- Zigbee codegen skips YAML internal entities entirely, so un-hiding cannot add them to Zigbee.
+
 ## See Also
 
 - Component Loop Control: [`esphome/core/component.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.h) and [`esphome/core/component.cpp`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.cpp)
 - Wake Loop Threadsafe: PR [#11681](https://github.com/esphome/esphome/pull/11681)
+- Hiding Entities at Boot: PR [#19069](https://github.com/esphome/esphome/pull/19069)
 - [Socket Consumption API](/architecture/components/socket_consumption_api) - For components that use network sockets

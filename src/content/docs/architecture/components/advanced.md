@@ -407,7 +407,9 @@ bool MyClimate::can_proceed() {
 }
 ```
 
-Known limitations. These are not bugs, so please do not open issue reports for them; a PR that removes one with no RAM or performance cost would be considered.
+### Known limitations
+
+These are not bugs, so please do not open issue reports for them; a PR that removes one with no RAM or performance cost would be considered.
 
 - Consumers are not notified, so the flag is decided once per boot.
 - After `setup_priority::AFTER_WIFI` the API camera listener has already read the flag; after `setup_priority::AFTER_CONNECTION`, MQTT has too.

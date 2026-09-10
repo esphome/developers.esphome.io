@@ -368,28 +368,20 @@ void IRAM_ATTR MyComponent::gpio_isr(MyComponent *arg) {
 
 ## Hiding Entities at Boot
 
-`EntityBase::set_internal(bool)` changes whether an entity is exposed outside ESPHome (API, MQTT, web server, Prometheus). Prefer the `internal:` YAML key whenever possible: it is guaranteed and has none of the limitations below. Use `set_internal()` only when the decision can only be made at boot. It is only valid before setup finishes: call it from `on_boot` at the default priority, or from a component's `setup()` that runs above `setup_priority::AFTER_WIFI`. Calls after setup log an error and are ignored.
-
-The typical case is one firmware serving several hardware variants, with the variant decided once per boot from a stored preference:
+Prefer the `internal:` YAML key; it is guaranteed and has none of the limitations below. When the decision can only be made at boot, `EntityBase::set_internal(bool)` may be called from `on_boot` at the default priority or from a `setup()` above `setup_priority::AFTER_WIFI`. Calls after setup log an error and are ignored.
 
 ```yaml
 esphome:
   on_boot:
     then:
-      - lambda: |-
-          bool single_unit = id(setup_pref).load();
-          id(hp2_temperature).set_internal(single_unit);
-          id(hp2_power).set_internal(single_unit);
+      - lambda: id(hp2_temperature).set_internal(id(setup_pref).load());
 ```
 
-### Limitations
+Known limitations, not bugs; a PR removing one with no RAM or performance cost would be considered:
 
-These are known limitations, not bugs, so please do not open issue reports for them. A PR that removes one with no RAM or performance cost would be considered.
-
-- No consumer is notified of a change, so the flag can only be decided once per boot.
-- A call from a priority below `AFTER_WIFI` still passes the guard, but MQTT (`AFTER_CONNECTION`) and the API camera listener (`AFTER_WIFI`) have already read the flag and keep the old value. An API client that connects while setup is stalled on a slow component has also already listed the entities.
-- Un-hiding an entity declared `internal: true` in YAML skips the duplicate name check codegen runs for exposed entities, so a name collision can surface at runtime. Entities with only an `id:` are forced internal and use the id as their name.
-- Zigbee codegen skips YAML internal entities entirely, so un-hiding cannot add them to Zigbee.
+- Consumers are not notified, so the flag is decided once per boot.
+- Below `AFTER_WIFI`, MQTT and the API camera listener have already read the flag.
+- Un-hiding a YAML `internal: true` entity skips the duplicate name check, and Zigbee never registers it.
 
 ## See Also
 

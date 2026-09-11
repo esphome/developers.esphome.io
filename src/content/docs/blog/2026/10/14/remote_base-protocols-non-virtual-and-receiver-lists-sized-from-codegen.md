@@ -142,7 +142,7 @@ except ImportError:
     receiver = await cg.get_variable(config[CONF_REMOTE_RECEIVER_ID])
     cg.add(var.set_receiver(receiver))
 else:
-    await attach_receiver(var, config, CONF_REMOTE_RECEIVER_ID)
+    await attach_receiver(var, config, key=CONF_REMOTE_RECEIVER_ID)
 ```
 
 ```cpp
@@ -173,7 +173,7 @@ grep -rnE 'register_listener|register_dumper' your_component/
 grep -rnE 'call_listeners_|call_dumpers_' your_component/
 
 # Protocol classes used from C++ or lambdas
-grep -rn 'remote_base::[A-Za-z0-9]*Protocol' your_component/ your_configs/
+grep -rnE 'remote_base::([A-Za-z0-9]*Protocol|RCSwitchBase)' your_component/ your_configs/
 ```
 
 ## Questions?

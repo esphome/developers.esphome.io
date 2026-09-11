@@ -14,7 +14,7 @@ This is a **developer breaking change** for external components in **ESPHome 202
 
 **[PR #19084](https://github.com/esphome/esphome/pull/19084): Make protocol methods non-virtual and size receiver lists from codegen**
 
-Every protocol class derived from `RemoteProtocol<T>`, but nothing ever used one through a base pointer: dumpers, triggers, binary sensors and transmit actions are all templates on the concrete protocol type. The virtual methods only cost a vtable per protocol and kept the linker from dropping the `encode()`, `decode()` and `dump()` bodies a build never calls. The receiver kept its listeners and dumpers in `std::vector`s that grew on the heap during setup, even though code generation knows exactly how many there are. On a typical ESP8266 receiver build the change saves about 14 KB of flash and moves the rc_switch protocol table from RAM into flash.
+Every protocol class derived from `RemoteProtocol<T>`, but nothing ever used one through a base pointer: dumpers, triggers, binary sensors and transmit actions are all templates on the concrete protocol type. The virtual methods only cost a vtable per protocol and kept the linker from dropping the `encode()`, `decode()` and `dump()` bodies a build never calls. The receiver kept its listeners and dumpers in `std::vector`s that grew on the heap during setup, even though code generation knows exactly how many there are. The CI memory report on the PR measured 14.6 KB less flash on the ESP8266 test build with a receiver and the ir_rf_proxy platforms, and 11.9 KB less on the ESP32 IDF build; the rc_switch protocol table also moves from RAM into flash.
 
 ### Why a clean break
 
@@ -25,7 +25,7 @@ Every protocol added to `remote_base` has cost every user of the component, whet
 Three things, each with its own migration step below:
 
 1. `RemoteProtocol<T>` is an empty marker. `encode()`, `decode()` and `dump()` are plain member functions, checked by C++20 concepts wherever a protocol is used.
-1. `RemoteReceiverBase::register_listener()` and `register_dumper()` only exist when code generation counted a slot for them. A registration from C++ `setup()` has no slot.
+1. `RemoteReceiverBase::register_listener()` and `register_dumper()` only accept a registration when code generation counted a slot for it; with no slot counted the call fails a `static_assert`. A registration from C++ `setup()` has no slot.
 1. A protocol's `*_protocol.cpp` is only compiled when something in the configuration requests it: a dumper, a trigger, a binary sensor, a transmit action, or an explicit request from a component's `to_code()`.
 
 ## Who This Affects
@@ -64,7 +64,7 @@ class MyProtocol : public RemoteProtocol<MyData> {
 };
 ```
 
-The signatures are unchanged. The `RemoteProtocolDecoder`, `RemoteProtocolDumper` and `RemoteProtocolEncoder` concepts check them wherever the protocol is used, so a mismatch is reported at the protocol's own header.
+The signatures are unchanged. The `RemoteProtocolDecoder`, `RemoteProtocolDumper` and `RemoteProtocolEncoder` concepts check them wherever the protocol is used, so a mismatch is reported at the `DECLARE_REMOTE_PROTOCOL(...)` line, normally in the protocol's own header; a protocol declared without that macro sees it at its first use.
 
 ### Listeners and dumpers: register from Python
 
@@ -106,7 +106,7 @@ The same applies to a YAML lambda that uses a protocol class, for example `id(tx
 
 ### Receiver platforms: one call for listeners and dumpers
 
-A platform deriving from `RemoteReceiverBase` that called the protected `call_listeners_()` and `call_dumpers_()` separately now calls `call_listeners_dumpers_()`; the two were merged so each list can compile out on its own.
+A platform deriving from `RemoteReceiverBase` that called the protected `call_listeners_()` and `call_dumpers_()` separately now calls `call_listeners_dumpers_()`, which already existed as the combined entry point; the two were merged so each list can compile out on its own.
 
 ## Supporting Multiple ESPHome Versions
 

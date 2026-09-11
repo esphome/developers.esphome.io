@@ -16,6 +16,10 @@ This is a **developer breaking change** for external components in **ESPHome 202
 
 Every protocol class derived from `RemoteProtocol<T>`, but nothing ever used one through a base pointer: dumpers, triggers, binary sensors and transmit actions are all templates on the concrete protocol type. The virtual methods only cost a vtable per protocol and kept the linker from dropping the `encode()`, `decode()` and `dump()` bodies a build never calls. The receiver kept its listeners and dumpers in `std::vector`s that grew on the heap during setup, even though code generation knows exactly how many there are. On a typical ESP8266 receiver build the change saves about 14 KB of flash and moves the rc_switch protocol table from RAM into flash.
 
+### Why a clean break
+
+Every protocol added to `remote_base` has cost every user of the component, whether their configuration used it or not: with the methods virtual and every source file always compiled, each protocol's vtable, its `encode()`, `decode()` and `dump()` bodies and its dumper and trigger instantiations all stayed in the image. There are 35 protocols in tree and more arrive most releases, so that per-protocol tax kept growing for every `remote_receiver` and `remote_transmitter` user, most of whom use one or two protocols. Making the methods non-virtual and compiling only the requested sources removes the tax. There is no way to keep `override` compiling on a method that is no longer virtual, so a deprecation window is not possible and the change lands as a clean break with this guide.
+
 ## What's Changing
 
 Three things, each with its own migration step below:

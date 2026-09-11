@@ -89,7 +89,7 @@ async def to_code(config):
     await remote_base.attach_receiver(var, config)
 ```
 
-`attach_receiver(var, config, key=...)` accepts a different config key, `remote_base.register_listener(var, config)` registers without calling `set_receiver()`, and `remote_base.add_listener(receiver, var)` and `remote_base.add_dumper(receiver, dumper)` take the receiver object directly.
+`attach_receiver(var, config, key=...)` accepts a different config key, `remote_base.register_listener(var, config)` registers without calling `set_receiver()`, and `remote_base.add_listener(receiver, var)` and `remote_base.add_dumper(receiver, dumper)` take the receiver object directly. The slot counting lives in these helpers: a hand written `cg.add(receiver.register_listener(var))` emits the call but counts no slot, so it fails the same way the C++ registration does.
 
 When a configuration counted no slot at all, a C++ registration fails the build with a message naming this fix; when the counted slots are already used, the same message is logged at boot.
 
@@ -102,7 +102,7 @@ A component that uses a protocol class directly in C++, with no dumper, trigger,
 remote_base.request_protocol("coolix")
 ```
 
-Otherwise the protocol's `.cpp` is filtered out and the link fails with an undefined reference to its `encode()`, `decode()` or `dump()`. Unknown names raise during code generation and list the valid ones.
+The name is the protocol's source file without the `_protocol.cpp` suffix: `NECProtocol` lives in `nec_protocol.cpp`, so it is `"nec"`; `RCSwitchBase` lives in `rc_switch_protocol.cpp`, so it is `"rc_switch"`. Otherwise the protocol's `.cpp` is filtered out and the link fails with an undefined reference to its `encode()`, `decode()` or `dump()`. Unknown names raise during code generation and list the valid ones.
 
 The same applies to a YAML lambda that uses a protocol class, for example `id(tx).transmit<remote_base::NECProtocol>(data)`: reference that protocol somewhere else in the configuration, with a `dump` entry, an `on_nec` trigger or a `remote_transmitter.transmit_nec` action.
 
@@ -188,5 +188,6 @@ If you have questions about migrating your external component, please ask in:
 - [PR #19084: Make protocol methods non-virtual and size receiver lists from codegen](https://github.com/esphome/esphome/pull/19084)
 - [Remote Transmitter component](https://esphome.io/components/remote_transmitter.html)
 - [Remote Receiver component](https://esphome.io/components/remote_receiver.html)
+- [Listener StaticVector Migration: WiFi and Logger](/blog/2026/01/13/listener-staticvector-migration-wifi-and-logger/)
 - [call_loop(), mark_failed(), and call_dump_config() Are No Longer Virtual](/blog/2026/03/12/call_loop-mark_failed-and-call_dump_config-are-no-longer-virtual/)
 - [BLE Event Handler Dispatch Devirtualized](/blog/2026/04/09/ble-event-handler-dispatch-devirtualized/)

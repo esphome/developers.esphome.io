@@ -170,7 +170,7 @@ grep -rnE '(encode|decode|dump)\(.*\) override' your_component/
 grep -rnE 'register_listener|register_dumper' your_component/
 
 # Receiver platforms calling the split helpers
-grep -rnE 'call_listeners_|call_dumpers_' your_component/
+grep -rnE 'call_listeners_\(|call_dumpers_\(' your_component/
 
 # Protocol classes used from C++ or lambdas
 grep -rnE 'remote_base::([A-Za-z0-9]*Protocol|RCSwitchBase)' your_component/ your_configs/

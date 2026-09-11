@@ -22,11 +22,12 @@ Every protocol added to `remote_base` has cost every user of the component, whet
 
 ## What's Changing
 
-Three things, each with its own migration step below:
+Four things, each with its own migration step below:
 
 1. `RemoteProtocol<T>` is an empty marker. `encode()`, `decode()` and `dump()` are plain member functions, checked by C++20 concepts wherever a protocol is used.
 1. `RemoteReceiverBase::register_listener()` and `register_dumper()` only accept a registration when code generation counted a slot for it; with no slot counted the call fails a `static_assert`. A registration from C++ `setup()` has no slot.
 1. A protocol's `*_protocol.cpp` is only compiled when something in the configuration requests it: a dumper, a trigger, a binary sensor, a transmit action, or an explicit request from a component's `to_code()`.
+1. The protected `call_listeners_()` and `call_dumpers_()` on `RemoteReceiverBase` are merged into `call_listeners_dumpers_()`, which already existed.
 
 ## Who This Affects
 
@@ -35,8 +36,9 @@ External components that:
 - derive a protocol class from `remote_base::RemoteProtocol<T>` and mark its methods `override`
 - call `register_listener()` or `register_dumper()` on a remote receiver from C++
 - use a protocol class such as `remote_base::NECProtocol` from their own C++ without a dumper, trigger, binary sensor or transmit action for it in the configuration
+- call `encode()`, `decode()` or `dump()` through a `RemoteProtocol<T>` pointer or reference; the base no longer declares them, so the error is `no member named 'decode'` rather than a message about `override`
 
-A GitHub code search found protocol classes with `override` in `pauln/esphome-linp-doorbell-g04`, `brown-studios/esphome-maxxfan-protocol`, `alexyao2015/ESPHomeYAML`, `kitsuned/esphome-configs`, `pputerla/esphome-custom-components` and `Weissnix4711/esphome-opentherm-custom`, and C++ side listener or dumper registration in `AzonInc/Doorman`, `maciekczwa/esphome_alecto`, `leonardpitzu/esphome_somfy`, `swoboda1337/somfy-esphome`, `CoMPaTech/esphome_ct`, `berfenger/esphome-mantra-rf-433` and `ryanh7/esphome-custom-components`.
+A GitHub code search in September 2026, excluding forks and vendored copies of ESPHome, found protocol classes with `override` in `pauln/esphome-linp-doorbell-g04`, `brown-studios/esphome-maxxfan-protocol`, `alexyao2015/ESPHomeYAML`, `kitsuned/esphome-configs`, `pputerla/esphome-custom-components` and `Weissnix4711/esphome-opentherm-custom`, and C++ side listener or dumper registration in `AzonInc/Doorman`, `maciekczwa/esphome_alecto`, `leonardpitzu/esphome_somfy`, `swoboda1337/somfy-esphome`, `CoMPaTech/esphome_ct`, `berfenger/esphome-mantra-rf-433` and `ryanh7/esphome-custom-components`.
 
 **Standard YAML configurations are not affected**, with one exception: a lambda that calls `id(tx).transmit<remote_base::NECProtocol>(data)` needs that protocol referenced somewhere else in the configuration, see below.
 
@@ -129,7 +131,7 @@ class MyProtocol : public RemoteProtocol<MyData> {
 };
 ```
 
-For listeners, `remote_base.register_listener(var, config)` exists on both versions, so a component whose schema uses `CONF_RECEIVER_ID` can move the registration to Python once and drop the C++ call with no guard. `attach_receiver`, `add_listener` and `request_protocol` only exist from 2026.10.0; keep the C++ registration for older versions:
+For listeners, `remote_base.register_listener(var, config)` exists on both versions, so a component whose schema uses `CONF_RECEIVER_ID` can move the registration to Python once and drop the C++ call with no guard. The guard below is only for a component whose receiver option has another name, since `attach_receiver`, `add_listener`, `add_dumper` and `request_protocol` only exist from 2026.10.0; keep the C++ registration for older versions:
 
 ```python
 # in to_code()
@@ -165,7 +167,10 @@ grep -rn 'RemoteProtocol<' your_component/
 grep -rnE '(encode|decode|dump)\(.*\) override' your_component/
 
 # Listener or dumper registration from C++
-grep -rn 'register_listener\|register_dumper' your_component/
+grep -rnE 'register_listener|register_dumper' your_component/
+
+# Receiver platforms calling the split helpers
+grep -rnE 'call_listeners_|call_dumpers_' your_component/
 
 # Protocol classes used from C++ or lambdas
 grep -rn 'remote_base::[A-Za-z0-9]*Protocol' your_component/ your_configs/
@@ -183,3 +188,5 @@ If you have questions about migrating your external component, please ask in:
 - [PR #19084: Make protocol methods non-virtual and size receiver lists from codegen](https://github.com/esphome/esphome/pull/19084)
 - [Remote Transmitter component](https://esphome.io/components/remote_transmitter.html)
 - [Remote Receiver component](https://esphome.io/components/remote_receiver.html)
+- [call_loop(), mark_failed(), and call_dump_config() Are No Longer Virtual](/blog/2026/03/12/call_loop-mark_failed-and-call_dump_config-are-no-longer-virtual/)
+- [BLE Event Handler Dispatch Devirtualized](/blog/2026/04/09/ble-event-handler-dispatch-devirtualized/)

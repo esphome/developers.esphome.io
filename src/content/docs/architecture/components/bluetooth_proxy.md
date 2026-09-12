@@ -40,18 +40,26 @@ A later `set_advertisement_filter()` call replaces an earlier one; there is one 
 
 ## Compiling the hook in
 
-The hook is gated behind `USE_BLUETOOTH_PROXY_ADVERTISEMENT_FILTER`, which your component emits
-from its own codegen:
+The hook is compiled out unless a component asks for it. Turn it on from your codegen:
 
 ```python
+from esphome.components import bluetooth_proxy
+
+
 async def to_code(config):
-    cg.add_define("USE_BLUETOOTH_PROXY_ADVERTISEMENT_FILTER")
+    bluetooth_proxy.enable_advertisement_filter()
     ...
 ```
 
-Without that define there is no slot, no member and no branch on the advertisement path, so a
-proxy that installs no filter is unaffected — the same configuration compiles to a byte-identical
-image with and without this hook present in core.
+:::caution
+Call `enable_advertisement_filter()` rather than emitting the underlying define yourself. The
+define is an implementation detail of `bluetooth_proxy` and may be renamed; this function is the
+supported interface.
+:::
+
+Without it there is no slot, no member and no branch on the advertisement path, so a proxy that
+installs no filter is unaffected — the same configuration compiles to a byte-identical image with
+and without this hook present in core.
 
 Declare `DEPENDENCIES = ["bluetooth_proxy"]` and take the proxy as a `cv.use_id` reference to get
 the instance to install into.

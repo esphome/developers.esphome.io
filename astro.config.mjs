@@ -84,6 +84,7 @@ export default defineConfig({
                   ],
                 },
                 "architecture/components/automations",
+                "architecture/components/bluetooth_proxy",
                 "architecture/components/socket_consumption_api",
                 "architecture/components/advanced",
                 {

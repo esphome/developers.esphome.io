@@ -26,7 +26,7 @@ Four things, each with its own migration step below:
 
 1. `RemoteProtocol<T>` is an empty marker. `encode()`, `decode()` and `dump()` are plain member functions, checked by C++20 concepts wherever a protocol is used.
 1. `RemoteReceiverBase::register_listener()` and `register_dumper()` only accept a registration when code generation counted a slot for it; with no slot counted the call fails a `static_assert`. A registration from C++ `setup()` has no slot.
-1. A protocol's `*_protocol.cpp` is only compiled when something in the configuration requests it: a dumper, a trigger, a binary sensor, a transmit action, or an explicit request from a component's `to_code()`.
+1. A protocol's `*_protocol.cpp` in `remote_base` is only compiled when something in the configuration requests it: a dumper, a trigger, a binary sensor, a transmit action, or an explicit request from a component's `to_code()`. A protocol that ships in your own component is compiled as before.
 1. The protected `call_listeners_()` and `call_dumpers_()` on `RemoteReceiverBase` are merged into `call_listeners_dumpers_()`, which already existed.
 
 ## Who This Affects
@@ -35,7 +35,7 @@ External components that:
 
 - derive a protocol class from `remote_base::RemoteProtocol<T>` and mark its methods `override`
 - call `register_listener()` or `register_dumper()` on a remote receiver from C++
-- use a protocol class such as `remote_base::NECProtocol` from their own C++ without a dumper, trigger, binary sensor or transmit action for it in the configuration
+- use a protocol class bundled in `remote_base`, such as `remote_base::NECProtocol`, from their own C++ without a dumper, trigger, binary sensor or transmit action for it in the configuration
 - call `encode()`, `decode()` or `dump()` through a `RemoteProtocol<T>` pointer or reference; the base no longer declares them, so the error is `no member named 'decode'` rather than a message about `override`
 
 A GitHub code search in September 2026, excluding forks and vendored copies of ESPHome, found protocol classes with `override` in `pauln/esphome-linp-doorbell-g04`, `brown-studios/esphome-maxxfan-protocol`, `alexyao2015/ESPHomeYAML`, `kitsuned/esphome-configs`, `pputerla/esphome-custom-components` and `Weissnix4711/esphome-opentherm-custom`, and C++ side listener or dumper registration in `AzonInc/Doorman`, `maciekczwa/esphome_alecto`, `leonardpitzu/esphome_somfy`, `swoboda1337/somfy-esphome`, `CoMPaTech/esphome_ct`, `berfenger/esphome-mantra-rf-433` and `ryanh7/esphome-custom-components`.
@@ -93,9 +93,9 @@ async def to_code(config):
 
 When a configuration counted no slot at all, a C++ registration fails the build with a message naming this fix; when the counted slots are already used, the same message is logged at boot.
 
-### Protocols used from C++: request the source file
+### Bundled protocols used from C++: request the source file
 
-A component that uses a protocol class directly in C++, with no dumper, trigger, binary sensor or transmit action for it in the configuration, must keep the source file in the build:
+A component that uses one of the protocol classes bundled in `remote_base` directly in C++, with no dumper, trigger, binary sensor or transmit action for it in the configuration, must keep the source file in the build:
 
 ```python
 # in to_code()
@@ -103,6 +103,8 @@ remote_base.request_protocol("coolix")
 ```
 
 The name is the protocol's source file without the `_protocol.cpp` suffix: `NECProtocol` lives in `nec_protocol.cpp`, so it is `"nec"`; `RCSwitchBase` lives in `rc_switch_protocol.cpp`, so it is `"rc_switch"`. Otherwise the protocol's `.cpp` is filtered out and the link fails with an undefined reference to its `encode()`, `decode()` or `dump()`. Unknown names raise during code generation and list the valid ones.
+
+A protocol that ships in your own component needs no request. Only the source files in `remote_base` are filtered, so registering your protocol with `register_trigger`, `register_dumper`, `register_binary_sensor` or `register_action` works as before, and `request_protocol` only accepts the bundled names.
 
 The same applies to a YAML lambda that uses a protocol class, for example `id(tx).transmit<remote_base::NECProtocol>(data)`: reference that protocol somewhere else in the configuration, with a `dump` entry, an `on_nec` trigger or a `remote_transmitter.transmit_nec` action.
 
@@ -153,7 +155,7 @@ void MyComponent::setup() {
 }
 ```
 
-`request_protocol` follows the same shape; before 2026.10.0 every protocol source file is compiled, so the failing import is safe to ignore.
+`request_protocol` follows the same shape for a bundled protocol; before 2026.10.0 every protocol source file is compiled, so the failing import is safe to ignore.
 
 ## Timeline
 

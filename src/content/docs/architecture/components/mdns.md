@@ -7,7 +7,7 @@ decided at build time: the `mdns` component compiles in a service for each built
 API, the web server, and so on) plus any `services:` entries from the user's configuration. All of them are registered
 when the `mdns` component sets up.
 
-On ESP32 with ESP-IDF, a component can also enable and disable one of these services at runtime. A typical use is a
+On ESP32, a component can also enable and disable one of these services at runtime. A typical use is a
 service that must not be found before the server behind it is listening: the component starts the service disabled and
 enables it once its server is running, and disables it again if the server is stopped.
 
@@ -76,13 +76,18 @@ bool MDNSComponent::set_service_enabled(const char *service_type, const char *pr
 It finds the compiled-in service whose type and protocol match, including the leading underscores (for example
 `"_my_service"` and `"_tcp"`), then adds it to or removes it from the mDNS stack. It returns `true` when the service
 is in the requested state afterwards, which includes the case where it already was. It returns `false`, with a
-warning in the log, when no service matches or the mDNS stack refused the change.
+warning in the log, when no service matches, the mDNS stack refused the change, or the `mdns` component failed to set
+up.
 
 ### When to Call It
 
-The `mdns` component sets up at `setup_priority::AFTER_CONNECTION`, after most components, and only builds its service
-list then. A call from your own `setup()` therefore runs too early: the service is not found yet and the request is
-lost. Call it once `mdns` reports ready instead, for example from `loop()`:
+The `mdns` component sets up at `setup_priority::AFTER_CONNECTION`, after most components. A call made before then,
+for example from your own `setup()`, does not touch the mDNS stack: it only records the requested state, and the
+initial registration honours it. This is how a component starts its service disabled without it ever being announced.
+
+Once `mdns` is running, each call adds or removes the service immediately. To follow a state that changes over time,
+such as whether your server is listening, compare against a local copy and call only on a change, for example from
+`loop()`:
 
 ```cpp
 void MyComponent::loop() {
@@ -100,29 +105,28 @@ void MyComponent::loop() {
 }
 ```
 
-Keeping a local copy of the advertised state, as above, means the comparison is the only work on most loop
-iterations. `set_service_enabled()` itself blocks briefly on the mDNS task, so do not call it on every pass or from a
-time-critical path.
+The `is_ready()` check keeps the comparison the only work on most loop iterations while `mdns` is still starting.
+`set_service_enabled()` itself blocks briefly on the mDNS task once it is running, so do not call it on every pass or
+from a time-critical path.
 
 ### Starting a Service Disabled
 
-Each compiled service carries an `enabled` flag that defaults to `true`. When the define is set, a service whose flag
-is `false` is skipped during the initial registration and only appears once something enables it. The flag is set where
-the `mdns` component builds its service list, in `compile_records_()` in `mdns_component.cpp`:
+Call the method with `false` from your component's `setup()`, before `mdns` has set up:
 
 ```cpp
+void MyComponent::setup() {
 #ifdef USE_MDNS_SUPPORTS_ENABLE_DISABLE
-  // Starts disabled; the component enables it once its server is running
-  my_service.enabled = false;
+  this->mdns_->set_service_enabled("_my_service", "_tcp", false);
 #endif
+}
 ```
 
-This is currently only possible for the built-in services defined there. Services from the user's `services:`
-configuration always start enabled.
+The service is then skipped during the initial registration and first appears when something enables it. This relies
+on your component setting up before `mdns`, which is the case for every setup priority above `AFTER_CONNECTION`.
 
 ## Platform Support
 
-- ESP32 with ESP-IDF: supported.
+- ESP32 with either the ESP-IDF or the Arduino framework: supported. Both use the ESP-IDF mDNS stack.
 - ESP32 with OpenThread: not supported. Services are published through the SRP client, which has no equivalent.
 - ESP8266, RP2040, LibreTiny, and other platforms: not supported. These platforms build their own mDNS backend
   without this feature, and `request_service_enable_disable()` returns `False` for them.

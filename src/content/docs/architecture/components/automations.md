@@ -311,20 +311,7 @@ automation.register_simple_condition(
 )
 ```
 
-`register_parented_condition` and `register_bare_condition` mirror the action helpers, and the `@automation.register_condition` decorator remains for builders that must do more than construct the object:
-
-```python
-@automation.register_condition(
-    "my_component.is_active",
-    MyCondition,
-    cv.Schema({cv.GenerateID(): cv.use_id(MyComponent)}),
-)
-async def my_condition_to_code(
-    config: ConfigType, condition_id: MockObj, template_arg: MockObj, args: TemplateArgsType
-) -> MockObj:
-    parent = await cg.get_variable(config[CONF_ID])
-    return cg.new_Pvariable(condition_id, template_arg, parent)
-```
+`register_parented_condition` and `register_bare_condition` mirror the action helpers. A condition whose builder must also set fields uses the `@automation.register_condition` decorator on a builder function, with the same signature and body shape as the templatable action example above.
 
 ### C++
 

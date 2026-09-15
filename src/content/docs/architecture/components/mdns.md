@@ -79,6 +79,9 @@ is in the requested state afterwards, which includes the case where it already w
 warning in the log, when it is called before `mdns` has set up, when no service matches, when the mDNS stack refused
 the change, or when the `mdns` component failed to set up.
 
+Enabling a service registers it again from its stored record. The port is re-evaluated each time, but TXT values
+are captured once at boot, so a service enabled later re-advertises the values it had then.
+
 ### When to Call It
 
 The `mdns` component sets up at `setup_priority::AFTER_CONNECTION`, after most components, and only builds its service

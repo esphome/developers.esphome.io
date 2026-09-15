@@ -232,7 +232,7 @@ automation.register_simple_action(
 - `register_parented_action` for a class deriving from `Parented<T>`: the object is constructed without arguments and `set_parent()` receives the parent.
 - `register_bare_action` for a constructor that takes no arguments at all, typically an action that reaches a global singleton.
 
-These helpers are available in ESPHome 2026.10.0 and later ([esphome/esphome#19321](https://github.com/esphome/esphome/pull/19321)); on earlier versions use the `@automation.register_action` decorator form shown below.
+These helpers are available in ESPHome 2026.10.0 and later ([esphome/esphome#19321](https://github.com/esphome/esphome/pull/19321)); on earlier versions use the `@automation.register_action` decorator on a builder that awaits `cg.get_variable(config[CONF_ID])` and returns `cg.new_Pvariable(action_id, template_arg, parent)`.
 
 Set `synchronous=True` if the action completes immediately (no async operations like delays or waits). Set `synchronous=False` if the action defers `play_next_()` to a later point (e.g. after a delay or async operation completes).
 

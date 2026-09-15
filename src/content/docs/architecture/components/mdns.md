@@ -76,18 +76,15 @@ bool MDNSComponent::set_service_enabled(const char *service_type, const char *pr
 It finds the compiled-in service whose type and protocol match, including the leading underscores (for example
 `"_my_service"` and `"_tcp"`), then adds it to or removes it from the mDNS stack. It returns `true` when the service
 is in the requested state afterwards, which includes the case where it already was. It returns `false`, with a
-warning in the log, when no service matches, the mDNS stack refused the change, or the `mdns` component failed to set
-up.
+warning in the log, when it is called before `mdns` has set up, when no service matches, when the mDNS stack refused
+the change, or when the `mdns` component failed to set up.
 
 ### When to Call It
 
-The `mdns` component sets up at `setup_priority::AFTER_CONNECTION`, after most components. A call made before then,
-for example from your own `setup()`, does not touch the mDNS stack: it only records the requested state, and the
-initial registration honours it. This is how a component starts its service disabled without it ever being announced.
-
-Once `mdns` is running, each call adds or removes the service immediately. To follow a state that changes over time,
-such as whether your server is listening, compare against a local copy and call only on a change, for example from
-`loop()`:
+The `mdns` component sets up at `setup_priority::AFTER_CONNECTION`, after most components, and only builds its service
+list then. A call from your own `setup()` therefore runs too early and is refused. Wait until `mdns` reports ready
+instead. To follow a state that changes over time, such as whether your server is listening, compare against a local
+copy and call only on a change, for example from `loop()`:
 
 ```cpp
 void MyComponent::loop() {
@@ -111,18 +108,19 @@ from a time-critical path.
 
 ### Starting a Service Disabled
 
-Call the method with `false` from your component's `setup()`, before `mdns` has set up:
+Each compiled service carries an `enabled` flag that defaults to `true`. When the define is set, a service whose flag
+is `false` is skipped during the initial registration and first appears when something enables it. The flag is set
+where the `mdns` component builds its service list, in `compile_records_()` in `mdns_component.cpp`:
 
 ```cpp
-void MyComponent::setup() {
 #ifdef USE_MDNS_SUPPORTS_ENABLE_DISABLE
-  this->mdns_->set_service_enabled("_my_service", "_tcp", false);
+  // Starts disabled; the component enables it once its server is running
+  my_service.enabled = false;
 #endif
-}
 ```
 
-The service is then skipped during the initial registration and first appears when something enables it. This relies
-on your component setting up before `mdns`, which is the case for every setup priority above `AFTER_CONNECTION`.
+This is only possible for the built-in services defined there, since those are the only services a component owns.
+Services from the user's `services:` configuration always start enabled.
 
 ## Platform Support
 

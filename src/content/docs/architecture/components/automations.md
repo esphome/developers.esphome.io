@@ -214,23 +214,27 @@ Actions are template classes that perform an operation when invoked by an automa
 
 ### Python
 
+Most actions only need the parent component looked up and the C++ object constructed. Register those with one call and no builder function:
+
 ```python
 MyAction = my_ns.class_("MyAction", automation.Action)
 
-@automation.register_action(
+automation.register_simple_action(
     "my_component.do_something",
     MyAction,
     cv.Schema({cv.GenerateID(): cv.use_id(MyComponent)}),
     synchronous=True,
 )
-async def my_action_to_code(
-    config: ConfigType, action_id: MockObj, template_arg: MockObj, args: TemplateArgsType
-) -> MockObj:
-    parent = await cg.get_variable(config[CONF_ID])
-    return cg.new_Pvariable(action_id, template_arg, parent)
 ```
 
+`register_simple_action` passes the object named by `config[CONF_ID]` to the constructor. Two sibling helpers cover the other constructor shapes:
+
+- `register_parented_action` for a class deriving from `Parented<T>`: the object is constructed without arguments and `set_parent()` receives the parent.
+- `register_bare_action` for a constructor that takes no arguments at all, typically an action that reaches a global singleton.
+
 Set `synchronous=True` if the action completes immediately (no async operations like delays or waits). Set `synchronous=False` if the action defers `play_next_()` to a later point (e.g. after a delay or async operation completes).
+
+When the builder must also set fields, use the `@automation.register_action` decorator on a builder function instead (see the templatable example below).
 
 ### C++
 
@@ -300,6 +304,16 @@ Conditions are template classes that return a boolean to control automation flow
 ```python
 MyCondition = my_ns.class_("MyCondition", automation.Condition)
 
+automation.register_simple_condition(
+    "my_component.is_active",
+    MyCondition,
+    cv.Schema({cv.GenerateID(): cv.use_id(MyComponent)}),
+)
+```
+
+`register_parented_condition` and `register_bare_condition` mirror the action helpers, and the `@automation.register_condition` decorator remains for builders that must do more than construct the object:
+
+```python
 @automation.register_condition(
     "my_component.is_active",
     MyCondition,

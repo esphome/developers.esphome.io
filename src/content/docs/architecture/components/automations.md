@@ -232,6 +232,8 @@ automation.register_simple_action(
 - `register_parented_action` for a class deriving from `Parented<T>`: the object is constructed without arguments and `set_parent()` receives the parent.
 - `register_bare_action` for a constructor that takes no arguments at all, typically an action that reaches a global singleton.
 
+These helpers are available in ESPHome 2026.10.0 and later ([esphome/esphome#19321](https://github.com/esphome/esphome/pull/19321)); on earlier versions use the `@automation.register_action` decorator form shown below.
+
 Set `synchronous=True` if the action completes immediately (no async operations like delays or waits). Set `synchronous=False` if the action defers `play_next_()` to a later point (e.g. after a delay or async operation completes).
 
 When the builder must also set fields, use the `@automation.register_action` decorator on a builder function instead (see the templatable example below).
@@ -249,6 +251,15 @@ template<typename... Ts> class MyAction final : public Action<Ts...> {
 
  protected:
   MyComponent *parent_;
+};
+```
+
+The `register_parented_action` shape derives from `Parented<T>` instead, which supplies `set_parent()` and the `parent_` member, so the class declares no constructor:
+
+```cpp
+template<typename... Ts> class MyAction final : public Action<Ts...>, public Parented<MyComponent> {
+ public:
+  void play(const Ts &...) override { this->parent_->do_something(); }
 };
 ```
 
@@ -311,7 +322,7 @@ automation.register_simple_condition(
 )
 ```
 
-`register_parented_condition` and `register_bare_condition` mirror the action helpers. A condition whose builder must also set fields uses the `@automation.register_condition` decorator on a builder function, with the same signature and body shape as the templatable action example above.
+`register_parented_condition` and `register_bare_condition` mirror the action helpers. A condition whose builder must also set fields uses the `@automation.register_condition` decorator on a builder function. The builder mirrors the templatable action example above with `condition_id` in place of `action_id`; `register_condition` takes no `synchronous=` parameter.
 
 ### C++
 

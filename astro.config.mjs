@@ -85,6 +85,7 @@ export default defineConfig({
                 },
                 "architecture/components/automations",
                 "architecture/components/socket_consumption_api",
+                "architecture/components/mdns",
                 "architecture/components/advanced",
                 {
                   label: "Entity base classes",

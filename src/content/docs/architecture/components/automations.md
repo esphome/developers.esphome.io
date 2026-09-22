@@ -251,9 +251,9 @@ automation.register_apply_action(
 
 The action is the core `ApplyAction<Ts...>`, which stores one function pointer. Code generation folds the parent and every configured field into one stateless function: constants become immediates, user lambdas are called inline with the trigger arguments, and an absent optional key emits nothing, so the action costs one pointer however many fields it has. With `kp: 1.5` in the config the generated function body is `my_component->set_kp(1.5f);`.
 
-- `ApplyField(conf_key, target, type_)`: `target` is a setter name, or a statement template when it contains `{}` (for example `"position = {}"`). `type_` is the C++ type a user lambda must return. `conf_key` may be a tuple of keys to read a nested section. `const_fn=` renders a constant when `cg.safe_exp` is not the right spelling; it receives the action config and the value.
-- `ApplyCall("set_range({}, {})", ((CONF_LOW, cg.float_), (CONF_HIGH, cg.float_)))` folds several keys into one statement, emitted only when every key is present. `ApplyCall("publish_state()")` with no keys is an unconditional follow-up call, emitted in the order given.
-- `call="make_call"` is for actions that build a call object: the statements target `auto call = parent->make_call()` and end with `call.perform()`.
+- `ApplyField(conf_key, target, type_)`: `target` is a setter name, or a statement template when it contains `{}` (for example `"position = {}"`; double a literal brace). `type_` is the C++ type a user lambda must return. `conf_key` may be a tuple of keys to read a nested section. `const_fn=` renders a constant when `cg.safe_exp` is not the right spelling; it receives the action config and the value, and a `!lambda` value bypasses it, so the target must also accept a plain `type_` argument.
+- `ApplyCall("set_range({}, {})", ((CONF_LOW, cg.float_), (CONF_HIGH, cg.float_)))` folds several keys into one statement, emitted only when every key is present, so make the keys required or pair them with `cv.Inclusive`. `ApplyCall("publish_state()")` with no keys is an unconditional follow-up call, emitted in the order given.
+- `call="make_call"` is for actions that build a call object: every statement, follow-up calls included, targets `auto call = parent->make_call()`, and `call.perform()` is appended last.
 
 `cover.control` and `cover.template.publish` in the ESPHome repository are in-tree examples. Keep `TEMPLATABLE_VALUE` and a hand-written class only for actions whose `play()` has logic beyond forwarding values.
 

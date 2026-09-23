@@ -232,7 +232,7 @@ automation.register_apply_action(
 The action is the core `ApplyAction<Ts...>`, which stores one function pointer. Code generation folds the parent and every configured field into one stateless function: constants become immediates, user lambdas are called inline with the trigger arguments, and an absent optional key emits nothing, so the action costs one pointer however many fields it has. With `kp: 1.5` in the config the generated function body is `my_component->set_kp(1.5f);`.
 
 - `ApplyField(conf_key, target, type_)` forwards one key:
-  - `target` is a setter name, or a statement template when it contains `{}` (for example `"position = {}"`; double a literal brace). A target that names `{parent}` is emitted as written instead of on the parent, for example `"if ({}) {parent}->reset()"`.
+  - `target` is a setter name, or a statement template when it contains `{}` (for example `"position = {}"`; double a literal brace).
   - `type_` is the C++ type a user lambda must return. A plain string is raw C++ type text and may use `{parent}` when the type is only known per instance.
   - `conf_key` may be a tuple of keys to read a nested section.
   - `std::string` constants are emitted as a plain literal, or as `progmem_string(ESPHOME_F(...))` on ESP8266 so the literal stays in flash.

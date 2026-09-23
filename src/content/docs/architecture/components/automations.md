@@ -232,10 +232,10 @@ automation.register_apply_action(
 The action is the core `ApplyAction<Ts...>`, which stores one function pointer. Code generation folds the parent and every configured field into one stateless function: constants become immediates, user lambdas are called inline with the trigger arguments, and an absent optional key emits nothing, so the action costs one pointer however many fields it has. With `kp: 1.5` in the config the generated function body is `my_component->set_kp(1.5f);`.
 
 - `ApplyField(conf_key, target, type_)` forwards one key:
-  - `target` is a setter name, or a statement template when it contains `{}` (for example `"position = {}"`; double a literal brace).
+  - `target` is a setter name, or a statement template when it contains `{}` (for example `"position = {}"`; double a literal brace). A target that names `{parent}` is emitted as written instead of on the parent, for example `"if ({}) {parent}->reset()"`.
   - `type_` is the C++ type a user lambda must return. A plain string is raw C++ type text and may use `{parent}` when the type is only known per instance.
   - `conf_key` may be a tuple of keys to read a nested section.
-  - `std::string` constants are emitted as `progmem_string(ESPHOME_F(...))` so they stay in flash on ESP8266.
+  - `std::string` constants are emitted as a plain literal, or as `progmem_string(ESPHOME_F(...))` on ESP8266 so the literal stays in flash.
   - `const_fn=` renders a constant when `cg.safe_exp` is not the right spelling; it receives the action config and the value. A `!lambda` value bypasses it, so the target must also accept a plain `type_` argument.
 - `ApplyCall("set_range({}, {})", ((CONF_LOW, cg.float_), (CONF_HIGH, cg.float_)))` folds several keys into one statement; each arg may carry a third `const_fn` element. It is skipped when none of the keys is set and a partial set is a config error. A call with no keys, such as `ApplyCall("stop()")` or a trailing `ApplyCall("publish_state()")`, is always emitted, in the order given.
 - `call="make_call"` is for actions that build a call object: every statement, follow-up calls included, targets the call object returned by `parent->make_call()`, and `perform()` on it is appended last.

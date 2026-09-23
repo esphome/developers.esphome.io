@@ -325,6 +325,22 @@ Passing a raw value such as `cg.add(var.set_state(config[CONF_STATE]))` worked o
 
 Conditions are template classes that return a boolean to control automation flow.
 
+### Conditions that only test the parent
+
+Most conditions are one expression on their parent. Register those with `automation.register_apply_condition`; no C++ class and no builder are written:
+
+```python
+automation.register_apply_condition(
+    "my_component.is_active",
+    cv.Schema({cv.GenerateID(): cv.use_id(MyComponent)}),
+    "is_active()",
+)
+```
+
+The condition is the core `ApplyCondition<Ts...>`, which stores one function pointer to a stateless function that returns the expression applied to the parent, `my_component->is_active()` here. To compare against a configured value pass an `ApplyCall` instead of a string, with the same `{}` placeholders, `(conf_key, type_)` args and `const_fn` as for actions: `automation.ApplyCall("state == {}", ((CONF_STATE, cg.bool_),))` generates `my_component->state == true` for `state: true` and calls a user lambda inline. Every key named by the call must be present in the config. Write `== false` rather than a leading `!` to negate.
+
+`cover.is_open` and `rtttl.is_playing` in the ESPHome repository are in-tree examples. The hand-written class below is for conditions whose `check()` has logic beyond one expression.
+
 ### Python
 
 ```python

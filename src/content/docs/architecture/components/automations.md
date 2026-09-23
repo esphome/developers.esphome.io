@@ -253,7 +253,7 @@ The action is the core `ApplyAction<Ts...>`, which stores one function pointer. 
 
 - `ApplyField(conf_key, target, type_)`: `target` is a setter name, or a statement template when it contains `{}` (for example `"position = {}"`; double a literal brace). `type_` is the C++ type a user lambda must return. `conf_key` may be a tuple of keys to read a nested section, and a plain string `type_` is raw C++ type text that may use `{parent}` when the type is only known per instance. `std::string` constants are emitted as `progmem_string(ESPHOME_F(...))` so they stay in flash on ESP8266. `const_fn=` renders a constant when `cg.safe_exp` is not the right spelling; it receives the action config and the value, and a `!lambda` value bypasses it, so the target must also accept a plain `type_` argument.
 - `ApplyCall("set_range({}, {})", ((CONF_LOW, cg.float_), (CONF_HIGH, cg.float_)))` folds several keys into one statement; it is skipped when none of the keys is set and a partial set is a config error. `ApplyCall("publish_state()")` with no keys is an unconditional follow-up call, emitted in the order given.
-- `call="make_call"` is for actions that build a call object: every statement, follow-up calls included, targets `auto call = parent->make_call()`, and `call.perform()` is appended last.
+- `call="make_call"` is for actions that build a call object: every statement, follow-up calls included, targets the call object returned by `parent->make_call()`, and `perform()` on it is appended last.
 
 `cover.control` and `cover.template.publish` in the ESPHome repository are in-tree examples. Keep `TEMPLATABLE_VALUE` and a hand-written class only for actions whose `play()` has logic beyond forwarding values.
 

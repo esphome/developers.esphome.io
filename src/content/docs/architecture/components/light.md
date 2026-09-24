@@ -217,6 +217,15 @@ Two further optional overrides exist for advanced cases:
   smooth (gamma-aware) transition.
 - `state->get_effect_name()`: the name of the currently active effect, or `"None"`.
 
+### Reading the target during a transition
+
+`state->current_values` is what the hardware shows right now. `state->remote_values` is what the frontend was last
+told, and it normally jumps to the target as soon as a call starts. A light with `transition_state_publish_interval`
+set is the exception: its `remote_values` follow the fade sample by sample, so they are not the target while a
+transition or flash runs. A platform that needs the target, for example to tell a stale value echoed back from an MCU
+from a new one, should read `state->get_target_values()`. When it only needs to know that a fade is running,
+`state->is_transformer_active()` is enough.
+
 ## Exposing multiple lights from one component
 
 Hardware sometimes drives more than one light from a single controller - an LED driver hub might expose a plain

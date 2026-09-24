@@ -337,7 +337,7 @@ automation.register_apply_condition(
 )
 ```
 
-The condition is the core `ApplyCondition<Ts...>`, which stores one function pointer to a stateless function that returns the expression applied to the parent, `my_component->is_active()` here. To compare against a configured value pass an `ApplyCall` instead of a string, with the same `{}` placeholders, `(conf_key, type_)` args and `const_fn` as for actions: `automation.ApplyCall("state == {}", ((CONF_STATE, cg.bool_),))` generates `my_component->state == true` for `state: true` and calls a user lambda inline. Every key named by the call must be present in the config. Write `== false` rather than a leading `!` to negate.
+The condition is the core `ApplyCondition<Ts...>`, which stores one function pointer to a stateless function that returns the expression applied to the parent, `my_component->is_active()` here. To compare against a configured value pass an `ApplyCall` instead of a string, with the same `{}` placeholders, `(conf_key, type_)` args and `const_fn` as for actions: `automation.ApplyCall("state == {}", ((CONF_STATE, cg.bool_),))` generates `my_component->state == true` for `state: true` and calls a user lambda inline. Every key named by the call must be present in the config. The expression is appended to `parent->`, so it must start with a parent member; a leading `!` would generate `my_component->!is_active()`, so negate with `== false`.
 
 `cover.is_open` and `rtttl.is_playing` in the ESPHome repository are in-tree examples. The hand-written class below is for a `check()` that needs more than one expression on the parent.
 

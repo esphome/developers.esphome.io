@@ -459,6 +459,9 @@ In general, we try to avoid use of external libraries.
   - For any [`Component`](https://esphome.io/api/classesphome_1_1_component) (which is nearly everything), the
       well-known `set_timeout` method is also available; this can be a handy alternative to implementing a state
       machine.
+  - ESPHome warns in the log when a component holds the loop for too long; see
+      [The Loop Blocking Warning](/architecture/components/advanced#the-loop-blocking-warning) for how the warning
+      works and the narrow case where `UnavoidableBlockingScope` may be used.
 
 #### Components/platforms and entities
 

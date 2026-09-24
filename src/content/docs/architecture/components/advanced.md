@@ -302,6 +302,40 @@ A `loop()` method costs one pointer in the application's `looping_components_` l
 - **`set_timeout`** — one-shots and self-rescheduling timers with variable delays. Don't chain it as a hand-rolled `set_interval`.
 - **`defer`** — run-once on the next main-loop iteration; use it to break recursion or escape interrupt context, not as a task queue.
 
+## The Loop Blocking Warning
+
+Every component `loop()`, `update()` and scheduled callback runs under a guard that measures how long it held the main loop; `setup()` is not measured, its time is only reported in the `Setup ... took N ms` line. When one pass exceeds the threshold (`WARN_IF_BLOCKING_OVER_MS`, 50 ms by default) the log shows:
+
+```text
+[W][component:XXX]: wifi took a long time for an operation (73 ms), max is 50 ms
+```
+
+The threshold ratchets: after a warning the component's own threshold becomes the measured time plus 10 ms, rounded down to a 10 ms step, so a component that blocks once for 73 ms is only reported again when it blocks for more than 80 ms, for the rest of the run. The warning is the main tool for finding work that should be a state machine, a cached value or a `set_timeout`; fix the cause rather than the message.
+
+### `UnavoidableBlockingScope`
+
+A few steps done from a loop pass have no shorter form and cannot be split across passes: turning on a radio, the first Wi-Fi connect, a key generation whose cost is the algorithm itself. Wrapping only that step in an `UnavoidableBlockingScope` (from `esphome/core/application.h`) leaves it out of the measurement for the current pass:
+
+```cpp
+void MyComponent::loop() {
+  if (this->needs_key_) {
+    UnavoidableBlockingScope scope;
+    this->generate_key_();  // 60 ms of arithmetic, nothing to split
+  }
+  this->poll_();  // still measured
+}
+```
+
+When the scope ends it moves the pass start time forward by the time spent inside it, so the guard still reports everything else in the pass and the component's threshold does not ratchet up over the one step nothing can be done about. Code after the scope that reads `App.get_loop_component_start_time()` sees the adjusted time, which is closer to "now" than the original pass start; elapsed time computed from it across the scope leaves out the scoped work, so read `millis()` when the true elapsed time matters. Scopes may nest; the outermost one decides how much of the pass is left out.
+
+Never use it to paper over a problem that can be solved. A slow driver call, a loop that could be a state machine, a computation that could be cached or deferred, a blocking read that could be polled: those are what the warning exists to find, and wrapping them hides the bug instead of fixing it. If in doubt, leave the warning in.
+
+> [!WARNING]
+>
+> - Only work timed by the guard is affected: a component's `loop()` or `update()`, or a scheduler callback. The scope does nothing in `setup()`.
+> - Use the scope from the main loop task only.
+> - The watchdog is not fed inside the scope, so the work must finish within the watchdog timeout, or be paired with a `watchdog::WatchdogManager` (from `esphome/components/watchdog/watchdog.h`) that raises the timeout for the same stretch.
+
 ## Waking the Main Loop from Background Threads
 
 For components that receive events in background threads/FreeRTOS tasks (BLE callbacks, network events, platform callbacks, etc.) and need low-latency processing, use `App.wake_loop_threadsafe()` to immediately wake the main loop instead of waiting 0-16ms for the next loop timeout.
@@ -370,4 +404,5 @@ void IRAM_ATTR MyComponent::gpio_isr(MyComponent *arg) {
 
 - Component Loop Control: [`esphome/core/component.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.h) and [`esphome/core/component.cpp`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.cpp)
 - Wake Loop Threadsafe: PR [#11681](https://github.com/esphome/esphome/pull/11681)
+- Loop Blocking Warning and `UnavoidableBlockingScope`: PR [#19020](https://github.com/esphome/esphome/pull/19020)
 - [Socket Consumption API](/architecture/components/socket_consumption_api) - For components that use network sockets

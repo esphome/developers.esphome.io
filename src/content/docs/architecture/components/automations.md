@@ -339,7 +339,7 @@ automation.register_apply_condition(
 
 The condition is the core `ApplyCondition<Ts...>`, which stores one function pointer to a stateless function that returns the expression applied to the parent, `my_component->is_active()` here. To compare against a configured value pass an `ApplyCall` instead of a string, with the same `{}` placeholders, `(conf_key, type_)` args and `const_fn` as for actions: `automation.ApplyCall("state == {}", ((CONF_STATE, cg.bool_),))` generates `my_component->state == true` for `state: true` and calls a user lambda inline. Every key named by the call must be present in the config. Write `== false` rather than a leading `!` to negate.
 
-`cover.is_open` and `rtttl.is_playing` in the ESPHome repository are in-tree examples. The hand-written class below is for conditions whose `check()` has logic beyond one expression.
+`cover.is_open` and `rtttl.is_playing` in the ESPHome repository are in-tree examples. The hand-written class below is for a `check()` that needs more than one expression on the parent.
 
 ### Python
 
@@ -347,7 +347,7 @@ The condition is the core `ApplyCondition<Ts...>`, which stores one function poi
 MyCondition = my_ns.class_("MyCondition", automation.Condition)
 
 @automation.register_condition(
-    "my_component.is_active",
+    "my_component.is_ready",
     MyCondition,
     cv.Schema({cv.GenerateID(): cv.use_id(MyComponent)}),
 )
@@ -364,7 +364,11 @@ async def my_condition_to_code(
 template<typename... Ts> class MyCondition final : public Condition<Ts...> {
  public:
   explicit MyCondition(MyComponent *parent) : parent_(parent) {}
-  bool check(const Ts &...) override { return this->parent_->is_active(); }
+  bool check(const Ts &...) override {
+    if (!this->parent_->is_active())
+      return false;
+    return this->parent_->error_count() == 0;
+  }
 
  protected:
   MyComponent *parent_;

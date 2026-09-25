@@ -140,9 +140,46 @@ await automation.build_callback_automation(
 )
 ```
 
-#### Reshaped arguments and filters
+#### Different callback arguments or a filter
 
-When the parent callback's parameters are not the automation's arguments, or the trigger should only fire for some of them, use `build_trigger_callback`. It builds the automation and returns a capture-less lambda that calls `trigger()`; being empty, the lambda is stored inline by `Callback` and `std::function` alike, so no forwarder struct and no Trigger class are needed.
+When the parent callback's parameters are not the automation's arguments, or the trigger should only fire for some values, pass `params`, `forward` and `when` to `build_callback_automation`. The helper then generates a capture-less lambda instead of a forwarder struct; being empty, the lambda is stored inline by `Callback` and `std::function` alike, so nothing is allocated and no Trigger class is needed.
+
+- `params` are the parent callback's parameters as `[(type, name)]`, rendered as `const T &`.
+- `forward` are the expressions passed to `trigger()`; the default is the parameter names. Write the parent as `automation.parent_ref(var)`, which names it from global scope so a parameter cannot shadow it, and compose lookups on it with `MockObj` calls rather than f-strings of C++.
+- `when` is a filter the callback returns early on: a plain string, or an `ApplyCall` that compares against config values as conditions do. An `ApplyCall` whose config keys are absent is skipped, so an optional filter needs no `if`.
+
+A select's callback carries only the index, while `on_value` exposes the option text and the index:
+
+```python
+parent = automation.parent_ref(var)
+index = cg.RawExpression("index")
+await automation.build_callback_automation(
+    var,
+    "add_on_state_callback",
+    [(cg.StringRef, "x"), (cg.size_t, "i")],
+    conf,
+    params=[(cg.size_t, "index")],
+    forward=[cg.StringRef(parent.option_at(index)), index],
+)
+```
+
+Generated:
+
+```cpp
+select_test_select->add_on_state_callback([](const std::remove_cvref_t<size_t> & index) -> void {
+    ::automation_id->trigger(StringRef(::select_test_select->option_at(index)), index);
+});
+```
+
+A callback that carries nothing while the automation receives the parent (fan `on_state`, the display menu triggers) is one line:
+
+```python
+await automation.build_parent_callback_automation(
+    var, "add_on_state_callback", (Fan.operator("ptr"), "x"), conf
+)
+```
+
+When the registration takes extra arguments, use `build_trigger_callback` with the same keywords. It builds the automation and returns the lambda, and the component writes the registration call itself, so constant arguments such as a topic and qos are ordinary call arguments. `mqtt.on_message` with its optional `payload` filter:
 
 ```python
 for conf in config.get(CONF_ON_MESSAGE, []):
@@ -151,25 +188,40 @@ for conf in config.get(CONF_ON_MESSAGE, []):
         conf,
         params=[(cg.std_string, "topic"), (cg.std_string, "payload")],
         forward=["payload"],
-        when=automation.ApplyCall("payload == {}", ((CONF_PAYLOAD, cg.std_string),))
-        if CONF_PAYLOAD in conf
-        else None,
+        when=automation.ApplyCall(
+            "StringRef(payload) == {}",
+            ((CONF_PAYLOAD, cg.std_string, automation.string_ref_literal),),
+        ),
     )
-    cg.add(var.subscribe(conf[CONF_TOPIC], callback, conf[CONF_QOS]))
+    cg.add(var.subscribe(cg.progmem_string(conf[CONF_TOPIC]), callback, conf[CONF_QOS]))
 ```
 
-- `params` are the parent callback's parameters as `[(type, name)]`, rendered as `const T &`.
-- `forward` are the expressions passed to `trigger()`; the default is the parameter names. Pass the parent or a lookup on it here.
-- `when` is a filter the callback returns early on: a plain string, or an `ApplyCall` that compares against config values as conditions do.
-
-The registration call is written by the component, so extra constant arguments such as a topic and qos are ordinary call arguments. For a callback registered with no extra arguments, `build_callback_automation` accepts the same `params`, `forward` and `when` keywords and generates the lambda instead of a forwarder. The generated code for the example above:
+Generated for `payload: "ON"` on ESP8266, where `cg.progmem_string` keeps the topic literal in flash and `string_ref_literal` renders the payload as a flash literal (`StringRef("ON", 2)` on other platforms):
 
 ```cpp
-mqtt_client->subscribe("livingroom/ota_mode", [](const std::string &topic, const std::string &payload) -> void {
-    if (!(payload == "ON"))
+mqtt_client->subscribe(progmem_string(ESPHOME_F("livingroom/ota_mode")), [](const std::remove_cvref_t<std::string> & topic, const std::remove_cvref_t<std::string> & payload) -> void {
+    if (!(StringRef(payload) == ESPHOME_F("ON")))
       return;
     ::automation_id->trigger(payload);
 }, 1);
+```
+
+Several callback automations on one parent go in a module-level `_CALLBACK_AUTOMATIONS` tuple; each `CallbackAutomation` entry takes the config key, the method name, the args and, optionally, the same `forwarder`, `params`, `forward` and `when`:
+
+```python
+_CALLBACK_AUTOMATIONS = (
+    automation.CallbackAutomation(
+        CONF_ON_CONNECT, "set_on_connect", [(cg.bool_, "session_present")]
+    ),
+    automation.CallbackAutomation(
+        CONF_ON_DISCONNECT, "set_on_disconnect", [(MQTTClientDisconnectReason, "reason")]
+    ),
+)
+
+
+async def to_code(config: ConfigType) -> None:
+    ...
+    await automation.build_callback_automations(var, config, _CALLBACK_AUTOMATIONS)
 ```
 
 ### Trigger class method
@@ -206,6 +258,21 @@ async def to_code(config: ConfigType) -> None:
         await automation.build_automation(trigger, [], conf)
 ```
 
+Several such triggers on one parent go in a module-level `_TRIGGER_AUTOMATIONS` tuple of `(conf_key, args)` pairs. `build_trigger_automations` instantiates each entry's class from its `CONF_TRIGGER_ID`, passing `var` to the constructor (nothing when `var` is `None`), and builds the automations:
+
+```python
+_TRIGGER_AUTOMATIONS = (
+    (CONF_ON_TURN_ON, []),
+    (CONF_ON_TURN_OFF, []),
+    (CONF_ON_SPEED_SET, [(cg.int_, "x")]),
+)
+
+
+async def to_code(config: ConfigType) -> None:
+    ...
+    await automation.build_trigger_automations(var, config, _TRIGGER_AUTOMATIONS)
+```
+
 #### C++
 
 Define the trigger class in `automation.h`. This example fires only on the off-to-on transition, requiring mutable state (`last_on_`) that cannot be stored in a pointer-sized forwarder:
@@ -237,7 +304,9 @@ The trigger needs to track mutable state (`last_on_`) across callback invocation
 | Simple forwarding | Callback | [`button on_press`](https://github.com/esphome/esphome/blob/dev/esphome/components/button/__init__.py) -- `TriggerForwarder<>` forwards directly |
 | Boolean filtering | Callback with built-in forwarder | [`binary_sensor on_press/on_release`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/__init__.py) -- `TriggerOnTrueForwarder` / `TriggerOnFalseForwarder` |
 | Enum state filtering | Callback with custom forwarder | `lock on_lock/on_unlock` -- `LockStateForwarder<State>` checks enum, single pointer ([esphome/esphome#15199](https://github.com/esphome/esphome/pull/15199), pending) |
-| Different callback arguments or a constant filter | Callback with `build_trigger_callback` | [`mqtt on_message`](https://github.com/esphome/esphome/blob/dev/esphome/components/mqtt/__init__.py) -- forwards the payload only, filtered on the configured payload |
+| Different callback arguments or a constant filter | Callback with `params`, `forward`, `when` | [`select on_value`](https://github.com/esphome/esphome/blob/dev/esphome/components/select/__init__.py) -- forwards the option text looked up from the index |
+| Callback carries nothing, automation gets the parent | `build_parent_callback_automation` | [`fan on_state`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/__init__.py) -- forwards `::the_fan` |
+| Registration takes extra arguments | `build_trigger_callback` | [`mqtt on_message`](https://github.com/esphome/esphome/blob/dev/esphome/components/mqtt/__init__.py) -- the component passes the lambda to `subscribe(topic, callback, qos)`, filtered on the configured payload |
 | Extra state needed | Trigger class | [`fan on_turn_on`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/automation.h) -- `FanTurnOnTrigger` tracks `last_on_` for edge detection (mutable state, can't be a forwarder) |
 | Complex logic (timing, state machine) | Trigger class | [`binary_sensor on_multi_click`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/automation.h) -- `MultiClickTrigger` with timing, cooldown, and multiple state fields |
 

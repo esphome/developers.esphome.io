@@ -140,6 +140,38 @@ await automation.build_callback_automation(
 )
 ```
 
+#### Reshaped arguments and filters
+
+When the parent callback's parameters are not the automation's arguments, or the trigger should only fire for some of them, use `build_trigger_callback`. It builds the automation and returns a capture-less lambda that calls `trigger()`; being empty, the lambda is stored inline by `Callback` and `std::function` alike, so no forwarder struct and no Trigger class are needed.
+
+```python
+for conf in config.get(CONF_ON_MESSAGE, []):
+    callback = await automation.build_trigger_callback(
+        [(cg.std_string, "x")],
+        conf,
+        params=[(cg.std_string, "topic"), (cg.std_string, "payload")],
+        forward=["payload"],
+        when=automation.ApplyCall("payload == {}", ((CONF_PAYLOAD, cg.std_string),))
+        if CONF_PAYLOAD in conf
+        else None,
+    )
+    cg.add(var.subscribe(conf[CONF_TOPIC], callback, conf[CONF_QOS]))
+```
+
+- `params` are the parent callback's parameters as `[(type, name)]`, rendered as `const T &`.
+- `forward` are the expressions passed to `trigger()`; the default is the parameter names. Pass the parent or a lookup on it here.
+- `when` is a filter the callback returns early on: a plain string, or an `ApplyCall` that compares against config values as conditions do.
+
+The registration call is written by the component, so extra constant arguments such as a topic and qos are ordinary call arguments. For a callback registered with no extra arguments, `build_callback_automation` accepts the same `params`, `forward` and `when` keywords and generates the lambda instead of a forwarder. The generated code for the example above:
+
+```cpp
+mqtt_client->subscribe("livingroom/ota_mode", [](const std::string &topic, const std::string &payload) -> void {
+    if (!(payload == "ON"))
+      return;
+    ::automation_id->trigger(payload);
+}, 1);
+```
+
 ### Trigger class method
 
 Use this when the trigger needs **mutable state beyond a single `Automation*` pointer** (e.g. tracked previous state for edge detection, or timing logic). A forwarder struct must be pointer-sized with only an `Automation*` field, so any additional state requires a full `Trigger` subclass.
@@ -205,6 +237,7 @@ The trigger needs to track mutable state (`last_on_`) across callback invocation
 | Simple forwarding | Callback | [`button on_press`](https://github.com/esphome/esphome/blob/dev/esphome/components/button/__init__.py) -- `TriggerForwarder<>` forwards directly |
 | Boolean filtering | Callback with built-in forwarder | [`binary_sensor on_press/on_release`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/__init__.py) -- `TriggerOnTrueForwarder` / `TriggerOnFalseForwarder` |
 | Enum state filtering | Callback with custom forwarder | `lock on_lock/on_unlock` -- `LockStateForwarder<State>` checks enum, single pointer ([esphome/esphome#15199](https://github.com/esphome/esphome/pull/15199), pending) |
+| Different callback arguments or a constant filter | Callback with `build_trigger_callback` | [`mqtt on_message`](https://github.com/esphome/esphome/blob/dev/esphome/components/mqtt/__init__.py) -- forwards the payload only, filtered on the configured payload |
 | Extra state needed | Trigger class | [`fan on_turn_on`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/automation.h) -- `FanTurnOnTrigger` tracks `last_on_` for edge detection (mutable state, can't be a forwarder) |
 | Complex logic (timing, state machine) | Trigger class | [`binary_sensor on_multi_click`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/automation.h) -- `MultiClickTrigger` with timing, cooldown, and multiple state fields |
 

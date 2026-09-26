@@ -171,6 +171,14 @@ class MyComponent final : public Component {
 // this->firmware_version_text_sensor_->publish_state(version); once null-checked
 ```
 
+In `to_code`, create each configured text sensor and pass it to its setter with `text_sensor.new_sub_text_sensor()`:
+
+```python
+await text_sensor.new_sub_text_sensor(
+    config, CONF_FIRMWARE_VERSION, var.set_firmware_version_text_sensor
+)
+```
+
 See [Exposing multiple sensors from one component](/architecture/components/sensor#exposing-multiple-sensors-from-one-component)
 for a fully worked example of both patterns.
 

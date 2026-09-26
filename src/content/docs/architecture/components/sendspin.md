@@ -181,8 +181,9 @@ lost connection does, so the clear deliveries above also mean "the client stoppe
 ### Single-consumer roles
 
 The player and visualizer roles each belong to exactly one child, which implements the library's listener interface
-directly. The hub only stores the configuration and the listener it is given from codegen and registers the role with
-the client in its `setup()`, before the client is started.
+directly; `register_player_config()` and `request_visualizer_support()` reject a second consumer with a validation
+error. The hub only stores the configuration and the listener it is given from codegen and registers the role with the
+client in its `setup()`, before the client is started.
 
 - Player: the child implements `sendspin::PlayerRoleListener`; codegen calls `set_listener()` and
   `set_player_config()` on the hub (`register_player_config()` takes care of the latter). `get_player_role()` returns

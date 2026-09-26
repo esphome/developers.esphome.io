@@ -175,11 +175,14 @@ All of these fire on the main loop, from the hub's `loop()`, unless noted:
   foreground colors for dark and light backgrounds) are each `std::optional`. A lost connection delivers a
   default-constructed object, like metadata.
 
+Stopping the client, which the `sendspin` switch platform does when it is turned off, clears every role exactly as a
+lost connection does, so the clear deliveries above also mean "the client stopped".
+
 ### Single-consumer roles
 
 The player and visualizer roles each belong to exactly one child, which implements the library's listener interface
 directly. The hub only stores the configuration and the listener it is given from codegen and registers the role with
-the client before starting the server.
+the client in its `setup()`, before the client is started.
 
 - Player: the child implements `sendspin::PlayerRoleListener`; codegen calls `set_listener()` and
   `set_player_config()` on the hub (`register_player_config()` takes care of the latter). `get_player_role()` returns
@@ -194,4 +197,5 @@ the client before starting the server.
 ### Talking to the server
 
 `connect_to_server()`, `disconnect_from_server()` and `update_state()` forward to the client. All three are no-ops
-until the hub has finished `setup()`, and must be called from the main loop.
+while the client is not running (`is_client_running()`): the hub starts it from its `loop()`, and a `sendspin`
+switch can stop and restart it at any time. All three must be called from the main loop.

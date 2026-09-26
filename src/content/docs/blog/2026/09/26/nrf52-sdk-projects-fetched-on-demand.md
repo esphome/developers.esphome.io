@@ -36,6 +36,7 @@ ESPHome's built-in components already request what they use:
 | Project | Requested by |
 | --- | --- |
 | `tinycrypt` | `zephyr_ble_server` (and `ble_nus` through it) |
+| `segger` | `debug` (RTT logging) |
 | `openthread`, `mbedtls`, `oberon-psa-crypto` | `openthread` |
 | `zcbor` | `zephyr_mcumgr` OTA |
 | `mcuboot` | any build with sysbuild on (`zephyr_mcumgr` OTA) |

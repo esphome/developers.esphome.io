@@ -241,10 +241,16 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 
-    if temperature_config := config.get(CONF_TEMPERATURE):
-        sens = await sensor.new_sensor(temperature_config)
-        cg.add(var.set_temperature_sensor(sens))
+    await sensor.new_sub_sensor(config, CONF_TEMPERATURE, var.set_temperature_sensor)
+    await sensor.new_sub_sensor(config, CONF_HUMIDITY, var.set_humidity_sensor)
 ```
+
+`sensor.new_sub_sensor(config, key, setter)` creates the sensor only when the user configured `key`, and passes it to
+`setter`. It returns the new sensor, or `None` when the key is absent, in case you need to do more with it. Always write
+the setter out at the call site as shown. Do not build its name with `getattr` and an f-string: an explicit setter can
+be found with a search, reviewers can see it, and any setter name works. `binary_sensor.new_sub_binary_sensor()` and
+`text_sensor.new_sub_text_sensor()` work the same way. These helpers were added in ESPHome 2026.10.0; older code writes
+the same thing as an `if config.get(...)` block around `new_sensor()` and `cg.add()`.
 
 On the C++ side, your component holds a pointer per reading and publishes to whichever ones the user configured. Rather
 than writing those members and setters out by hand, use the `SUB_SENSOR(name)` macro from `sensor.h`, which generates a

@@ -14,9 +14,9 @@ This is a **breaking change** for external components in **ESPHome 2026.10.0 and
 
 **[PR #19735](https://github.com/esphome/esphome/pull/19735): Fetch only the nRF Connect SDK projects a build needs**
 
-The nRF Connect SDK manifest lists about 50 west projects, 2.2 GB on disk, and most of them serve features ESPHome never uses (Matter, TF-M, LVGL, WiFi, LoRaWAN and more). Matter and cmock also pull git submodules with their full history. The first nRF52 build downloaded all of it.
+The nRF Connect SDK manifest lists about 50 west projects, 2.2 GB on disk, and most of them serve features ESPHome never uses (Matter, TF-M, WiFi, LoRaWAN, Azure IoT and more). Matter and cmock also pull git submodules with their full history. The first nRF52 build downloaded all of it.
 
-A fresh install now fetches four projects, about 1 GB on disk and a third of the download, and a component adds whatever else it needs.
+A fresh install now fetches four projects, about 1 GB on disk instead of 2.2 GB and roughly a third of the previous download, and a component adds whatever else it needs.
 
 ## What's Changing
 
@@ -44,9 +44,11 @@ An SDK installed before this change keeps every project and is not touched.
 
 ## Who This Affects
 
-**External components that** use a Zephyr or nRF Connect SDK module from a project outside the default set, for example LVGL, CMSIS DSP, LittleFS or FatFs, without one of the built-in components above pulling it in.
+**External components that** use a Zephyr or nRF Connect SDK module from a project outside the default set, for example CMSIS DSP, LittleFS or FatFs, without one of the built-in components above pulling it in.
 
 **Standard YAML configurations are not affected**; the built-in components request the projects they need.
+
+There is no YAML override for users: an external component that needs another project has to be updated to request it.
 
 ## Migration Guide
 
@@ -58,7 +60,7 @@ from esphome.components.nrf52.framework import include_west_project
 
 
 async def to_code(config):
-    include_west_project("lvgl")
+    include_west_project("cmsis-dsp")
     # ... rest of to_code
 ```
 
@@ -74,7 +76,7 @@ async def to_code(config):
         # ESPHome < 2026.10.0 fetches every project
         pass
     else:
-        include_west_project("lvgl")
+        include_west_project("cmsis-dsp")
 ```
 
 ## Build Errors
@@ -86,7 +88,7 @@ warning: TINYCRYPT (defined at modules/Kconfig.tinycrypt:9) has direct dependenc
 fatal error: zcbor_common.h: No such file or directory
 ```
 
-The fix is to add the matching `include_west_project()` call. `west list --inactive`, run in the SDK folder, shows every project that was left out.
+The fix is to add the matching `include_west_project()` call. To see every project and which ones were left out, run `west list -a -f "{name} {active}"` in the SDK folder, `frameworks/<version>` under `~/Library/Caches/esphome/sdk-nrf` on macOS, `~/.cache/esphome/sdk-nrf` on Linux and `%LOCALAPPDATA%\esphome\sdk-nrf` on Windows, or under `ESPHOME_SDK_NRF_PREFIX` when that is set. The `west` module lives in the matching `penvs/<version>` Python environment next to it.
 
 ## Timeline
 

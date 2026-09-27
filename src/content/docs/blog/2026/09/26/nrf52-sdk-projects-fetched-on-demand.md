@@ -22,7 +22,6 @@ history. The first nRF52 build downloaded all of it.
 
 A fresh install now fetches four projects (five from SDK 3.1), about 1 GB on disk instead of 2.2 GB and roughly a
 third of the previous download, and a component adds whatever else it needs.
-download, and a component adds whatever else it needs.
 
 ## What's Changing
 

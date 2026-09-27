@@ -20,7 +20,7 @@ The nRF Connect SDK manifest lists about 50 west projects, 2.2 GB on disk, and m
 uses (Matter, TF-M, WiFi, LoRaWAN, Azure IoT and more). Matter and cmock also pull git submodules with their full
 history. The first nRF52 build downloaded all of it.
 
-A fresh install now fetches four projects, about 1 GB on disk instead of 2.2 GB and roughly a third of the previous
+A fresh install now fetches four projects (five from SDK 3.1), about 1 GB on disk instead of 2.2 GB and roughly a third of the previous
 download, and a component adds whatever else it needs.
 
 ## What's Changing
@@ -44,7 +44,7 @@ ESPHome's built-in components already request what they use:
 | --- | --- |
 | `tinycrypt` up to SDK 3.1, `mbedtls` and `oberon-psa-crypto` from 3.2 | `zephyr_ble_server` (and `ble_nus` through it) |
 | `segger` | `debug` (RTT logging) |
-| `openthread`, `mbedtls`, and `oberon-psa-crypto` from SDK 2.7 | `openthread` |
+| `openthread` and `mbedtls`; `oberon-psa-crypto` too from SDK 2.7 | `openthread` |
 | `zcbor`, `mcuboot` | `zephyr_mcumgr` OTA |
 | `mcuboot` | any build with sysbuild on |
 

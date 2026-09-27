@@ -20,8 +20,8 @@ The nRF Connect SDK manifest lists about 50 west projects, 2.2 GB on disk, and m
 uses (Matter, TF-M, WiFi, LoRaWAN, Azure IoT and more). Matter and cmock also pull git submodules with their full
 history. The first nRF52 build downloaded all of it.
 
-A fresh install now fetches four projects (five from SDK 3.1), about 1 GB on disk instead of 2.2 GB and roughly a third
-of the previous
+A fresh install now fetches four projects (five from SDK 3.1), about 1 GB on disk instead of 2.2 GB and roughly a
+third of the previous download, and a component adds whatever else it needs.
 download, and a component adds whatever else it needs.
 
 ## What's Changing

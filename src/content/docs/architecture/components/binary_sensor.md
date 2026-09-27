@@ -183,12 +183,12 @@ class MyComponent final : public Component {
 ```
 
 In `to_code`, create each configured binary sensor and pass it to its setter with
-`binary_sensor.new_sub_binary_sensor()`:
+`binary_sensor.sub_binary_sensors()`:
 
 ```python
-await binary_sensor.new_sub_binary_sensor(
-    config, CONF_HAS_MOVING_TARGET, var.set_moving_target_binary_sensor
-)
+binary_sensors = binary_sensor.sub_binary_sensors(config)
+await binary_sensors(CONF_HAS_MOVING_TARGET, var.set_moving_target_binary_sensor)
+await binary_sensors(CONF_HAS_STILL_TARGET, var.set_still_target_binary_sensor)
 ```
 
 See [Exposing multiple sensors from one component](/architecture/components/sensor#exposing-multiple-sensors-from-one-component)

@@ -6,13 +6,13 @@ title: "IPv4 allow list"
 `esphome/components/socket/ipv4_allow.h`. It is header-only: a translation unit that does not include it does not
 compile it.
 
-`tcp_uart` is the first caller, on its server role. `uart_tcp` is expected to call the same list once that
-component's server role is on `dev`, which is why the check lives next to the socket helpers instead of inside
-the first caller.
+It lives next to the socket helpers so any server component (such as `tcp_uart` or `uart_tcp`) can share it
+instead of carrying its own copy.
 
 An empty list allows every peer. The entries are built at codegen time, validated by `cv.ipv4network` and
-emitted into flash (`PROGMEM` on ESP8266), so the component only stores a pointer and a count. On the Python
-side the whole wiring is one schema reference and one call:
+emitted into flash (`PROGMEM` on ESP8266), so the component only stores a pointer and a count. A bare address
+becomes a /32, host bits are cleared, and a non contiguous mask is rejected at config time. On the Python side
+the whole wiring is one schema reference and one call; `add_ipv4_allow` is a plain function, not a coroutine:
 
 ```python
 from esphome.components import socket
@@ -25,6 +25,8 @@ CONFIG_SCHEMA = cv.Schema(
 
 
 async def to_code(config):
+    var = cg.new_Pvariable(config[CONF_ID])
+    await cg.register_component(var, config)
     socket.add_ipv4_allow(var.set_allow, config[CONF_ALLOW], config[CONF_ID])
 ```
 

@@ -13,8 +13,8 @@ The listener owns the listen socket and, when the config passes a list, an
 It accepts one peer at a time and adopts the socket into the caller's `TcpClientLink`. A second connection waits
 in the stack until the first one drops. The listen backlog is 1.
 
-`uart_tcp` is the first caller; `tcp_uart`'s server role (esphome#20026) follows. A server role calls `require_tcp_listener()` and, for a non-empty `allowed_ips`,
-`add_ipv4_allow`. An empty or omitted list does not compile the allow list, and every peer is accepted.
+`uart_tcp` is the first caller; `tcp_uart`'s server role (esphome#20026) follows. A server role calls
+`require_tcp_listener()` and, for a non-empty `allowed_ips`, `add_ipv4_allow`. An empty or omitted list does not compile the allow list, and every peer is accepted.
 `consume_role_sockets` accounts for one stream socket, plus one listen socket when `role` is `server`:
 
 `BASE_SCHEMA` holds the options both roles share. An omitted list is fine; `add_ipv4_allow` accepts `None`.

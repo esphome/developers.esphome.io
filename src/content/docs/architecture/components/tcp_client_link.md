@@ -23,4 +23,4 @@ write error closes the link, logs it and schedules the next attempt; the caller 
 `consume_role_sockets(component)` in `socket/__init__.py` does the socket accounting for a role keyed
 schema: one stream socket always, plus one listen socket when `role` is `server`.
 
-`tcp_uart` and `uart_tcp` are the callers.
+`uart_tcp` is the first caller; `tcp_uart` follows in esphome#20026.

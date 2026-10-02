@@ -48,9 +48,11 @@ void set_allow(const socket::Ipv4AllowEntry *entries, size_t count) { this->allo
 struct sockaddr_storage peer;
 socklen_t peer_len = sizeof(peer);
 auto client = this->listen_->accept_loop_monitored(reinterpret_cast<struct sockaddr *>(&peer), &peer_len);
+#ifdef USE_SOCKET_IPV4_ALLOW
 if (client != nullptr && !this->allow_.allows(reinterpret_cast<struct sockaddr *>(&peer))) {
   return;  // rejected; the unique_ptr closes the connection
 }
+#endif
 ```
 
 `allows(uint32_t)` is also public and takes the address in network byte order, as it sits in a `sockaddr_in`.

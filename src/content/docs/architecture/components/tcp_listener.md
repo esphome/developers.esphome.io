@@ -17,12 +17,18 @@ in the stack until the first one drops. The listen backlog is 1.
 `add_ipv4_allow`. An empty or omitted list does not compile the allow list, and every peer is accepted.
 `consume_role_sockets` accounts for one stream socket, plus one listen socket when `role` is `server`:
 
+`BASE_SCHEMA` holds the options both roles share. An omitted list is fine; `add_ipv4_allow` accepts `None`.
+
 ```python
 import esphome.codegen as cg
 from esphome.components import socket
 import esphome.config_validation as cv
+from esphome.components.const import CONF_HOST, CONF_ROLE
+from esphome.const import CONF_ID
 
 AUTO_LOAD = ["socket"]
+
+CONF_ALLOWED_IPS = "allowed_ips"
 
 CONFIG_SCHEMA = cv.All(
     cv.typed_schema(
@@ -67,7 +73,9 @@ bool link_was_up_{false};
 socket::TcpListener listener_;
 #endif
 #ifdef USE_SOCKET_IPV4_ALLOW
-void set_allow(const socket::Ipv4AllowEntry *entries, size_t count) { this->listener_.set_allow(entries, count); }
+void set_allow(const socket::Ipv4AllowEntry *entries, size_t count) {
+  this->listener_.set_allow(entries, count);
+}
 #endif
 
 void setup() override {
@@ -88,6 +96,7 @@ void loop() override {
     this->link_.poll();
   }
   if (this->link_.connected() != this->link_was_up_) {
+    this->link_was_up_ = this->link_.connected();
     // The disconnect edge: clear component state, publish sensors.
   }
 }

@@ -2,7 +2,7 @@
 title: "IPv4 allow list"
 ---
 
-`socket::Ipv4Allow` decides whether an IPv4 address may connect. The header is
+`socket::Ipv4Allow` decides whether a peer may connect. The header is
 `esphome/components/socket/ipv4_allow.h`. It is header-only: a translation unit that does not include it does not
 compile it.
 
@@ -10,15 +10,41 @@ compile it.
 component's server role is on `dev`, which is why the check lives next to the socket helpers instead of inside
 the first caller.
 
-An empty list allows every address. `add()` takes the address and the mask in host byte order and stores
-`addr & mask`, so a single host is a mask of `0xFFFFFFFF` and host bits in a network entry are cleared.
-`allows()` returns true when the list is empty or the address matches one entry. `add()` returns false once the
-list holds 8 entries.
+An empty list allows every peer. The entries are built at codegen time, validated by `cv.ipv4network` and
+emitted into flash (`PROGMEM` on ESP8266), so the component only stores a pointer and a count. On the Python
+side the whole wiring is one schema reference and one call:
+
+```python
+from esphome.components import socket
+
+CONFIG_SCHEMA = cv.Schema(
+    {
+        cv.Optional(CONF_ALLOW, default=[]): socket.IPV4_ALLOW_SCHEMA,
+    }
+)
+
+
+async def to_code(config):
+    socket.add_ipv4_allow(var.set_allow, config[CONF_ALLOW], config[CONF_ID])
+```
+
+The C++ side exposes the matching setter and checks the accepted peer's `sockaddr` directly. A v4 mapped IPv6
+peer is unwrapped through the shared `socket::sockaddr_to_ipv4()`; any other family is denied while the list is
+not empty:
 
 ```cpp
-socket::Ipv4Allow allowed;
-allowed.add(0xC0A8AF00, 0xFFFFFF00);  // 192.168.175.0/24
-if (allowed.allows(peer)) {
-  // take the connection
+socket::Ipv4Allow allow_;
+
+void set_allow(const socket::Ipv4AllowEntry *entries, size_t count) { this->allow_.set(entries, count); }
+
+// in the accept path
+struct sockaddr_storage peer;
+socklen_t peer_len = sizeof(peer);
+auto client = this->listen_->accept_loop_monitored(reinterpret_cast<struct sockaddr *>(&peer), &peer_len);
+if (client != nullptr && !this->allow_.allows(reinterpret_cast<struct sockaddr *>(&peer))) {
+  return;  // rejected; the unique_ptr closes the connection
 }
 ```
+
+`allows(uint32_t)` is also public and takes the address in network byte order, as it sits in a `sockaddr_in`.
+The schema caps a list at 255 entries as a sanity limit.

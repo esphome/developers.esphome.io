@@ -2,12 +2,12 @@
 title: "Modbus TCP framing"
 ---
 
-`modbus_tcp` turns one Modbus RTU frame into one Modbus TCP frame, and back. The header is
+The MBAP helpers turn one Modbus RTU frame into one Modbus TCP frame, and back. The header is
 `esphome/components/modbus_tcp/mbap.h`. It is header-only. A build that does not include it compiles none of it,
 and it does not link the Modbus hub.
 
-The component has no configuration. Callers load it with `AUTO_LOAD`. `tcp_uart` and `uart_tcp` are the callers.
-There is no YAML key.
+`tcp_uart` and `uart_tcp` do not include it. They copy bytes. The `modbus_tcp` component includes the header
+and does the wrap: in front of a raw `tcp_uart`, or on a hardware UART whose socket it opens itself.
 
 The functions are in `esphome::modbus_tcp`. `take_mbap` reads one MBAP header plus its PDU. A short buffer returns
 `NEED_MORE`. A protocol id other than 0, or a length outside 2 to 254, returns `BAD` and consumes one byte, so the

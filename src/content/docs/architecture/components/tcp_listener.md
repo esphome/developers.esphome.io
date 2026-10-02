@@ -2,21 +2,27 @@
 title: "TCP listener"
 ---
 
-`socket::TcpListener` is the server half next to `socket::TcpClientLink`. The header is
+`socket::TcpListener` is the server half next to the
+[TCP client link](/architecture/components/tcp_client_link/). The header is
 `esphome/components/socket/tcp_listener.h`, and the implementation is `tcp_listener.cpp`. It is compiled only
 when a component calls `socket.require_tcp_listener()`. That call also pulls in the client link and the IPv4
 resolver.
 
-The listener owns the listen socket and, when the config passes a list, a `socket::Ipv4Allow`.
+The listener owns the listen socket and, when the config passes a list, an
+[IPv4 allow list](/architecture/components/ipv4_allow/).
 It accepts one peer at a time and adopts the socket into the caller's `TcpClientLink`. A second connection waits
 in the stack until the first one drops. The listen backlog is 1.
 
-`tcp_uart` and `uart_tcp` are the callers. A server role calls `require_tcp_listener()` and, for a non-empty `allowed_ips`,
+`uart_tcp` is the first caller; `tcp_uart`'s server role (esphome#20026) follows. A server role calls `require_tcp_listener()` and, for a non-empty `allowed_ips`,
 `add_ipv4_allow`. An empty or omitted list does not compile the allow list, and every peer is accepted.
 `consume_role_sockets` accounts for one stream socket, plus one listen socket when `role` is `server`:
 
 ```python
+import esphome.codegen as cg
 from esphome.components import socket
+import esphome.config_validation as cv
+
+AUTO_LOAD = ["socket"]
 
 CONFIG_SCHEMA = cv.All(
     cv.typed_schema(
@@ -53,11 +59,19 @@ Call `begin()` from `setup()` with the log tag. Call `poll()` once per loop, and
 disconnect edge, so a sensor and any stale bytes still see the drop.
 
 ```cpp
+socket::TcpClientLink link_;
+bool server_{false};
+// The link state loop() saw last; the edge clears buffers and publishes sensors.
+bool link_was_up_{false};
 #ifdef USE_SOCKET_TCP_LISTENER
 socket::TcpListener listener_;
 #endif
+#ifdef USE_SOCKET_IPV4_ALLOW
+void set_allow(const socket::Ipv4AllowEntry *entries, size_t count) { this->listener_.set_allow(entries, count); }
+#endif
 
 void setup() override {
+  this->link_.begin(TAG);
 #ifdef USE_SOCKET_TCP_LISTENER
   this->listener_.begin(TAG);
 #endif
@@ -66,15 +80,21 @@ void setup() override {
 void loop() override {
 #ifdef USE_SOCKET_TCP_LISTENER
   if (this->server_) {
+    // Hold the accept until the previous drop's edge has run.
     this->listener_.poll(this->link_, !this->link_was_up_);
   } else
 #endif
   {
     this->link_.poll();
   }
+  if (this->link_.connected() != this->link_was_up_) {
+    // The disconnect edge: clear component state, publish sensors.
+  }
 }
 ```
 
 A rejected peer is closed without being adopted, and the warning is logged at most once every 5 seconds.
-`dump_config()` prints one line per allowed network. `EAGAIN`, `EWOULDBLOCK`, `ECONNABORTED` and `EINTR` from
-`accept()` are ignored. Any other accept error closes the listen socket and uses the link's reconnect interval.
+Call the listener's `dump_config()` from the component's own `dump_config()`; it prints one line per
+allowed network. `EAGAIN`, `EWOULDBLOCK`, `ECONNABORTED` and `EINTR` from
+`accept()` are ignored. Any other accept error closes the listen socket; `poll()` reopens it after the
+link's reconnect interval.

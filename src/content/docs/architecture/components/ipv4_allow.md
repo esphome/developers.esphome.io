@@ -30,14 +30,19 @@ async def to_code(config):
     socket.add_ipv4_allow(var.set_allow, config[CONF_ALLOW], config[CONF_ID])
 ```
 
+`add_ipv4_allow` defines `USE_SOCKET_IPV4_ALLOW` when it emits entries, so the member, the setter and the
+check belong behind that guard; a config without a list then compiles none of it.
+
 The C++ side exposes the matching setter and checks the accepted peer's `sockaddr` directly. A v4 mapped IPv6
 peer is unwrapped through the shared `socket::sockaddr_to_ipv4()`; any other family is denied while the list is
 not empty:
 
 ```cpp
+#ifdef USE_SOCKET_IPV4_ALLOW
 socket::Ipv4Allow allow_;
 
 void set_allow(const socket::Ipv4AllowEntry *entries, size_t count) { this->allow_.set(entries, count); }
+#endif
 
 // in the accept path
 struct sockaddr_storage peer;

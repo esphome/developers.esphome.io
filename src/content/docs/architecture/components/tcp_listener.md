@@ -7,11 +7,11 @@ title: "TCP listener"
 when a component calls `socket.require_tcp_listener()`. That call also pulls in the client link and the IPv4
 resolver.
 
-The listener owns the listen socket and, when the config passes a list, an `socket::Ipv4Allow`.
+The listener owns the listen socket and, when the config passes a list, a `socket::Ipv4Allow`.
 It accepts one peer at a time and adopts the socket into the caller's `TcpClientLink`. A second connection waits
 in the stack until the first one drops. The listen backlog is 1.
 
-`uart_tcp` is the caller. A server role calls `require_tcp_listener()` and, for a non-empty `allowed_ips`,
+`tcp_uart` and `uart_tcp` are the callers. A server role calls `require_tcp_listener()` and, for a non-empty `allowed_ips`,
 `add_ipv4_allow`. An empty or omitted list does not compile the allow list, and every peer is accepted.
 `consume_role_sockets` accounts for one stream socket, plus one listen socket when `role` is `server`:
 
@@ -44,6 +44,9 @@ async def to_code(config):
     else:
         socket.require_tcp_client_link()
 ```
+
+`set_allow` and the member behind it exist only under `USE_SOCKET_IPV4_ALLOW`, which `add_ipv4_allow` defines
+when it emits entries, so guard any direct use the same way.
 
 Call `begin()` from `setup()` with the log tag. Call `poll()` once per loop, and `close()` from `on_shutdown()`.
 `poll()` takes the link and a flag. Pass false to hold the next accept until the component has handled the

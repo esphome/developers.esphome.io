@@ -219,8 +219,6 @@ esp32:
 ## See Also
 
 - [TCP listener](/architecture/components/tcp_listener/)
+- [IPv4 allow list](/architecture/components/ipv4_allow/)
 - [Advanced Component Topics](/architecture/components/advanced)
 - Socket Consumption API: PR [#11378](https://github.com/esphome/esphome/pull/11378)
-
-A server component that should only accept certain peers can use the
-[IPv4 allow list](/architecture/components/ipv4_allow/).

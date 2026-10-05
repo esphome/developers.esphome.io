@@ -63,3 +63,7 @@ As mentioned in the [codebase standards](/contributing/code/#c), all components/
 
 Finally, the component implements the usual set of methods [as described here](/architecture/components/index#common-methods). This is all
 that's required for our minimal UART component!
+
+## See Also
+
+- [Virtual UART](/architecture/components/uart_virtual/)

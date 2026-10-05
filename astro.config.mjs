@@ -81,6 +81,7 @@ export default defineConfig({
                     "architecture/components/i2c",
                     "architecture/components/spi",
                     "architecture/components/uart",
+                    "architecture/components/uart_virtual",
                   ],
                 },
                 "architecture/components/automations",

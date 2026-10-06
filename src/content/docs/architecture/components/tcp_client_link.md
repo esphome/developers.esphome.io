@@ -30,4 +30,7 @@ write error closes the link, logs it and schedules the next attempt; the caller 
 `consume_role_sockets(component)` in `socket/__init__.py` does the socket accounting for a role keyed
 schema: one stream socket always, plus one listen socket when `role` is `server`.
 
+`FINAL_VALIDATE_SCHEMA = socket.final_validate_idle_timeout` lets a component reject a `timeout` shorter than one
+main loop pass (`loop_interval` under `esphome:`, 16 ms by default); `0s` turns the timeout off and always passes.
+
 `uart_tcp` is the first caller; `tcp_uart` follows in esphome#20026.

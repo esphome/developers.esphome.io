@@ -19,6 +19,13 @@ write error closes the link, logs it and schedules the next attempt; the caller 
   `tx_commit(n)` give a zero copy fill bounded by `tx_free()`; `flush_tx()` sends the front and returns
   true once the buffer is empty.
 - `close()` from `on_shutdown()`; it also clears the buffer, so bytes never leak into the next session.
+- `set_idle_timeout(ms)` from a codegen setter, `idle_timeout()` for `dump_config()`. `0`, the default, leaves
+  the link up.
+- `check_idle()` once per loop, after the reads and writes. When no byte was read and none was accepted by the
+  peer for `idle_timeout()`, it drops the link like a failed read and schedules the next attempt. The clock
+  starts when the link comes up. It is an inline no-op at a zero timeout or while the link is down.
+- `note_io()` restarts that clock without moving a byte. Call it when the consumer's own buffer is full, so a
+  peer that is still sending is not taken for idle.
 
 `consume_role_sockets(component)` in `socket/__init__.py` does the socket accounting for a role keyed
 schema: one stream socket always, plus one listen socket when `role` is `server`.

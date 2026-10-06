@@ -130,7 +130,7 @@ cover::CoverTraits MyCover::get_traits() {
 
 A few important details:
 
-- Inspect `call.get_position()`, `call.get_tilt()` and `call.get_stop()` to find out what the caller actually asked
+- Inspect `call.get_position()`, `call.get_tilt()`, `call.get_stop()` and `call.get_stop_tilt()` to find out what the caller actually asked
   for; only the fields the caller set will be present (`get_position()`/`get_tilt()` are `optional<float>`, so check
   `has_value()` before dereferencing).
 - `get_position()` and `get_tilt()` range from `0.0` (`cover::COVER_CLOSED`) to `1.0` (`cover::COVER_OPEN`) - use these constants
@@ -138,7 +138,7 @@ A few important details:
 - After driving the hardware, update `this->position` (and `this->tilt`, if supported) and set `this->current_operation`
   before calling `publish_state()`, so the front-end sees an accurate, up-to-date state.
 - `get_traits()` tells the front-end what the cover can do - whether it supports a continuous `position`, `tilt`,
-  being stopped mid-move, or only reports an *assumed* state (see below). Report only the capabilities your hardware
+  being stopped mid-move, stopping the tilt, or only reports an *assumed* state (see below). Report only the capabilities your hardware
   actually has; the front-end adapts its UI accordingly (e.g. a cover that only supports open/close shows simple
   buttons instead of a position slider).
 
@@ -147,6 +147,10 @@ A few important details:
 If your cover cannot read back the real hardware position (so the reported position is only what ESPHome last
 commanded), set `traits.set_is_assumed_state(true)` in `get_traits()`. The front-end will then show separate open/close
 controls rather than trusting the reported position as ground truth.
+
+### Stopping the tilt
+
+Stop and stop tilt are separate commands, as in Home Assistant. If your cover can stop a tilt movement, set `traits.set_supports_stop_tilt(true)` in `get_traits()` and handle `call.get_stop_tilt()` in `control()`. A call only carries stop tilt when the trait is set. When a single motor drives both position and tilt, both commands can map to the same hardware stop.
 
 ### Useful members
 

@@ -24,8 +24,8 @@ write error closes the link, logs it and schedules the next attempt; the caller 
 schema: one stream socket always, plus one listen socket when `role` is `server`.
 
 The link is IPv4-only: `set_host` takes an IPv4 address or a hostname with an A record, and an IPv6 literal
-never connects. A connect still pending after the longer of the reconnect interval and 10 seconds is dropped.
-Keepalive is best-effort; raw lwIP (ESP8266, RP2040) has none, so there a half-open link shows only on a failed
-write.
+never connects. `socket.ipv4_host` rejects an IPv6 literal at config time. A connect still pending after the
+longer of the reconnect interval and 10 seconds is dropped. Keepalive is best-effort; raw lwIP (ESP8266, RP2040)
+has none, so there a half-open link shows only on a failed write.
 
 `uart_tcp` and `tcp_uart` are the callers.

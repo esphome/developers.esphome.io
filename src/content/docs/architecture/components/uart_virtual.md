@@ -81,6 +81,10 @@ class MyLink final : public uart::VirtualUARTComponent, public Component {
   over everything at once. Override it when the transport knows its free room, and `is_connected()` when the
   transport can be down.
 - `load_settings()` does nothing (nothing is clocked) and `check_logger_conflict()` is empty.
+- A device that checks the baud rate or framing of its UART, such as one that calls
+  `final_validate_device_schema()` with `baud_rate`, rejects a virtual UART whose YAML has no such keys; a UART that
+  passes on the bytes of another one can take that UART's settings, see
+  [Forwarding UARTs](/architecture/components/uart/#forwarding-uarts).
 
 > [!WARNING]
 > Call `inject_rx()` and the read methods from the main loop only; the base does no locking. The `data` pointer

@@ -90,14 +90,6 @@ class MyLink final : public uart::VirtualUARTComponent, public Component {
 > Call `inject_rx()` and the read methods from the main loop only; the base does no locking. The `data` pointer
 > passed to `on_block()` is valid only during that call, so a reader that keeps bytes must copy them.
 
-## UARTs Without Line Timing
-
-A UART that does not derive from this base, but whose received bytes do not arrive with the timing of a serial line,
-such as `tcp_uart` or a channel of `usb_uart`, marks its id in `CONFIG_SCHEMA` with
-`cv.GenerateID(): cv.All(cv.declare_id(MyUart), uart.mark_unclocked)`. A reader that finds the end of a frame from a
-gap between bytes, such as the UART bridge, calls `uart.is_unclocked(uart_id)` from `to_code` and waits longer on such
-a UART. A virtual UART needs no mark, because it hands over whole blocks.
-
 ## See Also
 
 - [Interfacing via Serial/UART](/architecture/components/uart/)

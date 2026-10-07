@@ -9,9 +9,7 @@ component calls `uart.require_virtual_uart()`, which defines `USE_UART_VIRTUAL`.
 
 The base owns the receive side: an RX ring, `read_array()`, `peek_byte()` and `available()`. The derived class feeds
 it with `inject_rx()` and implements the send side itself: `write_array()`, `flush()` and, when the transport knows
-its free room, `available_for_write()`. The UART bridge
-([esphome/esphome#20100](https://github.com/esphome/esphome/pull/20100)) is the first reader that takes each block
-directly.
+its free room, `available_for_write()`.
 
 Load `uart` with `AUTO_LOAD`, so no `uart:` block is needed. Declare the class with `uart.VirtualUARTComponent` as a
 parent, so a `uart_id` that expects a UART accepts it, and call `require_virtual_uart()` from `to_code`. It is a plain
@@ -70,13 +68,9 @@ class MyLink final : public uart::VirtualUARTComponent, public Component {
 
 - `inject_rx(data, len)` takes one whole block, for example one frame. The block goes into the RX ring whole or not
   at all: when the ring has less free room than `len`, nothing is kept and the call returns false.
-- A reader that implements `uart::UARTSink` and attaches with `set_rx_sink()` gets each block in one `on_block()`
-  call instead, and nothing goes into the ring. While the reader is still inside `on_block()`, a further
-  `inject_rx()` returns false, so a reader that writes back cannot recurse.
 - Reads never wait. A `read_array()` for more bytes than are there, or a `peek_byte()` on an empty ring, returns false
   and takes nothing. `read_array()` of 0 bytes returns true.
-- The ring is allocated once, in the constructor. A size of 0 allocates no ring; use it only when a reader is always
-  attached.
+- The ring is allocated once, in the constructor.
 - `available_for_write()` keeps the base default `SIZE_MAX`: the class cannot tell its free room, so a writer hands
   over everything at once. Override it when the transport knows its free room, and `is_connected()` when the
   transport can be down.
@@ -87,8 +81,7 @@ class MyLink final : public uart::VirtualUARTComponent, public Component {
   [Forwarding UARTs](/architecture/components/uart/#forwarding-uarts).
 
 > [!WARNING]
-> Call `inject_rx()` and the read methods from the main loop only; the base does no locking. The `data` pointer
-> passed to `on_block()` is valid only during that call, so a reader that keeps bytes must copy them.
+> Call `inject_rx()` and the read methods from the main loop only; the base does no locking.
 
 ## See Also
 

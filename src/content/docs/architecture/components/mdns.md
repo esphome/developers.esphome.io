@@ -20,9 +20,10 @@ import esphome.codegen as cg
 from esphome.components import mdns
 from esphome.const import CONF_ID
 from esphome.core import CORE
+from esphome.types import ConfigType
 
 
-async def to_code(config):
+async def to_code(config: ConfigType) -> None:
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 

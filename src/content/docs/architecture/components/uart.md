@@ -76,7 +76,8 @@ gap between them says nothing about where a frame ends:
 - `usb_cdc_acm` learns its baud rate only when the host opens the port.
 - `ble_nus` receives BLE packets.
 
-These UARTs mark their declared id with `uart.mark_unclocked` in `CONFIG_SCHEMA`. A new UART like them does the same:
+These UARTs mark their declared id with `uart.mark_unclocked` in `CONFIG_SCHEMA`. A new UART like them, a component
+that provides a `uart::UARTComponent` rather than a `UARTDevice`, does the same:
 
 ```python
 import esphome.codegen as cg
@@ -95,9 +96,7 @@ CONFIG_SCHEMA = cv.Schema(
 ).extend(cv.COMPONENT_SCHEMA)
 ```
 
-A reader that ends a frame after a quiet gap calls `uart.is_unclocked(config[CONF_UART_ID])` from `to_code` and waits
-longer on such a UART, or does not rely on the gap. The UART bridge
-([esphome/esphome#20100](https://github.com/esphome/esphome/pull/20100)) and the Modbus gateway
-([esphome/esphome#20105](https://github.com/esphome/esphome/pull/20105)) do this. The marks are made while the schemas
-run, so every `to_code` sees them, whatever the order of the YAML. `is_unclocked()` compares ids by name, so a
-generated id is found too. Both are plain functions, not coroutines.
+A UART device that ends a frame after a quiet gap calls `uart.is_unclocked(config[CONF_UART_ID])` from `to_code` and
+waits longer on such a UART, or does not rely on the gap. The marks are made while the schemas run, so every `to_code`
+sees them, whatever the order of the YAML. `is_unclocked()` compares ids by name, so a generated id is found too. Both
+are plain functions, not coroutines.

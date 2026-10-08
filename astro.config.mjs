@@ -85,6 +85,9 @@ export default defineConfig({
                 },
                 "architecture/components/automations",
                 "architecture/components/socket_consumption_api",
+                "architecture/components/ipv4_allow",
+                "architecture/components/tcp_client_link",
+                "architecture/components/tcp_listener",
                 "architecture/components/advanced",
                 {
                   label: "Entity base classes",

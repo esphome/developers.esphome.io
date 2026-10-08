@@ -327,7 +327,8 @@ This applies with particular force to:
    header-visible class — it writes to the central defines header consumed by every translation unit, so the gated
    field exists or does not exist consistently across the whole build. Per-target `cg.add_build_flag("-D...")` is
    reserved for flags that don't affect header layout (e.g. tuning thresholds inside a `.cpp`), because if different
-   translation units see the same class header with different `#ifdef` state you'll get silent ODR violations.
+   translation units see the same class header with different `#ifdef` state you'll get silent ODR violations. If you
+   need to set a CMake configure args for ESP-IDF or another `CMakeLists.txt`, use `cg.add_cmake_arg("NAME", "value")`.
 1. Wrap the C++ fields, methods, and call sites in `#ifdef USE_LIGHT_COLOR_TINT` / `#endif`.
 
 **Example, gating new fields on a base class** (hypothetical color tint overlay on `LightState`):

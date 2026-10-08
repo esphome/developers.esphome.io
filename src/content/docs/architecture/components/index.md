@@ -388,6 +388,7 @@ state:
   says "unspecified".
 - `status_momentary_warning()` / `status_momentary_error()` set the flag and clear it again after a timeout (5000 ms by
   default). Use them for one-off failures, such as a single failed read. A new call restarts the timeout.
+- `mark_failed()` marks the component as failed when it cannot work at all, typically from `setup()`.
 
 ```cpp
 this->status_momentary_warning();                          // cleared after 5000 ms
@@ -395,11 +396,10 @@ this->status_momentary_warning(1000);                      // cleared after 1000
 this->status_momentary_error(LOG_STR("Read failed"), 500);  // logs the reason
 ```
 
-Before ESPHome 2026.11.0 these took a name as their first argument, for example `status_momentary_warning("read", 1000)`.
-That form is deprecated and will be removed in 2027.5.0: the name was only used to key the timer, it is kept as a
-string (RAM on ESP8266), and it can clash with the component's own `set_timeout()` names. Drop the name to migrate.
-
-- `mark_failed()` marks the component as failed when it cannot work at all, typically from `setup()`.
+Before ESPHome 2026.11.0 the momentary calls required a name as their first argument, for example
+`status_momentary_warning("read", 1000)`. The named form still compiles but is deprecated, and will be removed in
+2027.5.0: the name was only used to key the timer, it is kept as a string (RAM on ESP8266), and it can clash with the
+component's own `set_timeout()` names. Drop the name to migrate.
 
 ### Component-specific methods
 

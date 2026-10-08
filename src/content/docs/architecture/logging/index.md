@@ -69,17 +69,17 @@ In increasing order of verbosity, the levels are:
 - `VERY_VERBOSE` (`ESP_LOGVV()`): Detailed technical information, such as the content of data packets/messages being processed and/or processing state/status.
 
 In addition, ESPHome also has a configuration logging macro, `ESP_LOGCONFIG()`,
-which is typically only used in a component's `dump_config()` function. When
+which logs at the `CONFIG` level (between `INFO` and `DEBUG`) and is typically
+only used in a component's `dump_config()` function. When
 developing your own component, remember to implement `dump_config()` and output
 relevant configuration options.
 
-By default, `ERROR`, `WARN`, `INFO`, and `DEBUG` level messages are logged, and `ESP_LOGCONFIG` messages are always logged. To see more verbose messages, set the `logger` component's `level` to `VERBOSE` or `VERY_VERBOSE`; per-tag levels under `logs` cannot be more verbose than this global level. Messages above the configured level are compiled out, so you must recompile and reflash the firmware onto the device before the change takes effect.
+By default (`DEBUG`), `ERROR`, `WARN`, `INFO`, `CONFIG` (`ESP_LOGCONFIG`), and `DEBUG` level messages are logged. To see more verbose messages, set the `logger` component's `level` to `VERBOSE` or `VERY_VERBOSE`; per-tag levels under `logs` cannot be more verbose than this global level. Messages above the configured level are compiled out, so you must recompile and reflash the firmware onto the device before the change takes effect.
 
 ## Obtaining Log Data
 
-In general, you can use `esphome logs` to retrieve real-time logs from a running ESPHome device over serial, using the ESPHome network API, or over MQTT. You can use the
-`esphome` utility to automatically get logs over serial or the ESPHome network
-API using the configuration file:
+Use `esphome logs` with the device's configuration file to stream real-time logs
+from a running ESPHome device over serial, the ESPHome network API, or MQTT:
 
 ```bash
 esphome logs path/to/configuration.yaml
@@ -98,7 +98,7 @@ configuration option:
 
 ```yaml
 mqtt:
-  log_topic: ${mqtt_prefix}/logs
+  log_topic: my-device/logs
 ```
 
 > [!IMPORTANT]

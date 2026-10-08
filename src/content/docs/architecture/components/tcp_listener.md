@@ -18,9 +18,9 @@ in the stack until the first one drops. The listen backlog is 1.
 not compile the allow list, and every peer is accepted.
 `consume_role_sockets` accounts for one stream socket, plus one listen socket when `role` is `server`.
 
-`BASE_SCHEMA` holds the options both roles share; `uart_tcp` adds the UART, the reconnect interval and the
-sensor there. Take the keys from `esphome.components.const` instead of defining them locally. An omitted list is
-fine; `add_ipv4_allow` accepts `None`:
+`BASE_SCHEMA` holds the options both roles share; `uart_tcp` adds the UART, the reconnect interval and the sensor
+there. Take `CONF_ALLOWED_IPS`, `CONF_HOST` and `CONF_ROLE` from `esphome.components.const` instead of defining
+them locally. An omitted list is fine; `add_ipv4_allow` accepts `None`:
 
 ```python
 import esphome.codegen as cg

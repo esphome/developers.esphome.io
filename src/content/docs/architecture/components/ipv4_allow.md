@@ -23,6 +23,8 @@ from esphome.components.const import CONF_ALLOWED_IPS
 import esphome.config_validation as cv
 from esphome.const import CONF_ID
 
+AUTO_LOAD = ["socket"]
+
 MyComponent = cg.esphome_ns.namespace("my_component").class_("MyComponent", cg.Component)
 
 CONFIG_SCHEMA = cv.Schema(

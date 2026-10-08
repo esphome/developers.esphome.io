@@ -16,6 +16,7 @@ enables it once its server is running, and disables it again if the server is st
 In the component's `to_code`, ask the `mdns` component for the runtime API:
 
 ```python
+import esphome.codegen as cg
 from esphome.components import mdns
 from esphome.const import CONF_ID
 from esphome.core import CORE
@@ -41,6 +42,10 @@ service later. It returns `False`, and adds nothing, when:
 
 Always branch on the return value. When it is `False` the service is advertised the whole time the device is up, exactly
 as if the component had never asked, so the component must still work in that case.
+
+The define is global: once any component's request succeeds, it is set for every component, and the request returns
+`True` for every caller. Call `set_mdns()` whenever the request returns `True`, without further conditions, because the
+C++ code guarded by the define assumes the pointer is set.
 
 ## C++
 

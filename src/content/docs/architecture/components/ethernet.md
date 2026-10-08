@@ -25,7 +25,9 @@ configuration, powering down the PHY or performing another operation that requir
 `is_connected()` reports `false` while the component is disabled, even if the connection state machine
 has not yet processed the stop.
 
-Check that Ethernet setup succeeded and the driver is available before using this boundary. A
+Check that Ethernet setup succeeded and the driver is available before using this boundary.
+Initialization errors mark the component failed, so `eth->is_failed()` must return `false`. With
+`enable_on_boot: false`, the driver is not installed until `enable()` is first called. A
 never-started driver is not evidence that initialization succeeded. Keep ownership of stop, PHY
 operations and restart in one main-loop state machine so another caller cannot restart the driver
 between checking the boundary and performing the operation.

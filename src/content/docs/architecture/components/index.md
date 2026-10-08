@@ -241,18 +241,45 @@ every image) plus `files:` (a list of per-image overrides), instead of repeating
 only has to be implemented once, in the base `image` component, and every platform it provides (`file`, `animation`,
 `online_image`) gets the feature for free.
 
+```yaml
+image:
+  - platform: file
+    defaults:
+      type: RGB565
+      resize: 64x64
+    files:
+      - file: a.png
+        id: img_a
+      - file: b.png
+        id: img_b
+```
+
+This expands to two `platform: file` entries, each with `type` and `resize` merged in; keys on a `files:` item
+override the defaults. A simplified version of the hook, showing how malformed input is rejected:
+
 ```python
+def _expand_entry(index: int, entry: dict) -> list[dict]:
+    if "files" not in entry:
+        if "defaults" in entry:
+            raise cv.Invalid("'defaults' may only be used together with 'files'", path=[index])
+        return [entry]
+    if extra := set(entry) - {"platform", "defaults", "files"}:
+        raise cv.Invalid(f"'files' cannot be combined with {', '.join(sorted(extra))}", path=[index])
+    files = entry["files"]
+    if not isinstance(files, list) or not files:
+        raise cv.Invalid("'files' must be a non-empty list", path=[index])
+    defaults = entry.get("defaults") or {}
+    if not isinstance(defaults, dict):
+        raise cv.Invalid("'defaults' must be a mapping", path=[index])
+    if not all(isinstance(file_entry, dict) for file_entry in files):
+        raise cv.Invalid("each entry in 'files' must be a mapping", path=[index])
+    return [{"platform": entry["platform"], **defaults, **file_entry} for file_entry in files]
+
+
 def expand_platform_config(config: list[dict]) -> list[dict]:
     result = []
-    for entry in config:
-        if "files" not in entry:
-            result.append(entry)
-            continue
-        defaults = entry.get("defaults", {})
-        result.extend(
-            {"platform": entry["platform"], **defaults, **file_entry}
-            for file_entry in entry["files"]
-        )
+    for index, entry in enumerate(config):
+        result.extend(_expand_entry(index, entry))
     return result
 
 

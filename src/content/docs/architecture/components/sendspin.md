@@ -13,8 +13,9 @@ what a role asks for. The hub supports six of them:
 
 - `player` - the audio stream (FLAC, Opus or PCM) plus the server's volume, mute and delay commands. Consumed by the
   `media_source` platform.
-- `controller` - transport commands towards the server and the playback state of the client's group. Consumed by the
-  `media_player` platform and the `sendspin.switch` action.
+- `controller` - transport commands towards the server and the controller state it reports back (supported commands,
+  volume, mute, repeat and shuffle). Consumed by the `media_player` and `media_source` platforms and the
+  `sendspin.switch` action.
 - `metadata` - title, artist, album, track progress and so on. Consumed by the `sensor` and `text_sensor` platforms.
 - `artwork` - album and artist art in the format and size each consumer asked for. Consumed by the `image` platform.
 - `color` - a palette the server derives from the album art.
@@ -80,8 +81,10 @@ Two roles carry configuration that the child supplies while requesting them:
 - `register_artwork_preference(config)` requests the artwork role, records one image slot's preference (source,
   format, size and display offset) and returns the slot index the child must keep; up to four slots are available.
 
-The visualizer role's configuration is a library struct that the child builds itself and hands to the hub in
-`to_code`, together with the component that will receive the data:
+The visualizer role is requested with `request_visualizer_support()` from a validator like the other roles, but its
+configuration is a library struct that the child builds itself and hands to the hub in `to_code`, together with the
+component that will receive the data. The hub only generates `set_visualizer_config()` and `set_visualizer_listener()`
+when the role was requested during validation:
 
 ```python
 from esphome.components.sendspin import request_visualizer_support, sendspin_library_ns
@@ -91,6 +94,11 @@ VisualizerSupportObject = sendspin_library_ns.struct("VisualizerSupportObject")
 VisualizerSpectrumConfig = sendspin_library_ns.struct("VisualizerSpectrumConfig")
 VisualizerDataType = sendspin_library_ns.enum("VisualizerDataType", is_class=True)
 VisualizerSpectrumScale = sendspin_library_ns.enum("VisualizerSpectrumScale", is_class=True)
+
+
+def _request_roles(config):
+    request_visualizer_support()
+    return config
 
 
 async def to_code(config):
@@ -190,8 +198,9 @@ client in its `setup()`, before the client is started.
   the library's `PlayerRole` once the hub is set up; the media source keeps that pointer and drives the role directly.
 - Visualizer: the child implements `sendspin::VisualizerRoleListener`; codegen calls `set_visualizer_config()` and
   `set_visualizer_listener()`. The data callbacks - `on_loudness()`, `on_beat()`, `on_spectrum()`, `on_peak()` and
-  `on_f_peak()` - fire on the library's drain thread at each datum's playback time, so they must be thread safe: copy
-  the values into atomics and render from the main loop. The stream lifecycle callbacks
+  `on_f_peak()` - fire on the library's drain thread at each datum's playback time, so they must be thread safe: store
+  scalar values in atomics, copy the spectrum bins (a `const std::vector<uint16_t> &` the library reuses between
+  calls) into a buffer guarded by a lock, and render from the main loop. The stream lifecycle callbacks
   (`on_visualizer_stream_start()`, `on_visualizer_stream_end()`, `on_visualizer_stream_clear()`) fire on the main
   loop.
 

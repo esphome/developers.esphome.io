@@ -185,6 +185,16 @@ class MyHubComponent final : public Component {
 // if (this->factory_reset_button_ != nullptr) { ... }
 ```
 
+In `to_code`, bind the hub as the parent once with `button.sub_buttons()`, then create each configured button and
+pass it to its setter:
+
+```python
+hub = await cg.get_variable(config[CONF_MY_HUB_ID])
+buttons = button.sub_buttons(config, parent=hub)
+await buttons(CONF_FACTORY_RESET, hub.set_factory_reset_button)
+await buttons(CONF_RESTART, hub.set_restart_button)
+```
+
 See [Exposing multiple sensors from one component](/architecture/components/sensor#exposing-multiple-sensors-from-one-component)
 for a fully worked example of both patterns.
 

@@ -241,10 +241,23 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 
-    if temperature_config := config.get(CONF_TEMPERATURE):
-        sens = await sensor.new_sensor(temperature_config)
-        cg.add(var.set_temperature_sensor(sens))
+    sensors = sensor.sub_sensors(config)
+    await sensors(CONF_TEMPERATURE, var.set_temperature_sensor)
+    await sensors(CONF_HUMIDITY, var.set_humidity_sensor)
 ```
+
+`sensor.sub_sensors(config)` binds the configuration once. Each call with a key and a setter creates the sensor
+whenever `key` is present in the configuration and passes it to `setter`. It returns the new sensor, or `None` only
+when the key is absent, so the result can be used directly as a condition when a configured sensor needs more setup.
+Always write the setter out at the call site as shown. Do not build its name with `getattr` and an f-string: an
+explicit setter can be found with a search, reviewers can see it, and any setter name works.
+
+The same helper exists for every entity type that has a `SUB_*` macro: `binary_sensor.sub_binary_sensors()`,
+`text_sensor.sub_text_sensors()`, `button.sub_buttons()`, `switch.sub_switches()`, `number.sub_numbers()` and
+`select.sub_selects()`. Entities that call back into their hub derive from `Parented<T>`; bind the hub with
+`parent=` and it is set on each entity before the setter runs. Extra arguments for the entity, such as
+`min_value` for a number or `options` for a select, go on each call. These helpers were added in ESPHome 2026.10.0;
+older code writes each entity as an `if` block around `new_sensor()` and `cg.add()`.
 
 On the C++ side, your component holds a pointer per reading and publishes to whichever ones the user configured. Rather
 than writing those members and setters out by hand, use the `SUB_SENSOR(name)` macro from `sensor.h`, which generates a

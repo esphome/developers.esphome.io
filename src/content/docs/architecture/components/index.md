@@ -194,6 +194,113 @@ any other components and potentially fail the validation stage if an important d
 For example, many components that rely on `uart` can use the `FINAL_VALIDATE_SCHEMA` to ensure that the `tx_pin` and/or
 `rx_pin` are configured.
 
+### Platform components
+
+Some components are **platform components**: instead of a single configuration block, the top-level YAML key holds a
+list of entries, each selecting a *platform* that provides its own `CONFIG_SCHEMA`/`to_code`. `sensor`, `switch` and
+`image` are all platform components:
+
+```yaml
+image:
+  - platform: file
+    file: "image.png"
+    id: my_image
+```
+
+A component opts into this by setting `IS_PLATFORM_COMPONENT = True` in its `__init__.py`. Each platform then lives
+in its own component package, in a module named after the platform component's domain --
+`esphome/components/<platform>/<domain>.py` -- exposing its own `CONFIG_SCHEMA` and `to_code` exactly like a regular
+component. For example, `platform: file` under `image:` resolves to `esphome/components/file/image.py`.
+
+Two optional hooks on the platform component's own `__init__.py` module let it reshape the raw domain config -- the
+list of `platform:`-tagged entries -- *before* any individual entry's `CONFIG_SCHEMA` runs or its IDs are registered:
+
+#### `LEGACY_CONFIG_MIGRATE`
+
+A removable deprecation shim: rewrites a pre-platform-component config shape (for example, a bare list or a
+monolithic dict your component used to accept before it became a platform component) into the normalized
+`platform:`-tagged list, logging a one-time deprecation warning. Delete it, along with any code that only exists to
+understand the old shape, once its removal version has passed.
+
+```python
+def migrate_legacy_config(config: object) -> list[dict] | None:
+    if _is_already_platform_tagged(config):
+        return None  # Nothing to do.
+    _LOGGER.warning("... deprecated ...")
+    return [{"platform": "file", **entry} for entry in _flatten(config)]
+
+
+LEGACY_CONFIG_MIGRATE = migrate_legacy_config
+```
+
+#### `EXPAND_PLATFORM_CONFIG`
+
+A permanent (non-deprecated) counterpart: lets any platform entry -- for any platform the component provides --
+expand into multiple entries. `image` uses this so a single entry can provide `defaults:` (options merged into
+every image) plus `files:` (a list of per-image overrides), instead of repeating shared options on every entry. It
+only has to be implemented once, in the base `image` component, and every platform it provides (`file`, `animation`,
+`online_image`) gets the feature for free.
+
+```yaml
+image:
+  - platform: file
+    defaults:
+      type: RGB565
+      resize: 64x64
+    files:
+      - file: a.png
+        id: img_a
+      - file: b.png
+        id: img_b
+```
+
+This expands to two `platform: file` entries, each with `type` and `resize` merged in; keys on a `files:` item
+override the defaults. A simplified version of the hook, showing how malformed input is rejected:
+
+```python
+def _expand_entry(index: int, entry: dict) -> list[dict]:
+    if "files" not in entry:
+        if "defaults" in entry:
+            raise cv.Invalid("'defaults' may only be used together with 'files'", path=[index])
+        return [entry]
+    if extra := set(entry) - {"platform", "defaults", "files"}:
+        raise cv.Invalid(f"'files' cannot be combined with {', '.join(sorted(extra))}", path=[index])
+    files = entry["files"]
+    if not isinstance(files, list) or not files:
+        raise cv.Invalid("'files' must be a non-empty list", path=[index])
+    defaults = entry.get("defaults") or {}
+    if not isinstance(defaults, dict):
+        raise cv.Invalid("'defaults' must be a mapping", path=[index])
+    if not all(isinstance(file_entry, dict) for file_entry in files):
+        raise cv.Invalid("each entry in 'files' must be a mapping", path=[index])
+    return [{"platform": entry["platform"], **defaults, **file_entry} for file_entry in files]
+
+
+def expand_platform_config(config: list[dict]) -> list[dict]:
+    result = []
+    for index, entry in enumerate(config):
+        result.extend(_expand_entry(index, entry))
+    return result
+
+
+EXPAND_PLATFORM_CONFIG = expand_platform_config
+```
+
+Contract:
+
+- Do only structural dict manipulation here -- leave semantic validation (for example, "is this key valid for this
+  platform") to each platform's own `CONFIG_SCHEMA`, which still runs on every entry the hook returns.
+- To reject malformed input, raise `cv.Invalid`, optionally with `path=[index]` where `index` is the offending
+  entry's position in the *input* list, so the error is anchored to that entry rather than to the whole domain. Do
+  not raise other exception types for user-facing errors -- they will surface as an unhandled traceback rather than
+  a config error.
+- The return value must always be a `list`. Returning anything else is treated as a bug in the component, not a
+  user configuration error.
+- It runs once per domain, after `LEGACY_CONFIG_MIGRATE` (if defined) and after the domain's raw config has been
+  normalized into a list, but before any entry's `CONFIG_SCHEMA`, `FINAL_VALIDATE_SCHEMA`, or ID registration.
+
+See `esphome/components/image/__init__.py` for the full implementation this is based on.
+
 ### Remote file prefetching
 
 Components that download remote files during validation (fonts, icons, firmware blobs, configuration data) can declare
@@ -308,7 +415,7 @@ This represents the minimum required code to implement a component in ESPHome:
 
   namespace esphome::example_component {
 
-  static const char *TAG = "example_component.component";
+  ESPHOME_LOG_TAG(TAG, "example_component.component");
 
   void ExampleComponent::setup() {
     // Code here should perform all component initialization,

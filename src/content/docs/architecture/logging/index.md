@@ -64,7 +64,7 @@ In increasing order of verbosity, the levels are:
 - `ERROR` (`ESP_LOGE()`): Indicates problems that prevent the ESPHome device from working correctly.
 - `WARN` (`ESP_LOGW()`): Warnings are recoverable issues like invalid sensor readings.
 - `INFO` (`ESP_LOGI()`): Informational messages that may be useful to a non-technically savvy user, such as detected serial numbers.
-- `DEBUG` (`ESP_LOGD()`): Messages that are important for typical device diagnostics.
+- `DEBUG` (`ESP_LOGD()`): Diagnostic detail useful when developing or troubleshooting a component; this is the default level.
 - `VERBOSE` (`ESP_LOGV()`): Messages that don't normally need to be seen but may add value when troubleshooting or preparing/commissioning a new device/configuration.
 - `VERY_VERBOSE` (`ESP_LOGVV()`): Detailed technical information, such as the content of data packets/messages being processed and/or processing state/status.
 
@@ -110,7 +110,7 @@ mqtt:
 To retrieve logs over serial, you can either configure your hardware's USB CDC if it has such hardware, or configure your device to use specific UART pins, which you
 can then connect to your computer using:
 
-- A dedicated USB to UART adapter, or
+- A dedicated USB to UART adapter, such as one based on a CP2102, CH340 or FTDI chip, or
 - An [RP2040 Debug Probe](https://www.raspberrypi.com/products/debug-probe/) or another RP2040 device such as a Raspberry Pi Pico loaded with [debug probe firmware](https://github.com/raspberrypi/debugprobe). This will work for any UART-capable ESPHome device, not just RP2040 devices.
 
 If your logs look garbled when using a serial connection, make sure that your

@@ -51,12 +51,13 @@ Since this is a serial device which uses a UART, we must register it as such so 
 
 ### Forwarding UARTs
 
-A component that is itself a UART but passes on the bytes of another UART, such as an output of `uart_split`, has no
-baud rate, data bits, parity or stop bits of its own. Devices on it that require them would be rejected. Call
-`uart.inherit_settings(uart_id, source_id)` from `CONFIG_SCHEMA`; `final_validate_device_schema()` then checks those
-devices against the settings of the source UART, following every hop. No pins are checked on a forwarding UART:
-`require_tx` and `require_rx` apply to hardware UARTs only. Final validation runs in YAML order, so a call from
-`to_code` or from final validation can come too late. `inherit_settings` is a plain function, not a coroutine:
+A component that is itself a UART but passes on the bytes of another UART has no baud rate, data bits, parity or stop
+bits of its own. Devices on it that require them would be rejected. `uart.inherit_settings(uart_id, source_id)` makes
+`final_validate_device_schema()` check those devices against the settings of the source UART instead, following every
+hop. No pins are checked on a forwarding UART: `require_tx` and `require_rx` apply to hardware UARTs only.
+
+Call it from `CONFIG_SCHEMA`. `to_code` runs after final validation, so a call there is always too late. Final
+validation runs in YAML order, so a call from final validation can miss devices that were checked before it. `inherit_settings` is a plain function, not a coroutine:
 
 ```python
 import esphome.codegen as cg

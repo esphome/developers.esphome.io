@@ -24,7 +24,7 @@ Every protocol added to `remote_base` has cost every user of the component, whet
 
 Four things, each with its own migration step below:
 
-1. `RemoteProtocol<T>` is an empty marker. `encode()`, `decode()` and `dump()` are plain member functions, checked by C++20 concepts wherever a protocol is used.
+1. `RemoteProtocol<T>` only supplies the `ProtocolData` alias and no longer declares the protocol methods. `encode()`, `decode()` and `dump()` are plain member functions, checked by C++20 concepts wherever a protocol is used.
 1. `RemoteReceiverBase::register_listener()` and `register_dumper()` only accept a registration when code generation counted a slot for it; with no slot counted the call fails a `static_assert`. A registration from C++ `setup()` has no slot.
 1. A protocol's `*_protocol.cpp` in `remote_base` is only compiled when something in the configuration requests it: a dumper, a trigger, a binary sensor, a transmit action, or an explicit request from a component's `to_code()`. A protocol that ships in your own component is compiled as before.
 1. The protected `call_listeners_()` and `call_dumpers_()` on `RemoteReceiverBase` are merged into `call_listeners_dumpers_()`, which already existed.

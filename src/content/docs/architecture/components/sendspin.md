@@ -6,7 +6,8 @@ The `sendspin` component is a *hub*, not an [entity](/architecture/components/in
 [Sendspin](https://www.sendspin-audio.com) synchronized audio protocol on top of the `sendspin-cpp` library: a WebSocket
 server that a Sendspin server such as Music Assistant discovers over mDNS and connects to. Everything the user sees -
 the media player, the media source that feeds audio into the speaker pipeline, the metadata sensors, the album art
-images - is a separate *child* component attached to the hub. The hub is ESP32 only.
+images - is a separate *child* component attached to the hub. The hub requires ESP32 with the ESP-IDF framework; its
+own validation enforces that, so children need no framework check of their own.
 
 A Sendspin client advertises a set of *roles* to the server in its `client/hello` message, and the server only sends
 what a role asks for. The hub supports six of them:
@@ -18,8 +19,10 @@ what a role asks for. The hub supports six of them:
   `sendspin.switch` action.
 - `metadata` - title, artist, album, track progress and so on. Consumed by the `sensor` and `text_sensor` platforms.
 - `artwork` - album and artist art in the format and size each consumer asked for. Consumed by the `image` platform.
-- `color` - a palette the server derives from the album art.
-- `visualizer` - timestamped loudness, beat, spectrum, onset and dominant frequency data for the playing audio.
+- `color` - a color palette the server derives from the playing audio, for example from its album art. No in-tree
+  consumer; requested by external and custom components.
+- `visualizer` - timestamped loudness, beat, spectrum, onset and dominant frequency data for the playing audio. No
+  in-tree consumer; requested by external and custom components.
 
 A role is compiled in only when a child component asks for it. Requesting a role defines `USE_SENDSPIN_<ROLE>` for the
 C++ build; a role nobody requested is disabled in the library instead (`CONFIG_SENDSPIN_ENABLE_<ROLE>=n`), so its code
@@ -177,8 +180,9 @@ All of these fire on the main loop, from the hub's `loop()`, unless noted:
   `get_track_progress_ms()` interpolates the track position between updates.
 - Artwork: `add_image_decode_callback()` hands over the encoded image bytes on the library's decode thread, so do the
   decoding there and nothing else; `add_image_display_callback()` and `add_image_clear_callback()` fire on the main
-  loop when the frame should be shown or dropped. Every delivery must be acknowledged with `artwork_frame_done()`
-  before the library releases the next one for that slot.
+  loop when the frame should be shown or dropped. Each display or clear delivery (not each decode) must be
+  acknowledged once with `artwork_frame_done(slot)` from the main loop before the library releases the next one for
+  that slot; a redundant ack is a safe no-op.
 - Color: `add_color_callback()` with a `ServerColorStateObject` whose colors (background, primary, accent and the
   foreground colors for dark and light backgrounds) are each `std::optional`. A lost connection delivers a
   default-constructed object, like metadata.
@@ -206,6 +210,23 @@ client in its `setup()`, before the client is started.
 
 ### Talking to the server
 
-`connect_to_server()`, `disconnect_from_server()` and `update_state()` forward to the client. All three are no-ops
-while the client is not running (`is_client_running()`): the hub starts it from its `loop()`, and a `sendspin`
-switch can stop and restart it at any time. All three must be called from the main loop.
+`connect_to_server()`, `disconnect_from_server()` and `leave_group()` forward to the client; `leave_group()` sends
+`client/leave` while the group is playing so another source can use the speaker. All three are no-ops while the
+client is not running (`is_client_running()`): the hub starts it from its `loop()`, and a `sendspin` switch can stop
+and restart it at any time. All three must be called from the main loop.
+
+`set_enabled()` is what the `sendspin` switch uses to start and stop the client. It is applied from the hub's
+`loop()`, and stopping fires the roles' clear callbacks synchronously, still on the main loop.
+
+### Pairing
+
+`confirm_pairing_window()` confirms a waiting pairing attempt, or opens the pairing window for the next one if none is
+waiting; `cancel_pairing_window()` closes it. Both are no-ops while the client is not running and must be called
+from the main loop. The hub reports pairing events through `add_on_open_pairing_window_callback()`,
+`add_on_close_pairing_window_callback()`, `add_on_display_pairing_code_callback()`,
+`add_on_clear_pairing_code_callback()`, `add_on_pairing_succeeded_callback()` and
+`add_on_pairing_failed_callback()`. A child that can show the dynamic pairing code, like the `pairing_code` text
+sensor, calls `request_pairing_code_display_support()` from a validator so the device advertises it.
+
+A `sendspin` switch platform calls `request_switch()` with its switch type so the hub knows the setting is driven by
+a switch instead of by codegen.

@@ -244,7 +244,7 @@ The action is the core `ApplyAction<Ts...>`, which stores one function pointer. 
 
 ### Python
 
-Most actions only need the parent component looked up and the C++ object constructed. Register those with one call and no builder function:
+When `play()` has its own logic but the builder only needs to look up the parent component and construct the C++ object, register the action with one call and no builder function:
 
 ```python
 MyAction = my_ns.class_("MyAction", automation.Action)
@@ -262,11 +262,13 @@ automation.register_simple_action(
 - `register_parented_action` for a class deriving from `Parented<T>`: the object is constructed without arguments and `set_parent()` receives the parent.
 - `register_bare_action` for a constructor that takes no arguments at all, typically an action that reaches a global singleton.
 
-These helpers are available in ESPHome 2026.10.0 and later ([esphome/esphome#19321](https://github.com/esphome/esphome/pull/19321)); on earlier versions use the `@automation.register_action` decorator on a builder that awaits `cg.get_variable(config[CONF_ID])` and returns `cg.new_Pvariable(action_id, template_arg, parent)`.
-
 Set `synchronous=True` if the action completes immediately (no async operations like delays or waits). Set `synchronous=False` if the action defers `play_next_()` to a later point (e.g. after a delay or async operation completes).
 
-When the builder must also set fields, use the `@automation.register_action` decorator on a builder function instead (see the templatable example below).
+These helpers are available in ESPHome 2026.10.0 and later ([esphome/esphome#19321](https://github.com/esphome/esphome/pull/19321)). When the builder must also set fields, or on earlier versions, use the `@automation.register_action` decorator on a builder function instead (see the templatable example below). The builder body that matches each helper is:
+
+- `register_simple_action`: await `cg.get_variable(config[CONF_ID])` and return `cg.new_Pvariable(action_id, template_arg, parent)`.
+- `register_parented_action`: create `var = cg.new_Pvariable(action_id, template_arg)`, then `await cg.register_parented(var, config[CONF_ID])` and return `var`.
+- `register_bare_action`: return `cg.new_Pvariable(action_id, template_arg)` with no lookup.
 
 ### C++
 

@@ -4,7 +4,9 @@ date: 2026-10-05
 authors: bdraco
 ---
 
-ESPHome 2026.10.0 stores select options and light effects in flash tables generated at build time instead of copying them onto the heap at boot. The getters now return a `ConstVector` view instead of a `FixedVector`. Code that binds the result with `auto` keeps working; only code that names the old type needs a one word change.
+ESPHome 2026.10.0 stores select options and light effects in flash tables generated at build time instead of copying them onto the heap at boot. The getters now return a `ConstVector` view instead of a `FixedVector`. Code that binds the result with `auto` and uses the common read only members keeps working; code that names the old type, or calls `front()`, `back()`, `capacity()` or `full()`, needs a small change.
+
+This is a **breaking change** for external components in **ESPHome 2026.10.0 and later**.
 
 <!-- excerpt -->
 
@@ -69,19 +71,32 @@ const auto &opts = id(my_select).traits.get_options();
 const auto &effects = id(my_light).get_effects();
 ```
 
+`ConstVector` also drops the `front()`, `back()`, `capacity()` and `full()` members that `FixedVector` had, so calls to them fail even when the result is bound with `auto`. For a non empty list, use `list[0]` instead of `front()` and `list[list.size() - 1]` instead of `back()`. The list never grows after it is set, so `capacity()` is the same as `size()` and `full()` is always true.
+
+```cpp
+// OLD - no longer compiles
+const char *first = id(my_select).traits.get_options().front();
+
+// NEW
+const auto &opts = id(my_select).traits.get_options();
+const char *first = opts[0];  // check opts.empty() first if the list can be empty
+```
+
 Copying the light effect list into a local variable (`const auto effects = id(my_light).get_effects();`) failed to compile since `FixedVector` was introduced; it compiles again now, because the light effect view is a cheap, non owning copy of a flash table. Copying a select's options is still not allowed, since a select may own a runtime copy.
 
 ## ConstVector
 
-`ConstVector<T>` in `esphome/core/helpers.h` is a read only view of a table: a pointer and a size, with raw pointer iterators. The owning variant, `ConstVector<T, true>`, can also hold a heap copy for lists set at runtime; it marks ownership in the top bit of the size, so it stays 8 bytes. Element types must be whole words (pointers or other 32 bit values), because ESP8266 can only read flash with aligned 32 bit loads.
+`ConstVector<T>` in `esphome/core/helpers.h` is a read only view of a table: a pointer and a size, with raw pointer iterators. The owning variant, `ConstVector<T, true>`, can also hold a heap copy for lists set at runtime; it marks ownership in the top bit of the size, so it stays a pointer and a size (8 bytes on 32 bit targets). Element types must be whole words (pointers or other 32 bit values), because ESP8266 can only read flash with aligned 32 bit loads.
 
 Other entity lists set at build time can move to `ConstVector` the same way.
 
 ## Finding Code That Needs Updates
 
 ```bash
-grep -rn 'FixedVector<const char \*> &.*get_options\|FixedVector<LightEffect \*>' --include='*.cpp' --include='*.h' --include='*.yaml'
+grep -rnE 'FixedVector<[[:space:]]*(const char|LightEffect)[[:space:]]*\*[[:space:]]*>|get_(options|effects)\(\)\.(front|back|capacity|full)\(' --include='*.cpp' --include='*.h' --include='*.yaml'
 ```
+
+The pattern also matches `FixedVector<const char *>` uses unrelated to selects, such as event types; only the ones holding select options need changing. It does not catch `front()` or `back()` called on a variable that holds the list, so check those by hand.
 
 ## Timeline
 

@@ -302,6 +302,23 @@ A `loop()` method costs one pointer in the application's `looping_components_` l
 - **`set_timeout`** — one-shots and self-rescheduling timers with variable delays. Don't chain it as a hand-rolled `set_interval`.
 - **`defer`** — run-once on the next main-loop iteration; use it to break recursion or escape interrupt context, not as a task queue.
 
+### Naming timers
+
+Give a timer an id only when it must be cancelled or replaced. Use a `static constexpr uint32_t`, not a string: a string
+costs RAM on ESP8266 and is compared character by character.
+
+Ids are scoped to the component instance that registers the timer. They never clash with other components, other
+instances of the same component, or ESPHome's own timers, so there is no need for long or prefixed names: plain numbers
+starting at 0 are fine. Keep all of a component's ids together in one place so they stay unique within it.
+
+```cpp
+static constexpr uint32_t READ_TIMEOUT_ID = 0;
+static constexpr uint32_t RETRY_INTERVAL_ID = 1;
+
+this->set_timeout(READ_TIMEOUT_ID, 50, [this]() { this->read_(); });
+this->cancel_timeout(READ_TIMEOUT_ID);
+```
+
 ## The Loop Blocking Warning
 
 Every component `loop()`, `update()` and scheduled callback runs under a guard that measures how long it held the main loop; `setup()` is not measured, its time is only reported in the `Setup ... took N ms` line. When one pass exceeds the threshold (`WARN_IF_BLOCKING_OVER_MS`, 50 ms by default) the log shows:

@@ -77,6 +77,7 @@ export default defineConfig({
                 {
                   label: "Common hardware interfaces",
                   items: [
+                    "architecture/components/bluetooth",
                     "architecture/components/gpio",
                     "architecture/components/i2c",
                     "architecture/components/spi",

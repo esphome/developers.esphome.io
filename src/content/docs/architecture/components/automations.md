@@ -212,25 +212,63 @@ The trigger needs to track mutable state (`last_on_`) across callback invocation
 
 Actions are template classes that perform an operation when invoked by an automation.
 
+### Actions that only forward values
+
+Most actions do nothing but pass configured values on to their parent. Register those with `automation.register_apply_action`; no C++ class and no builder are written, and the action is always synchronous:
+
+```python
+automation.register_apply_action(
+    "my_component.set_gains",
+    cv.Schema({
+        cv.Required(CONF_ID): cv.use_id(MyComponent),
+        cv.Required(CONF_KP): cv.templatable(cv.float_),
+        cv.Optional(CONF_KI): cv.templatable(cv.float_),
+    }),
+    automation.ApplyField(CONF_KP, "set_kp", cg.float_),
+    automation.ApplyField(CONF_KI, "set_ki", cg.float_),
+)
+```
+
+The action is the core `ApplyAction<Ts...>`, which stores one function pointer. Code generation folds the parent and every configured field into one stateless function: constants become immediates, user lambdas are called inline with the trigger arguments, and an absent optional key emits nothing, so the action costs one pointer however many fields it has. With `kp: 1.5` in the config the generated function body is `my_component->set_kp(1.5f);`.
+
+- `ApplyField(conf_key, target, type_)` forwards one key:
+  - `target` is a setter name, or a statement template when it contains `{}` (for example `"position = {}"`; double a literal brace).
+  - `type_` is the C++ type a user lambda must return. A plain string is raw C++ type text and may use `{parent}` when the type is only known per instance.
+  - `conf_key` may be a tuple of keys to read a nested section.
+  - `std::string` constants are emitted as a plain literal, or as `progmem_string(ESPHOME_F(...))` on ESP8266 so the literal stays in flash.
+  - `const_fn=` renders a constant when `cg.safe_exp` is not the right spelling; it receives the action config and the value. A `!lambda` value bypasses it, so the target must also accept a plain `type_` argument.
+- `ApplyCall("set_range({}, {})", ((CONF_LOW, cg.float_), (CONF_HIGH, cg.float_)))` folds several keys into one statement; each arg may carry a third `const_fn` element. It is skipped when none of the keys is set and a partial set is a config error. A call with no keys, such as `ApplyCall("stop()")` or a trailing `ApplyCall("publish_state()")`, is always emitted, in the order given.
+- `call="make_call"` is for actions that build a call object: every statement, follow-up calls included, targets the call object returned by `parent->make_call()`, and `perform()` on it is appended last.
+
+`cover.control` and `cover.template.publish` in the ESPHome repository are in-tree examples. The hand-written class below is for actions whose `play()` has logic beyond forwarding values.
+
 ### Python
+
+When `play()` has its own logic but the builder only needs to look up the parent component and construct the C++ object, register the action with one call and no builder function:
 
 ```python
 MyAction = my_ns.class_("MyAction", automation.Action)
 
-@automation.register_action(
+automation.register_simple_action(
     "my_component.do_something",
     MyAction,
     cv.Schema({cv.GenerateID(): cv.use_id(MyComponent)}),
     synchronous=True,
 )
-async def my_action_to_code(
-    config: ConfigType, action_id: MockObj, template_arg: MockObj, args: TemplateArgsType
-) -> MockObj:
-    parent = await cg.get_variable(config[CONF_ID])
-    return cg.new_Pvariable(action_id, template_arg, parent)
 ```
 
+`register_simple_action` passes the object named by `config[CONF_ID]` to the constructor. Two sibling helpers cover the other constructor shapes:
+
+- `register_parented_action` for a class deriving from `Parented<T>`: the object is constructed without arguments and `set_parent()` receives the parent.
+- `register_bare_action` for a constructor that takes no arguments at all, typically an action that reaches a global singleton.
+
 Set `synchronous=True` if the action completes immediately (no async operations like delays or waits). Set `synchronous=False` if the action defers `play_next_()` to a later point (e.g. after a delay or async operation completes).
+
+These helpers are available in ESPHome 2026.10.0 and later ([esphome/esphome#19321](https://github.com/esphome/esphome/pull/19321)). When the builder must also set fields, or on earlier versions, use the `@automation.register_action` decorator on a builder function instead (see the templatable example below). The builder body that matches each helper is:
+
+- `register_simple_action`: await `cg.get_variable(config[CONF_ID])` and return `cg.new_Pvariable(action_id, template_arg, parent)`.
+- `register_parented_action`: create `var = cg.new_Pvariable(action_id, template_arg)`, then `await cg.register_parented(var, config[CONF_ID])` and return `var`.
+- `register_bare_action`: return `cg.new_Pvariable(action_id, template_arg)` with no lookup.
 
 ### C++
 
@@ -248,7 +286,16 @@ template<typename... Ts> class MyAction final : public Action<Ts...> {
 };
 ```
 
-For actions that accept templatable values from the user config:
+The `register_parented_action` shape derives from `Parented<T>` instead, which supplies `set_parent()` and the `parent_` member, so the class declares no constructor:
+
+```cpp
+template<typename... Ts> class MyAction final : public Action<Ts...>, public Parented<MyComponent> {
+ public:
+  void play(const Ts &...) override { this->parent_->do_something(); }
+};
+```
+
+For a hand-written action class that accepts templatable values:
 
 ```cpp
 template<typename... Ts> class SetValueAction final : public Action<Ts...> {
@@ -300,17 +347,14 @@ Conditions are template classes that return a boolean to control automation flow
 ```python
 MyCondition = my_ns.class_("MyCondition", automation.Condition)
 
-@automation.register_condition(
+automation.register_simple_condition(
     "my_component.is_active",
     MyCondition,
     cv.Schema({cv.GenerateID(): cv.use_id(MyComponent)}),
 )
-async def my_condition_to_code(
-    config: ConfigType, condition_id: MockObj, template_arg: MockObj, args: TemplateArgsType
-) -> MockObj:
-    parent = await cg.get_variable(config[CONF_ID])
-    return cg.new_Pvariable(condition_id, template_arg, parent)
 ```
+
+`register_parented_condition` and `register_bare_condition` mirror the action helpers. A condition whose builder must also set fields uses the `@automation.register_condition` decorator on a builder function. The builder mirrors the templatable action example above with `condition_id` in place of `action_id`; `register_condition` takes no `synchronous=` parameter.
 
 ### C++
 

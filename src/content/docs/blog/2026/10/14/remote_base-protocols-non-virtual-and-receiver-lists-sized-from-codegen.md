@@ -38,8 +38,6 @@ External components that:
 - use a protocol class bundled in `remote_base`, such as `remote_base::NECProtocol`, from their own C++ without a dumper, trigger, binary sensor or transmit action for it in the configuration
 - call `encode()`, `decode()` or `dump()` through a `RemoteProtocol<T>` pointer or reference; the base no longer declares them, so the error is `no member named 'decode'` rather than a message about `override`
 
-A GitHub code search in September 2026, excluding forks and vendored copies of ESPHome, found protocol classes with `override` in `pauln/esphome-linp-doorbell-g04`, `brown-studios/esphome-maxxfan-protocol`, `alexyao2015/ESPHomeYAML`, `kitsuned/esphome-configs`, `pputerla/esphome-custom-components` and `Weissnix4711/esphome-opentherm-custom`, and C++ side listener or dumper registration in `AzonInc/Doorman`, `maciekczwa/esphome_alecto`, `leonardpitzu/esphome_somfy`, `swoboda1337/somfy-esphome`, `CoMPaTech/esphome_ct`, `berfenger/esphome-mantra-rf-433` and `ryanh7/esphome-custom-components`.
-
 **Standard YAML configurations are not affected**, with one exception: a lambda that calls `id(tx).transmit<remote_base::NECProtocol>(data)` needs that protocol referenced somewhere else in the configuration, see below.
 
 ## Migration Guide

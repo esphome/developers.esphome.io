@@ -308,7 +308,7 @@ This represents the minimum required code to implement a component in ESPHome:
 
   namespace esphome::example_component {
 
-  static const char *TAG = "example_component.component";
+  ESPHOME_LOG_TAG(TAG, "example_component.component");
 
   void ExampleComponent::setup() {
     // Code here should perform all component initialization,

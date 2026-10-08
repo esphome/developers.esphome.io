@@ -26,8 +26,9 @@ Do not add additional configuration not needed for the component, e.g. `esphome:
 
 ## Documenting properties
 
-The properties should always be titled with the `Configuration variables:` string. It can be prefixed with `#` signs
-to denote a title but it is not strictly needed.
+The properties are always introduced by a `Configuration variables` heading, one level below the section they belong
+to: `## Configuration variables` for the component itself, `### Configuration variables` under an action, condition or
+platform section.
 
 Each property must be described in a `-` list. The property format should be:
 
@@ -39,10 +40,12 @@ Each property must be described in a `-` list. The property format should be:
 - property_name must be an identifier as in the yaml key.
 - required or optional are exactly `**Required**` (bold) or `*Optional*` (italics).
 - property type can be many options, like string, number, list, enum, float, etc. Can be omitted.
+- The parts in parentheses always come in this order: required or optional, then the type if any, then templatable if
+  any.
 - templatable is exactly `[templatable](/automations/templates)` and indicates the property accepts `!lambda` values.
   Omit it when the property is not templatable.
-- Defaults to `value`. Is the last sentence. It should always be specified for optional properties when the value is a
-  scalar value.
+- ``Defaults to `value`.`` must be the last sentence. It should always be given for optional properties whose value is a
+  scalar.
 
 ### Nesting property documentation
 
@@ -78,9 +81,9 @@ properties which are dictionaries.
 Actions and conditions must be titled `` `<component-name>.<action-name>` Action `` or
 `` `<component-name>.<condition-name>` Condition ``.
 
-After the title add a short description, can also add an example configuration entry and must add
-`Configuration variables:` if applies. As an exception to this rule, for actions and conditions which do not belong to
-a component the component name is not used and the title is just the action name, e.g. `if`, `and`, etc.
+After the title add a short description, can also add an example configuration entry and must add a
+`Configuration variables` heading if applies. As an exception to this rule, for actions and conditions which do not
+belong to a component the component name is not used and the title is just the action name, e.g. `if`, `and`, etc.
 
 ## Documenting complex components
 
@@ -94,4 +97,4 @@ short description for the component.
   platform does not match the component name. This is ideal when a single document is made for different components.
 - **`Over SPI`** and **`Over I2C`**: Use these titles when you have a component and they are supporting `_spi` and/or
   `_i2c` versions, e.g. rc522. Usually those are documented in the same file but configuration slightly varies.
-  Provide a different `Configuration variables:` for each component.
+  Provide a separate `Configuration variables` heading for each component.

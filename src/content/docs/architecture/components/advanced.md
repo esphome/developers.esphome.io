@@ -305,8 +305,11 @@ A `loop()` method costs one pointer in the application's `looping_components_` l
 ### Naming timers
 
 Give a timer an id only when it must be cancelled or replaced. Use a `static constexpr uint32_t`, not a string: a string
-costs RAM on ESP8266 and is compared character by character. Ids only need to be unique within one component, so keep all
-of a component's ids together in one place.
+costs RAM on ESP8266 and is compared character by character.
+
+Ids are scoped to the component instance that registers the timer. They never clash with other components, other
+instances of the same component, or ESPHome's own timers, so there is no need for long or prefixed names: plain numbers
+starting at 0 are fine. Keep all of a component's ids together in one place so they stay unique within it.
 
 ```cpp
 static constexpr uint32_t READ_TIMEOUT_ID = 0;

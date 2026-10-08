@@ -89,7 +89,7 @@ async def to_code(config):
 
 `attach_receiver(var, config, key=...)` accepts a different config key, `remote_base.register_listener(var, config)` registers without calling `set_receiver()`, and `remote_base.add_listener(receiver, var)` and `remote_base.add_dumper(receiver, dumper)` take the receiver object directly. The slot counting lives in these helpers: a hand written `cg.add(receiver.register_listener(var))` emits the call but counts no slot, so it fails the same way the C++ registration does.
 
-When a configuration counted no slot at all, a C++ registration fails the build with a message naming this fix; when the counted slots are already used, the same message is logged at boot.
+When a configuration counted no slot at all, a C++ registration fails the build with a message naming this fix; when the counted slots are already used, the registration is dropped and the same message is logged as an error at boot, so the listener or dumper never receives data. Check the boot log for `No listener slot` or `No dumper slot` after migrating.
 
 ### Bundled protocols used from C++: request the source file
 

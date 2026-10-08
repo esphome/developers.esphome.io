@@ -378,6 +378,29 @@ In addition, for `PollingComponent`:
 > [!WARNING]
 > Code in these methods (and elsewhere) [must not block](/contributing/code/#c).
 
+### Reporting warnings and errors
+
+A component reports trouble through its status flags, which drive the status LED and the device's warning and error
+state:
+
+- `status_set_warning()` / `status_set_error()` set the flag until the component clears it with
+  `status_clear_warning()` / `status_clear_error()`. Pass a `LOG_STR("...")` message to log why; without one the log
+  says "unspecified".
+- `status_momentary_warning()` / `status_momentary_error()` set the flag and clear it again after a timeout (5000 ms by
+  default). Use them for one-off failures, such as a single failed read. A new call restarts the timeout.
+
+```cpp
+this->status_momentary_warning();                          // cleared after 5000 ms
+this->status_momentary_warning(1000);                      // cleared after 1000 ms
+this->status_momentary_error(LOG_STR("Read failed"), 500);  // logs the reason
+```
+
+Before ESPHome 2026.11.0 these took a name as their first argument, for example `status_momentary_warning("read", 1000)`.
+The named form still works, but the name is kept as a string (RAM on ESP8266) and can clash with the component's own
+`set_timeout()` names, so new code should use the form without a name.
+
+- `mark_failed()` marks the component as failed when it cannot work at all, typically from `setup()`.
+
 ### Component-specific methods
 
 - "Setter" methods: it's common to have at least one configuration variable which must be defined by the user in order

@@ -43,6 +43,8 @@ import esphome.codegen as cg
 
 from esphome.const import CONF_ID
 
+DOMAIN = "example_component"
+
 CONF_FOO = "foo"
 CONF_BAR = "bar"
 CONF_BAZ = "baz"
@@ -81,6 +83,14 @@ import esphome.codegen as cg
 `config_validation` is a module that contains all the common validation method that are used to validate the
 configuration. Components may contain their own validations as well and this is very extensible. `codegen` is a module
 that contains all the code generation method that are used to generate the C++ code that is placed into `main.cpp`.
+
+```python
+DOMAIN = "example_component"
+```
+
+Every component defines `DOMAIN` as a plain string equal to its folder name. Refer to the component by name through
+this constant rather than repeating the string. CI fails if a component's `__init__.py` does not define it. See
+[`DOMAIN`](#domain) below.
 
 ```python
 example_component_ns = cg.esphome_ns.namespace("example_component")
@@ -176,6 +186,10 @@ If the config value is not set, then we do not call the setter function.
   update the `CODEOWNERS` file.
 - `DEPENDENCIES`: A list of components that this component depends on. If these components are not present in the
    configuration, or loaded by another component, validation will fail and the user will be shown an error.
+- `DOMAIN`: Required. The component's name as a plain string, equal to its folder name (e.g. `DOMAIN = "uart"`).
+  Keep it in alphabetical order with the other metadata constants such as `CODEOWNERS` and `DEPENDENCIES`. The
+  `lint_component_domain` check in `script/ci-custom.py` fails if a component's top-level `__init__.py` does not define it with the right
+  value. Platform modules such as `<name>/sensor/__init__.py` are not checked. See [`DOMAIN`](#domain).
 - `MULTI_CONF`: If set to `True`, the user can use this component multiple times in their configuration. If set to a
   number, the user can use this component that number of times.
 - `MULTI_CONF_NO_DEFAULT`: This is a special flag that allows the component to be auto-loaded without an instance of
@@ -184,6 +198,36 @@ If the config value is not set, then we do not call the setter function.
   component such as an external I2C UART expander.
 - `PREFETCH_FILES`: A generator that lets a component's remote files be downloaded in one parallel batch before schema
   validation instead of one at a time during it. See [Remote file prefetching](#remote-file-prefetching).
+
+### `DOMAIN`
+
+Use `DOMAIN` wherever code needs the component's name, instead of repeating the string literal. Inside the component:
+
+```python
+from esphome.core import CORE
+
+AUTO_LOAD = ["socket"]
+CODEOWNERS = ["@example"]
+DEPENDENCIES = ["i2c"]
+DOMAIN = "example_component"
+MULTI_CONF = True
+
+
+def _get_data() -> dict:
+    # Per-build state for this component, keyed by its name
+    return CORE.data.setdefault(DOMAIN, {})
+```
+
+The same constant works for other name-based helpers, such as `cv.requires_component(DOMAIN)`.
+
+From another component, import it under a clear alias:
+
+```python
+from esphome.components.psram import DOMAIN as PSRAM_DOMAIN
+
+if PSRAM_DOMAIN in CORE.loaded_integrations:
+    ...
+```
 
 ### Final validation
 

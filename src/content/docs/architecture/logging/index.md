@@ -110,7 +110,7 @@ mqtt:
 To retrieve logs over serial, you can either configure your hardware's USB CDC if it has such hardware, or configure your device to use specific UART pins, which you
 can then connect to your computer using:
 
-- A dedicated USB to UART adapter, such as one based on a CP2102, CH340 or FTDI chip, or
+- A dedicated USB to UART adapter, such as one based on a CP2102, CH340 or FTDI chip, or an ESP-PROG for ESP32, or
 - An [RP2040 Debug Probe](https://www.raspberrypi.com/products/debug-probe/) or another RP2040 device such as a Raspberry Pi Pico loaded with [debug probe firmware](https://github.com/raspberrypi/debugprobe). This will work for any UART-capable ESPHome device, not just RP2040 devices.
 
 If your logs look garbled when using a serial connection, make sure that your

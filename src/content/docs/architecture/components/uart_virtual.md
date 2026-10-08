@@ -75,6 +75,9 @@ class MyLink final : public uart::VirtualUARTComponent, public Component {
   over everything at once. Override it when the transport knows its free room, and `is_connected()` when the
   transport can be down.
 - `load_settings()` does nothing (nothing is clocked) and `check_logger_conflict()` is empty.
+- With a UART debugger configured (`USE_UART_DEBUGGER`), `read_array()` reports the bytes it returns. Call
+  `debug_tx_(data, len)` in your `write_array()` to report what is written. To offer the `debug:` option, add
+  `uart.maybe_empty_debug` to your schema and call `uart.debug_to_code()` from `to_code`.
 - A device that checks the baud rate or framing of its UART, such as one that calls
   `final_validate_device_schema()` with `baud_rate`, rejects a virtual UART whose YAML has no such keys; a UART that
   passes on the bytes of another one can take that UART's settings, see

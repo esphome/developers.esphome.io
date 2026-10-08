@@ -1,5 +1,5 @@
 ---
-title: "Logging"
+title: "Logging Overview"
 ---
 
 Logging is an important function for both ESPHome developers and users alike.

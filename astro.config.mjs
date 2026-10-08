@@ -127,7 +127,7 @@ export default defineConfig({
             },
             {
               label: "Logging",
-              items: ["architecture/logging", "architecture/logging/best_practices"],
+              items: ["architecture/logging/overview", "architecture/logging/best_practices"],
             },
             {
               label: "CI",

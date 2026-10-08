@@ -4,10 +4,10 @@ title: "Logging Best Practices"
 
 ## Overview
 
-Logging is an essential part of ESPHome for both debugging and monitoring. It's important to understand that logging
-has performance implications, especially in networked environments.
-
-This guide covers best practices for efficient logging in ESPHome components and platforms.
+This guide covers best practices for efficient logging in ESPHome components
+and platforms. It's important to understand that logging has performance
+implications, especially in networked environments. Following these
+best practices will minimize CPU, RAM, flash, and network overhead.
 
 ## Declaring the log tag
 
@@ -115,6 +115,22 @@ wasted space and time.
 > - Short messages which may be shared by many components/platforms
 > - TAG identifies the component/platform
 
+### Logging State Changes: Don't
+
+Component code should **not** include any log calls for entity state changes. This applies to every entity type that
+publishes its state through the API (`sensor`, `binary_sensor`, `switch`, `text_sensor`, `light`, `cover`, etc.), not
+only sensors:
+
+- The entity base classes already log each published state at the `VERBOSE` level.
+- Client-side logging tools based on aioesphomeapi (including `esphome logs`) receive state changes over the API and
+  insert them into the log output regardless of the device's log level (this can be disabled with the `--no-states`
+  flag).
+
+An extra log call in a component's publish path duplicates this output, adds format strings to flash and costs CPU time
+and network traffic on every state update, which may happen many times per second. Transient internal states that are
+not published to the API (for example, intermediate steps of a multi-step transition) may still warrant a `VERBOSE` log
+when they are useful for debugging.
+
 ## Configuration Logging (`ESP_LOGCONFIG`)
 
 Configuration logging dumps the current component/platform configuration. This is particularly important to optimize
@@ -170,7 +186,7 @@ When combining log messages:
 - Each `\n` adds only one byte
 - Consider the length of substituted values (for example, `%s` might expand to 20+ characters/bytes for long strings)
 - The log header (timestamp, level, tag) uses approximately 30 bytes
-- Most combined ESP_LOGCONFIG calls stay well under this limit, even with 8-10 lines
+- Most combined `ESP_LOGCONFIG` calls stay well under this limit, even with 8-10 lines
 
 1. **Use string literal concatenation** for readability:
 

@@ -24,3 +24,11 @@
   to = "/blog/rss.xml"
   status = 301
   force = true
+
+# The logging page moved to /architecture/logging/best_practices/ when the logging
+# overview was added. Browsers keep the #fragment, so old anchor links still land.
+[[redirects]]
+  from = "/architecture/logging/"
+  to = "/architecture/logging/best_practices/"
+  status = 301
+  force = true

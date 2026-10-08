@@ -125,7 +125,10 @@ export default defineConfig({
               label: "API",
               items: ["architecture/api", "architecture/api/protocol_details"],
             },
-            "architecture/logging",
+            {
+              label: "Logging",
+              items: ["architecture/logging/overview", "architecture/logging/best_practices"],
+            },
             {
               label: "CI",
               items: ["architecture/ci", "architecture/ci/component_tests"],

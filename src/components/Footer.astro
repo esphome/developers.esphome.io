@@ -1,0 +1,31 @@
+---
+import Default from "@astrojs/starlight/components/Footer.astro";
+import Comments from "./Comments.astro";
+
+const { id, entry } = Astro.locals.starlightRoute;
+// Blog posts live under blog/YYYY/MM/DD/; this excludes the blog index,
+// pagination (blog/N), and the author/tag listing pages.
+const isBlogPost = /^blog\/\d{4}\/\d{2}\/\d{2}\//.test(id);
+const year = new Date().getFullYear();
+---
+
+<Default><slot /></Default>
+
+{isBlogPost && <Comments title={entry.data.title} />}
+
+<p class="copyright">
+  Copyright © {year} ESPHome - A project from the <a
+    target="_blank"
+    rel="noopener noreferrer"
+    href="https://www.openhomefoundation.org/">Open Home Foundation</a
+  >
+</p>
+
+<style>
+  .copyright {
+    margin-top: 1.5rem;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+    text-align: center;
+  }
+</style>

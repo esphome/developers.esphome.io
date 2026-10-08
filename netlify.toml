@@ -1,4 +1,26 @@
 [build]
-  publish = "site"
-  command = "mkdocs build"
-  environment = { PYTHON_VERSION = "3.13" }
+  publish = "dist"
+  command = "npm run build"
+  environment = { NODE_VERSION = "22" }
+
+# Astro forbids leading underscores in content filenames, so this post's slug
+# dropped the `_` that the old Material URL had. Redirect the legacy URL.
+[[redirects]]
+  from = "/blog/2025/05/14/_schema-deprecations/"
+  to = "/blog/2025/05/14/schema-deprecations/"
+  status = 301
+  force = true
+
+# The MkDocs Material site published two RSS feeds; starlight-blog publishes
+# one. Point existing feed subscriptions at the new feed.
+[[redirects]]
+  from = "/feed_rss_created.xml"
+  to = "/blog/rss.xml"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/feed_rss_updated.xml"
+  to = "/blog/rss.xml"
+  status = 301
+  force = true

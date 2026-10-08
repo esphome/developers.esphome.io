@@ -1,0 +1,77 @@
+---
+const { title } = Astro.props;
+const discussionQuery = encodeURIComponent(`"${title}" in:title`);
+const discussionUrl = `https://github.com/esphome/developers.esphome.io/discussions/categories/blog-comments?discussions_q=${discussionQuery}`;
+---
+
+<section class="comments">
+  <h2 id="comments">Comments</h2>
+  <p class="comments-intro">
+    Feel free to leave a comment here to discuss this post with others. You can ask questions, share your experience, or
+    suggest improvements. If you have a question about a specific feature or issue, please consider using the <a
+      href="https://discord.gg/KhAMKrd"
+      target="_blank"
+      rel="noopener noreferrer">ESPHome Discord</a
+    >. Stick to English and follow ESPHome's <a
+      href="https://github.com/esphome/esphome/blob/dev/CODE_OF_CONDUCT.md"
+      target="_blank"
+      rel="noopener noreferrer">code of conduct</a
+    >. These comments exist on a <a href={discussionUrl} target="_blank" rel="noopener noreferrer"
+      >discussion on GitHub</a
+    >, so you can also comment there directly if you prefer.
+  </p>
+
+  <script
+    is:inline
+    src="https://giscus.app/client.js"
+    data-repo="esphome/developers.esphome.io"
+    data-repo-id="R_kgDOK2syTg"
+    data-category="Blog Comments"
+    data-category-id="DIC_kwDOK2syTs4CqKL3"
+    data-mapping="specific"
+    data-term={title}
+    data-strict="0"
+    data-reactions-enabled="1"
+    data-emit-metadata="0"
+    data-input-position="top"
+    data-theme="preferred_color_scheme"
+    data-lang="en"
+    data-loading="lazy"
+    crossorigin="anonymous"
+    async></script>
+</section>
+
+<script>
+  function giscusTheme() {
+    return document.documentElement.dataset.theme === "light" ? "light" : "transparent_dark";
+  }
+
+  function setInitialTheme() {
+    const giscus = document.querySelector<HTMLScriptElement>("script[src*='giscus']");
+    giscus?.setAttribute("data-theme", giscusTheme());
+  }
+
+  function sendTheme() {
+    const frame = document.querySelector<HTMLIFrameElement>(".giscus-frame");
+    frame?.contentWindow?.postMessage({ giscus: { setConfig: { theme: giscusTheme() } } }, "https://giscus.app");
+  }
+
+  setInitialTheme();
+
+  // Sync Giscus with Starlight's theme toggle (it mutates <html data-theme>).
+  const observer = new MutationObserver(sendTheme);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"],
+  });
+</script>
+
+<style>
+  .comments {
+    margin-top: 2rem;
+  }
+  .comments-intro {
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+  }
+</style>

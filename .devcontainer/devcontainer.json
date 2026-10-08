@@ -1,10 +1,10 @@
 {
   "name": "ESPHome - Developer docs",
-  "image": "mcr.microsoft.com/devcontainers/python:3.13",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
   "postCreateCommand": ".devcontainer/postCreate.sh",
-  "postAttachCommand": "mkdocs serve",
+  "postAttachCommand": "npm run dev -- --host",
   "forwardPorts": [
-    8000
+    4321
   ],
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {}
@@ -12,7 +12,7 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "ms-python.python",
+        "astro-build.astro-vscode",
         "yzhang.markdown-all-in-one"
       ]
     }

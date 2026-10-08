@@ -396,8 +396,8 @@ this->status_momentary_error(LOG_STR("Read failed"), 500);  // logs the reason
 ```
 
 Before ESPHome 2026.11.0 these took a name as their first argument, for example `status_momentary_warning("read", 1000)`.
-The named form still works, but the name is kept as a string (RAM on ESP8266) and can clash with the component's own
-`set_timeout()` names, so new code should use the form without a name.
+That form is deprecated and will be removed in 2027.5.0: the name was only used to key the timer, it is kept as a
+string (RAM on ESP8266), and it can clash with the component's own `set_timeout()` names. Drop the name to migrate.
 
 - `mark_failed()` marks the component as failed when it cannot work at all, typically from `setup()`.
 

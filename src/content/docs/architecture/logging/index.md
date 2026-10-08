@@ -11,9 +11,13 @@ ESPHome device configuration:
 # Example: changing default log level for all components
 logger:
   level: VERBOSE
+```
 
-# Example: changing log level for just `bmp581_base`
+```yaml
+# Example: VERBOSE for just `bmp581_base`; other components stay at DEBUG
 logger:
+  level: VERBOSE
+  initial_level: DEBUG
   logs:
     bmp581_base: VERBOSE
 ```
@@ -22,51 +26,54 @@ Log messages can be retrieved over the device's hardware serial port or UART int
 
 ## `ESP_LOG` Macro
 
-The `ESP_LOG` macro is available to perform all of the necessary log functions in a space- and processing-efficient manner. The macro has the following signature (using the `DEBUG` log channel):
+The `ESP_LOG` macro is available to perform all of the necessary log functions in a space- and processing-efficient manner. The macro has the following signature (using the `DEBUG` log level):
 
-`void ESP_LOGD(const char * TAG, const char * msg, ...)`
+`ESP_LOGD(TAG, format, ...)`
 
-`TAG` is usually defined in a component's header and/or at the top of the source code file as a `static const char *const`. `msg` is a `printf`-style string, and any variables used to format the string are passed in the subsequent variadic argument.
+`TAG` is usually defined in a component's header and/or at the top of the source code file as a `static const char *const`. `format` is a `printf`-style format string, and any values used to format the string are passed as the subsequent variadic arguments.
 
 A full example of a `VERBOSE` log message:
-```c++
+
+```cpp
 // Constant TAG placed somewhere in your source or header file
 static const char *const TAG = "component_name";
 // ...
 ESP_LOGV(TAG, "Received data: %d", recv_data);
 ```
+
 If logging over multiple lines, combine into a single log message (see [best practices](/architecture/logging/best_practices/) for more information):
 
-```c++
-  ESP_LOGV(TAG,
-           "Device properties updated:\n"
-           "  Address: 0x%02X\n"
-           "  Update Interval: %ums\n"
-           "  Samples: %d\n"
-           "  Mode: %s",
-            this->address_,
-            this->update_interval_,
-            this->samples_,
-            this->get_mode_str());
+```cpp
+ESP_LOGV(TAG,
+         "Device properties updated:\n"
+         "  Address: 0x%02X\n"
+         "  Update Interval: %ums\n"
+         "  Samples: %d\n"
+         "  Mode: %s",
+         this->address_,
+         this->update_interval_,
+         this->samples_,
+         this->get_mode_str());
 ```
 
 ## Log Levels
-ESPHome has six runtime logging channels, from `ERROR` to `VERY_VERBOSE`.
-In increasing order of verbosity, the channels are:
 
- - `ERROR` (`ESP_LOGE()`): Indicates problems that prevent the ESPHome device from working correctly.
- - `WARN` (`ESP_LOGW()`): Warnings are recoverable issues like invalid sensor readings.
- - `INFO` (`ESP_LOGI()`): Informational messages that may be useful to a non-technically savvy user, such as detected serial numbers.
- - `DEBUG` (`ESP_LOGD()`): Messages that are important for typical device diagnostics.
- - `VERBOSE` (`ESP_LOGV()`): Messages that don't normally need to be seen but may add value when troubleshooting or preparing/commissioning a new device/configuration.
- - `VERY_VERBOSE` (`ESP_LOGVV()`): Detailed technical information, such as the content of data packets/messages being processed and/or processing state/status.
+ESPHome has six runtime log levels, from `ERROR` to `VERY_VERBOSE`.
+In increasing order of verbosity, the levels are:
+
+- `ERROR` (`ESP_LOGE()`): Indicates problems that prevent the ESPHome device from working correctly.
+- `WARN` (`ESP_LOGW()`): Warnings are recoverable issues like invalid sensor readings.
+- `INFO` (`ESP_LOGI()`): Informational messages that may be useful to a non-technically savvy user, such as detected serial numbers.
+- `DEBUG` (`ESP_LOGD()`): Messages that are important for typical device diagnostics.
+- `VERBOSE` (`ESP_LOGV()`): Messages that don't normally need to be seen but may add value when troubleshooting or preparing/commissioning a new device/configuration.
+- `VERY_VERBOSE` (`ESP_LOGVV()`): Detailed technical information, such as the content of data packets/messages being processed and/or processing state/status.
 
 In addition, ESPHome also has a configuration logging macro, `ESP_LOGCONFIG()`,
 which is typically only used in a component's `dump_config()` function. When
 developing your own component, remember to implement `dump_config()` and output
 relevant configuration options.
 
-By default, `ERROR`, `WARN`, `INFO`, and `DEBUG`level message types are logged, and `ESP_LOGCONFIG` messages are always logged. To change log level, you must edit your configuration's `logger` parameters, recompile, and reflash the firmware onto the device before these changes will be applied.
+By default, `ERROR`, `WARN`, `INFO`, and `DEBUG` level messages are logged, and `ESP_LOGCONFIG` messages are always logged. To see more verbose messages, set the `logger` component's `level` to `VERBOSE` or `VERY_VERBOSE`; per-tag levels under `logs` cannot be more verbose than this global level. Messages above the configured level are compiled out, so you must recompile and reflash the firmware onto the device before the change takes effect.
 
 ## Obtaining Log Data
 
@@ -97,7 +104,7 @@ mqtt:
 > [!IMPORTANT]
 > **Missing Logs over Network API**
 >
-> Some problems may be difficult to troubleshoot when using the Network API or MQTT logs, either due to the errors occurring well before the device network stack is initialized, or if the network stack itself is causing an issue. If you are unable to retrieve relevant logs due to network startup, you may need to use hardware serial to obtain logs. 
+> Some problems may be difficult to troubleshoot when using the Network API or MQTT logs, either due to the errors occurring well before the device network stack is initialized, or if the network stack itself is causing an issue. If you are unable to retrieve relevant logs due to network startup, you may need to use hardware serial to obtain logs.
 
 To retrieve logs over serial, you can either configure your hardware's USB CDC if it has such hardware, or configure your device to use specific UART pins, which you
 can then connect to your computer using:

@@ -302,6 +302,20 @@ A `loop()` method costs one pointer in the application's `looping_components_` l
 - **`set_timeout`** — one-shots and self-rescheduling timers with variable delays. Don't chain it as a hand-rolled `set_interval`.
 - **`defer`** — run-once on the next main-loop iteration; use it to break recursion or escape interrupt context, not as a task queue.
 
+### Naming timers
+
+Give a timer an id only when it must be cancelled or replaced. Use a `static constexpr uint32_t`, not a string: a string
+costs RAM on ESP8266 and is compared character by character. Ids only need to be unique within one component, so keep all
+of a component's ids together in one place.
+
+```cpp
+static constexpr uint32_t READ_TIMEOUT_ID = 0;
+static constexpr uint32_t RETRY_INTERVAL_ID = 1;
+
+this->set_timeout(READ_TIMEOUT_ID, 50, [this]() { this->read_(); });
+this->cancel_timeout(READ_TIMEOUT_ID);
+```
+
 ## Waking the Main Loop from Background Threads
 
 For components that receive events in background threads/FreeRTOS tasks (BLE callbacks, network events, platform callbacks, etc.) and need low-latency processing, use `App.wake_loop_threadsafe()` to immediately wake the main loop instead of waiting 0-16ms for the next loop timeout.

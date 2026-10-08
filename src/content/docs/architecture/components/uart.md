@@ -96,7 +96,7 @@ CONFIG_SCHEMA = cv.Schema(
 ).extend(cv.COMPONENT_SCHEMA)
 ```
 
-A UART device that ends a frame after a quiet gap calls `uart.is_unclocked(config[CONF_UART_ID])` from `to_code` and
-waits longer on such a UART, or does not rely on the gap. The marks are made while the schemas run, so every `to_code`
-sees them, whatever the order of the YAML. `is_unclocked()` compares ids by name, so a generated id is found too. Both
-are plain functions, not coroutines.
+A UART device that ends a frame after a quiet gap calls `uart.is_unclocked(config[CONF_UART_ID])` from `to_code`
+(`CONF_UART_ID` is in `esphome.const`) and waits longer on such a UART, or does not rely on the gap. The marks are made
+while the schemas run, so every `to_code` sees them, whatever the order of the YAML. `is_unclocked()` compares ids by
+name, so a generated id is found too. Both are plain functions, not coroutines.

@@ -9,6 +9,34 @@ and platforms. It's important to understand that logging has performance
 implications, especially in networked environments. Following these
 best practices will minimize CPU, RAM, flash, and network overhead.
 
+## Declaring the log tag
+
+Declare each source file's tag with `ESPHOME_LOG_TAG`, at namespace scope in the `.cpp` file:
+
+```cpp
+#include "esphome/core/log.h"
+
+namespace esphome::neat_temp_sensor {
+
+ESPHOME_LOG_TAG(TAG, "neat_temp_sensor.sensor");
+```
+
+On ESP8266 this keeps the tag string in flash instead of RAM; on other platforms it is a plain constant pointer. The
+macro is available from ESPHome 2026.10.0, and components in the ESPHome repository must use it: CI rejects a plain
+`static const char *const TAG = "...";`.
+
+Because the tag may live in flash, pass `TAG` only to the logging macros. Do not use it as a scheduler name
+(`set_timeout`, `set_interval`, `defer` and friends), pass it to C string functions such as `strcmp` or `strlen`, or build
+a `std::string` from it. CI checks this as well.
+
+External components that also support releases before 2026.10.0 can define a fallback that gives the old declaration:
+
+```cpp
+#ifndef ESPHOME_LOG_TAG
+#define ESPHOME_LOG_TAG(name, tag) static const char *const name = tag
+#endif
+```
+
 ## Understanding Logger Overhead
 
 ### Network Impact
@@ -57,7 +85,7 @@ wasted space and time.
 >
 >
 > ```cpp
-> static const char *const TAG = "neat_temp_sensor.sensor";
+> ESPHOME_LOG_TAG(TAG, "neat_temp_sensor.sensor");
 > // ...
 > ESP_LOGD(TAG, "Enabling neat_temp_sensor communication.");
 > // ...
@@ -75,7 +103,7 @@ wasted space and time.
 >
 >
 > ```cpp
-> static const char *const TAG = "neat_temp_sensor.sensor";
+> ESPHOME_LOG_TAG(TAG, "neat_temp_sensor.sensor");
 > // ...
 > ESP_LOGD(TAG, "Enabling");
 > // ...

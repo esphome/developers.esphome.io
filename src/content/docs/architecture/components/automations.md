@@ -244,23 +244,31 @@ The action is the core `ApplyAction<Ts...>`, which stores one function pointer. 
 
 ### Python
 
+When `play()` has its own logic but the builder only needs to look up the parent component and construct the C++ object, register the action with one call and no builder function:
+
 ```python
 MyAction = my_ns.class_("MyAction", automation.Action)
 
-@automation.register_action(
+automation.register_simple_action(
     "my_component.do_something",
     MyAction,
     cv.Schema({cv.GenerateID(): cv.use_id(MyComponent)}),
     synchronous=True,
 )
-async def my_action_to_code(
-    config: ConfigType, action_id: MockObj, template_arg: MockObj, args: TemplateArgsType
-) -> MockObj:
-    parent = await cg.get_variable(config[CONF_ID])
-    return cg.new_Pvariable(action_id, template_arg, parent)
 ```
 
+`register_simple_action` passes the object named by `config[CONF_ID]` to the constructor. Two sibling helpers cover the other constructor shapes:
+
+- `register_parented_action` for a class deriving from `Parented<T>`: the object is constructed without arguments and `set_parent()` receives the parent.
+- `register_bare_action` for a constructor that takes no arguments at all, typically an action that reaches a global singleton.
+
 Set `synchronous=True` if the action completes immediately (no async operations like delays or waits). Set `synchronous=False` if the action defers `play_next_()` to a later point (e.g. after a delay or async operation completes).
+
+These helpers are available in ESPHome 2026.10.0 and later ([esphome/esphome#19321](https://github.com/esphome/esphome/pull/19321)). When the builder must also set fields, or on earlier versions, use the `@automation.register_action` decorator on a builder function instead (see the templatable example below). The builder body that matches each helper is:
+
+- `register_simple_action`: await `cg.get_variable(config[CONF_ID])` and return `cg.new_Pvariable(action_id, template_arg, parent)`.
+- `register_parented_action`: create `var = cg.new_Pvariable(action_id, template_arg)`, then `await cg.register_parented(var, config[CONF_ID])` and return `var`.
+- `register_bare_action`: return `cg.new_Pvariable(action_id, template_arg)` with no lookup.
 
 ### C++
 
@@ -275,6 +283,15 @@ template<typename... Ts> class MyAction final : public Action<Ts...> {
 
  protected:
   MyComponent *parent_;
+};
+```
+
+The `register_parented_action` shape derives from `Parented<T>` instead, which supplies `set_parent()` and the `parent_` member, so the class declares no constructor:
+
+```cpp
+template<typename... Ts> class MyAction final : public Action<Ts...>, public Parented<MyComponent> {
+ public:
+  void play(const Ts &...) override { this->parent_->do_something(); }
 };
 ```
 
@@ -325,22 +342,35 @@ Passing a raw value such as `cg.add(var.set_state(config[CONF_STATE]))` worked o
 
 Conditions are template classes that return a boolean to control automation flow.
 
+### Conditions that only test the parent
+
+Most conditions are one expression on their parent. Register those with `automation.register_apply_condition`; no C++ class and no builder are written:
+
+```python
+automation.register_apply_condition(
+    "my_component.is_active",
+    cv.Schema({cv.GenerateID(): cv.use_id(MyComponent)}),
+    "is_active()",
+)
+```
+
+The condition is the core `ApplyCondition<Ts...>`, which stores one function pointer to a stateless function that returns the expression applied to the parent, `my_component->is_active()` here. To compare against a configured value pass an `ApplyCall` instead of a string, with the same `{}` placeholders, `(conf_key, type_)` args and `const_fn` as for actions: `automation.ApplyCall("state == {}", ((CONF_STATE, cg.bool_),))` generates `my_component->state == true` for `state: true` and calls a user lambda inline. Every key named by the call must be present in the config. The expression is appended to `parent->`, so it must start with a parent member; a leading `!` would generate `my_component->!is_active()`, so negate with `== false`.
+
+`cover.is_open` and `rtttl.is_playing` in the ESPHome repository are in-tree examples. The hand-written class below is for a `check()` that needs more than one expression on the parent.
+
 ### Python
 
 ```python
 MyCondition = my_ns.class_("MyCondition", automation.Condition)
 
-@automation.register_condition(
-    "my_component.is_active",
+automation.register_simple_condition(
+    "my_component.is_ready",
     MyCondition,
     cv.Schema({cv.GenerateID(): cv.use_id(MyComponent)}),
 )
-async def my_condition_to_code(
-    config: ConfigType, condition_id: MockObj, template_arg: MockObj, args: TemplateArgsType
-) -> MockObj:
-    parent = await cg.get_variable(config[CONF_ID])
-    return cg.new_Pvariable(condition_id, template_arg, parent)
 ```
+
+`register_parented_condition` and `register_bare_condition` mirror the action helpers. A condition whose builder must also set fields uses the `@automation.register_condition` decorator on a builder function. The builder mirrors the templatable action example above with `condition_id` in place of `action_id`; `register_condition` takes no `synchronous=` parameter.
 
 ### C++
 
@@ -348,7 +378,11 @@ async def my_condition_to_code(
 template<typename... Ts> class MyCondition final : public Condition<Ts...> {
  public:
   explicit MyCondition(MyComponent *parent) : parent_(parent) {}
-  bool check(const Ts &...) override { return this->parent_->is_active(); }
+  bool check(const Ts &...) override {
+    if (!this->parent_->is_active())
+      return false;
+    return this->parent_->error_count() == 0;
+  }
 
  protected:
   MyComponent *parent_;

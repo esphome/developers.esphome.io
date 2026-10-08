@@ -103,7 +103,7 @@ fatal error: zcbor_common.h: No such file or directory
 
 The fix is to add the matching `include_west_project()` call. To see every project and which ones were left out, run
 `west list -a -f "{name} {active}"` in the SDK folder, `frameworks/<version>` under `~/Library/Caches/esphome/sdk-nrf`
-on macOS, `~/.cache/esphome/sdk-nrf` on Linux and `%LOCALAPPDATA%\esphome\sdk-nrf` on Windows, or under
+on macOS, `~/.cache/esphome/sdk-nrf` on Linux and `%LOCALAPPDATA%\esphome\Cache\sdk-nrf` on Windows, or under
 `ESPHOME_SDK_NRF_PREFIX` when that is set. The `west` module lives in the matching `penvs/<version>` Python environment
 next to it.
 

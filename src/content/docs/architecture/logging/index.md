@@ -30,13 +30,13 @@ The `ESP_LOG` macro is available to perform all of the necessary log functions i
 
 `ESP_LOGD(TAG, format, ...)`
 
-`TAG` is usually defined in a component's header and/or at the top of the source code file as a `static const char *const`. `format` is a `printf`-style format string, and any values used to format the string are passed as the subsequent variadic arguments.
+`TAG` is declared once per source file with `ESPHOME_LOG_TAG` (see [declaring the log tag](/architecture/logging/best_practices/#declaring-the-log-tag)). `format` is a `printf`-style format string, and any values used to format the string are passed as the subsequent variadic arguments.
 
 A full example of a `VERBOSE` log message:
 
 ```cpp
-// Constant TAG placed somewhere in your source or header file
-static const char *const TAG = "component_name";
+// At namespace scope in the component's .cpp file
+ESPHOME_LOG_TAG(TAG, "component_name");
 // ...
 ESP_LOGV(TAG, "Received data: %d", recv_data);
 ```
@@ -103,7 +103,7 @@ mqtt:
 ```
 
 > [!IMPORTANT]
-> **Missing Logs over Network API**
+> **Missing Logs over the Network API or MQTT**
 >
 > Some problems may be difficult to troubleshoot when using the Network API or MQTT logs, either due to the errors occurring well before the device network stack is initialized, or if the network stack itself is causing an issue. If you are unable to retrieve relevant logs due to network startup, you may need to use hardware serial to obtain logs.
 

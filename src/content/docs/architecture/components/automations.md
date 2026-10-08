@@ -68,6 +68,7 @@ The arguments to `build_callback_automation`:
 1. `args` -- template args as `[(type, name)]` tuples, exposed as variables in the user's `then:` block. This controls the `Automation<Ts...>` template parameters, **not** the callback signature. When using a custom forwarder, the forwarder's `operator()` signature must match the callback, but `args` can differ (e.g. `args=[]` with `TriggerOnTrueForwarder` which receives `bool` but triggers `Automation<>`)
 1. `config` -- the automation config dict
 1. `forwarder` (optional) -- override the default `TriggerForwarder<Ts...>`
+1. `params`, `forward`, `when` (optional) -- reshape or filter the callback arguments, see [Different callback arguments or a filter](#different-callback-arguments-or-a-filter); they cannot be combined with `forwarder`
 
 For boolean filtering (e.g. `on_press` / `on_release` on a `void(bool)` callback), pass a forwarder. Note that the forwarder receives the `bool` from the callback but triggers `Automation<>` with no args:
 
@@ -80,6 +81,24 @@ for conf_key, forwarder in (
         await automation.build_callback_automation(
             var, "add_on_state_callback", [], conf, forwarder=forwarder
         )
+```
+
+Several callback automations on one parent go in a module-level `_CALLBACK_AUTOMATIONS` tuple; each `CallbackAutomation` entry takes the config key, the method name, the args and, optionally, the same `forwarder`, `params`, `forward` and `when` keywords:
+
+```python
+_CALLBACK_AUTOMATIONS = (
+    automation.CallbackAutomation(
+        CONF_ON_CONNECT, "set_on_connect", [(cg.bool_, "session_present")]
+    ),
+    automation.CallbackAutomation(
+        CONF_ON_DISCONNECT, "set_on_disconnect", [(MQTTClientDisconnectReason, "reason")]
+    ),
+)
+
+
+async def to_code(config: ConfigType) -> None:
+    ...
+    await automation.build_callback_automations(var, config, _CALLBACK_AUTOMATIONS)
 ```
 
 #### C++
@@ -171,13 +190,25 @@ select_test_select->add_on_state_callback([](const std::remove_cvref_t<size_t> &
 });
 ```
 
-A callback that carries nothing while the automation receives the parent (fan `on_state`, the display menu triggers) is one line:
+#### Automations that receive the parent
+
+A callback that carries nothing while the automation receives the parent (fan `on_state`, the display menu triggers) is one line. The third argument is a single `(type, name)` tuple for the automation's one argument, not a list:
 
 ```python
 await automation.build_parent_callback_automation(
     var, "add_on_state_callback", (Fan.operator("ptr"), "x"), conf
 )
 ```
+
+Generated for a fan with the id `the_fan`:
+
+```cpp
+the_fan->add_on_state_callback([]() -> void {
+    ::automation_id->trigger(::the_fan);
+});
+```
+
+#### Registration with extra arguments
 
 When the registration takes extra arguments, use `build_trigger_callback` with the same keywords. It builds the automation and returns the lambda, and the component writes the registration call itself, so constant arguments such as a topic and qos are ordinary call arguments. `mqtt.on_message` with its optional `payload` filter:
 
@@ -204,24 +235,6 @@ mqtt_client->subscribe(progmem_string(ESPHOME_F("livingroom/ota_mode")), [](cons
       return;
     ::automation_id->trigger(payload);
 }, 1);
-```
-
-Several callback automations on one parent go in a module-level `_CALLBACK_AUTOMATIONS` tuple; each `CallbackAutomation` entry takes the config key, the method name, the args and, optionally, the same `forwarder`, `params`, `forward` and `when`:
-
-```python
-_CALLBACK_AUTOMATIONS = (
-    automation.CallbackAutomation(
-        CONF_ON_CONNECT, "set_on_connect", [(cg.bool_, "session_present")]
-    ),
-    automation.CallbackAutomation(
-        CONF_ON_DISCONNECT, "set_on_disconnect", [(MQTTClientDisconnectReason, "reason")]
-    ),
-)
-
-
-async def to_code(config: ConfigType) -> None:
-    ...
-    await automation.build_callback_automations(var, config, _CALLBACK_AUTOMATIONS)
 ```
 
 ### Trigger class method

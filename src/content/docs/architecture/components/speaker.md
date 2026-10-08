@@ -118,6 +118,9 @@ to be reconfigured to match.
 - `add_audio_output_callback(F &&callback)`: register a callback invoked with `(frames_played, timestamp_us)` so other
   components can track playback progress against wall-clock time.
 
+For everything else, the component implements the usual set of methods
+[as described here](/architecture/components/index#common-methods).
+
 ### Notifying the audio DAC when audio starts
 
 Some DACs and amplifiers with a built-in DSP (for example the TI TAS58xx family) only accept writes to their mixer, EQ
@@ -152,6 +155,3 @@ those are only safe on the main loop. The `i2s_audio` speaker already calls it t
 
 If you are writing an `audio_dac` component, override `on_audio_started()` to write any configuration that needs a
 running clock. The default does nothing, so existing DACs need no changes.
-
-For everything else, the component implements the usual set of methods
-[as described here](/architecture/components/index#common-methods).

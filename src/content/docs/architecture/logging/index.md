@@ -89,7 +89,8 @@ If both network and serial connections for a single device are available, or if 
 
 ```bash
 esphome logs --device 192.168.1.111 path/to/configuration.yaml
-esphome logs --device ttyACM1 path/to/configuration.yaml
+esphome logs --device /dev/ttyACM1 path/to/configuration.yaml
+esphome logs --device COM3 path/to/configuration.yaml
 ```
 
 To publish ESPHome log messages to MQTT, you must

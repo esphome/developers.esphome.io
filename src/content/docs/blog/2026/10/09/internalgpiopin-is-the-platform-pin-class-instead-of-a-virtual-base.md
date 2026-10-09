@@ -35,7 +35,7 @@ Components that drive a pin many times, like dht's bit-banged read, gain the mos
 
 - `esphome/core/gpio.h` includes the platform's pin header and declares `using InternalGPIOPin = <platform class>;`, checked by a `static_assert` on the new `InternalGPIOPinContract` concept.
 - `GPIOPin`, the `gpio::Flags` enum, `ISRInternalGPIOPin` and the concept live in the new `esphome/core/gpio_pin.h`. Including `esphome/core/gpio.h` or `esphome/core/hal.h` still gives you everything it did before.
-- The platform pin classes derive from `GPIOPin` directly and are `final`. The protected hook that takes a `void (*)(void *)` callback is now named `attach_interrupt_()`; the public `attach_interrupt<T>()` template is unchanged.
+- The platform pin classes, which were already `final`, derive from `GPIOPin` directly. The protected hook that takes a `void (*)(void *)` callback is now named `attach_interrupt_()`; the public `attach_interrupt<T>()` template is unchanged.
 - `GPIOPin::is_internal()` now carries a rule: only the platform pin class behind the alias may return `true`, because callers `static_cast` to `InternalGPIOPin` on it.
 - The `USE_ESP32_INTERNAL_GPIO` define is gone.
 
@@ -53,7 +53,7 @@ Components that drive a pin many times, like dht's bit-banged read, gain the mos
 
 ### A subclass of InternalGPIOPin
 
-The class is `final`, so this no longer compiles:
+`InternalGPIOPin` now names the platform pin class, which has always been `final`, so this no longer compiles:
 
 ```cpp
 // Before
@@ -106,7 +106,7 @@ Return `false`. Callers that see `true` cast the pointer to the platform pin cla
 ## Timeline
 
 - **ESPHome 2026.11.0 (November 2026):** `InternalGPIOPin` becomes the platform pin class
-- No deprecation period: a `final` class cannot keep a subclass compiling
+- No deprecation period: once the name refers to a `final` class, nothing can keep a subclass of it compiling
 
 ## Finding Code That Needs Updates
 

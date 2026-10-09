@@ -63,3 +63,40 @@ As mentioned in the [codebase standards](/contributing/code/#c), all components/
 
 Finally, the component implements the usual set of methods [as described here](/architecture/components/index#common-methods). This is all
 that's required for our minimal UART component!
+
+## UARTs Without Line Timing
+
+On a serial line, bytes arrive at the pace of the baud rate, so a reader can find the end of a frame from a quiet gap,
+such as the 3.5 characters that end a Modbus RTU frame. Some UARTs hand over received bytes in packets instead, and a
+gap between them says nothing about where a frame ends:
+
+- `tcp_uart` receives TCP segments; its baud rate is only a placeholder.
+- A `usb_uart` channel receives USB packets from the adapter; an FTDI chip, for example, holds bytes for up to 16 ms
+  by default (its latency timer).
+- `usb_cdc_acm` learns its baud rate only when the host opens the port.
+- `ble_nus` receives BLE packets.
+
+These UARTs mark their declared id with `uart.mark_unclocked` in `CONFIG_SCHEMA`. A new UART like them, a component
+that provides a `uart::UARTComponent` rather than a `UARTDevice`, does the same:
+
+```python
+import esphome.codegen as cg
+from esphome.components import uart
+import esphome.config_validation as cv
+
+DEPENDENCIES = ["uart"]
+
+my_link_ns = cg.esphome_ns.namespace("my_link")
+MyLink = my_link_ns.class_("MyLink", uart.UARTComponent, cg.Component)
+
+CONFIG_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(): cv.All(cv.declare_id(MyLink), uart.mark_unclocked),
+    }
+).extend(cv.COMPONENT_SCHEMA)
+```
+
+A UART device that ends a frame after a quiet gap calls `uart.is_unclocked(config[CONF_UART_ID])` from `to_code`
+(`CONF_UART_ID` is in `esphome.const`) and waits longer on such a UART, or does not rely on the gap. The marks are made
+while the schemas run, so every `to_code` sees them, whatever the order of the YAML. `is_unclocked()` compares ids by
+name, so a generated id is found too. Both are plain functions, not coroutines.

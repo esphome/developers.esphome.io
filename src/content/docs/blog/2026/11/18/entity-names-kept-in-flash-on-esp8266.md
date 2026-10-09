@@ -38,7 +38,8 @@ The protected `EntityBase::name_` member is now a `ProgmemStringRef`: a pointer 
 // Logging: no copy, safe on every platform
 ESP_LOGD(TAG, "'%s' updated", LOG_STR_ARG(this->get_log_name()));
 
-// A copy of the name: copied out of flash on ESP8266, returned directly elsewhere
+// Read the name: copied into name_buf on ESP8266, points at the original elsewhere.
+// Always use the returned StringRef, not name_buf.
 char name_buf[ENTITY_NAME_BUF_SIZE];
 StringRef name = entity->get_name_to(name_buf);
 
@@ -55,11 +56,21 @@ if (entity->name_equals(other)) {
 
 ### `MQTTComponent::friendly_name_()` deprecated
 
-The protected `MQTTComponent::friendly_name_()` helper is deprecated in favor of `log_name_()`, which returns a `const LogString *` for log calls. Like `get_name()`, it keeps working until it is removed in 2027.5.0, and on ESP8266 it uses the same RAM copy.
+The protected `MQTTComponent::friendly_name_()` helper is deprecated in favor of `log_name_()`, which returns a `const LogString *` for log calls:
+
+```cpp
+ESP_LOGW(TAG, "'%s': not ready", LOG_STR_ARG(this->log_name_()));
+```
+
+Like `get_name()`, it keeps working until it is removed in 2027.5.0, and on ESP8266 it uses the same RAM copy.
 
 ### `Sprinkler::valve_name()` deprecated
 
-`Sprinkler::valve_name()` returned a pointer to the valve's name, which is now in flash on ESP8266. Like `get_name()`, it is deprecated until 2027.5.0, and on ESP8266 it uses the same RAM copy. Use `valve_log_name()` for logging, or `control_switch(n)->get_name_to(buffer)` for a copy.
+`Sprinkler::valve_name()` returned a pointer to the valve's name, which is now in flash on ESP8266. Like `get_name()`, it is deprecated until 2027.5.0, and on ESP8266 it uses the same RAM copy. Use `valve_log_name()` for logging, or `control_switch(n)->get_name_to(buffer)` for a copy:
+
+```cpp
+ESP_LOGD(TAG, "Valve '%s' on", LOG_STR_ARG(sprinkler->valve_log_name(n)));
+```
 
 ## Who This Affects
 
@@ -96,6 +107,13 @@ bool match = sensor->name_equals(other);
 #else
   ESP_LOGD(TAG, "'%s' updated", this->get_name().c_str());
 #endif
+
+#if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 11, 0)
+  char name_buf[ENTITY_NAME_BUF_SIZE];
+  this->send_name_(sensor->get_name_to(name_buf));
+#else
+  this->send_name_(sensor->get_name());
+#endif
 ```
 
 ## Timeline
@@ -108,6 +126,7 @@ bool match = sensor->name_equals(other);
 ```bash
 grep -rn 'get_name()' your_component/
 grep -rn 'name_\.c_str()\|friendly_name_()\|valve_name(' your_component/
+grep -rn 'get_name()' --include='*.yaml' your_config_dir/
 ```
 
 `get_name()` also exists on unrelated classes such as `Application`, `Device` and light effects; only the entity method changes.

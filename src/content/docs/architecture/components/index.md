@@ -180,10 +180,10 @@ If the config value is not set, then we do not call the setter function.
   an alias from `ALIASES` is used, telling users when the legacy name will stop working.
 - `AUTO_LOAD`: A list of components that will be automatically loaded if they are not already specified in the
   configuration. This can be a method that can be run with access to the `CORE` information like the target platform.
-- `CONFLICTS_WITH`: A list of components which conflict with this component. If the user has one of them in their
-  config, a validation error will be generated.
 - `CODEOWNERS`: A list of GitHub usernames that are responsible for this component. `script/build_codeowners.py` will
   update the `CODEOWNERS` file.
+- `CONFLICTS_WITH`: A list of components which conflict with this component. If the user has one of them in their
+  config, a validation error will be generated.
 - `DEPENDENCIES`: A list of components that this component depends on. If these components are not present in the
    configuration, or loaded by another component, validation will fail and the user will be shown an error.
 - `DOMAIN`: Required. The component's name as a plain string, equal to its folder name (e.g. `DOMAIN = "uart"`).
@@ -218,16 +218,17 @@ def _get_data() -> dict:
     return CORE.data.setdefault(DOMAIN, {})
 ```
 
-The same constant works for other name-based helpers, such as `cv.requires_component(DOMAIN)`.
-
 From another component, import it under a clear alias:
 
 ```python
 from esphome.components.psram import DOMAIN as PSRAM_DOMAIN
+from esphome.core import CORE
 
 if PSRAM_DOMAIN in CORE.loaded_integrations:
     ...
 ```
+
+The imported constant also works with other name-based helpers, such as `cv.requires_component(PSRAM_DOMAIN)`.
 
 ### Final validation
 

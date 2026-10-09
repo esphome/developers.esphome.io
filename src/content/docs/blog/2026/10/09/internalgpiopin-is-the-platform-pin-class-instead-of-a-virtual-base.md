@@ -4,7 +4,7 @@ date: 2026-10-09
 authors: bdraco
 ---
 
-`InternalGPIOPin` is no longer an abstract class. It is now a type alias for the one pin class each platform provides (`esp32::ESP32InternalGPIOPin`, `esp8266::ESP8266GPIOPin`, `rp2::RP2GPIOPin`, `libretiny::ArduinoInternalGPIOPin`, `zephyr::ZephyrGPIOPin` or `host::HostGPIOPin`), so every call through an `InternalGPIOPin *` is a direct call. `GPIOPin` is unchanged and still virtual.
+`InternalGPIOPin` is no longer an abstract class. It is now a type alias for the one pin class each platform provides (`esp32::ESP32InternalGPIOPin`, `esp8266::ESP8266GPIOPin`, `rp2::RP2GPIOPin`, `libretiny::ArduinoInternalGPIOPin`, `zephyr::ZephyrGPIOPin` or `host::HostGPIOPin`), so every call through an `InternalGPIOPin *` is a direct call. `GPIOPin` keeps its virtual interface.
 
 This is a **developer breaking change** for external components in **ESPHome 2026.11.0 and later**.
 
@@ -20,7 +20,7 @@ Every image contains exactly one internal pin implementation, chosen by the plat
 
 ### Flash and RAM
 
-Measured on esp32-idf test configurations:
+Measured on esp32-idf builds of the test configurations, plus a timer-only deep_sleep configuration with no pins:
 
 | Configuration | Flash before | Flash after | RAM |
 | --- | --- | --- | --- |
@@ -53,7 +53,7 @@ Components that drive a pin many times, like dht's bit-banged read, gain the mos
 
 ### A subclass of InternalGPIOPin
 
-`InternalGPIOPin` now names the platform pin class, which has always been `final`, so this no longer compiles:
+Before, `InternalGPIOPin` was an abstract class, so this compiled on every platform:
 
 ```cpp
 // Before
@@ -61,6 +61,8 @@ class MyPin : public InternalGPIOPin {
   ...
 };
 ```
+
+The name now resolves to the platform's pin class, which was already `final`, so the same code fails with an error such as `base 'HostGPIOPin' is marked 'final'`.
 
 A pin implementation for a new platform belongs next to the existing ones: add the class to the platform component and bind it in the platform chain in `esphome/core/gpio.h`. A test that only needs some internal pin can use the alias directly, which is the host pin in host builds:
 
@@ -72,7 +74,7 @@ component.set_pin(&pin);
 
 ### Reaching the raw attach_interrupt
 
-Some components derived from `InternalGPIOPin` only to make the protected overload visible:
+The public `attach_interrupt<T>()` template and the protected hook that takes a `void (*)(void *)` shared one name. A call with a plain `void *` callback picked the protected overload and failed to compile, so some components derived from `InternalGPIOPin` only to make it visible:
 
 ```cpp
 // Before
@@ -82,7 +84,7 @@ struct ExposeInternalPin : public InternalGPIOPin {
 static_cast<ExposeInternalPin *>(pin)->attach_interrupt(my_isr, arg, gpio::INTERRUPT_ANY_EDGE);
 ```
 
-The public template already takes any pointer type, so call it directly:
+The hook is now `attach_interrupt_()`, so the template is the only `attach_interrupt` and takes the `void *` form as well (`T` deduces to `void`). Call it directly:
 
 ```cpp
 // After

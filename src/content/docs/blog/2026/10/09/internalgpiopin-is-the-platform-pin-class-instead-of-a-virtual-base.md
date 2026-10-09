@@ -108,8 +108,9 @@ pin->attach_interrupt(my_isr, this, gpio::INTERRUPT_ANY_EDGE);
 ## Finding Code That Needs Updates
 
 ```bash
-# Any class deriving from InternalGPIOPin, whatever the access specifier, and is_internal() overrides
-grep -rnE ':\s*(public |protected |private )?(esphome::)?InternalGPIOPin\b|is_internal\(\) override' your_component/
+# List every reference, then check the base lists: a class that names InternalGPIOPin
+# as any of its bases is affected, as is a GPIOPin subclass whose is_internal() returns true
+grep -rn 'InternalGPIOPin\|is_internal() override' your_component/
 ```
 
 ## Questions?

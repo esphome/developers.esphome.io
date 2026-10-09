@@ -63,3 +63,27 @@ As mentioned in the [codebase standards](/contributing/code/#c), all components/
 
 Finally, the component implements the usual set of methods [as described here](/architecture/components/index#common-methods). This is all
 that's required for our minimal UART component!
+
+## Components that own a UART
+
+A component that copies bytes into a UART from a faster source, such as a socket, should not block on the line.
+`paced_write_room()` returns how many bytes a write can take now:
+
+```cpp
+size_t room = this->parent_->paced_write_room(this->last_write_ms_);
+```
+
+Where the driver reports its TX room, this is `available_for_write()`. Otherwise it paces to the line time since
+`last_write_ms`, a loop start time from `App.get_loop_component_start_time()`: at most one loop interval and 4 s,
+and at least one byte. `uart_tcp` uses it.
+
+A component that reads the UART for itself can reject other users in its final validation:
+
+```python
+for domain, domain_conf in full_config.items():
+    if domain != DOMAIN and uart.subtree_references_uart(domain_conf, uart_id):
+        raise cv.Invalid(...)
+```
+
+`uart_tcp` and the CDC-ACM bridge do this. Bare `id:` references, such as a `uart.write` action, and lambdas are
+not found.

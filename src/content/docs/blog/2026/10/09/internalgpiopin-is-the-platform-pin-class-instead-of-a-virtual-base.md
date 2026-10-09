@@ -80,12 +80,24 @@ Return `false`. Callers that see `true` cast the pointer to the platform pin cla
 
 ## Supporting Multiple ESPHome Versions
 
+The raw `attach_interrupt` call is the one place a version guard is needed, and only when the callback must keep its `void *` signature:
+
 ```cpp
 #if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 11, 0)
-// InternalGPIOPin is the platform class; use the alias directly
+pin->attach_interrupt(my_isr, arg, gpio::INTERRUPT_ANY_EDGE);
 #else
-// InternalGPIOPin is an abstract base; a subclass still works here
+struct ExposeInternalPin : public InternalGPIOPin {
+  using InternalGPIOPin::attach_interrupt;
+};
+static_cast<ExposeInternalPin *>(pin)->attach_interrupt(my_isr, arg, gpio::INTERRUPT_ANY_EDGE);
 #endif
+```
+
+A typed callback avoids the guard altogether, because the public template has accepted it on every version:
+
+```cpp
+static void my_isr(MyComponent *self);
+pin->attach_interrupt(my_isr, this, gpio::INTERRUPT_ANY_EDGE);
 ```
 
 ## Timeline
@@ -96,8 +108,8 @@ Return `false`. Callers that see `true` cast the pointer to the platform pin cla
 ## Finding Code That Needs Updates
 
 ```bash
-# Subclasses of InternalGPIOPin and is_internal() overrides
-grep -rn 'public InternalGPIOPin\|public esphome::InternalGPIOPin\|is_internal() override' your_component/
+# Any class deriving from InternalGPIOPin, whatever the access specifier, and is_internal() overrides
+grep -rnE ':\s*(public |protected |private )?(esphome::)?InternalGPIOPin\b|is_internal\(\) override' your_component/
 ```
 
 ## Questions?

@@ -59,7 +59,7 @@ The protected `MQTTComponent::friendly_name_()` helper is deprecated in favor of
 
 ### `Sprinkler::valve_name()` deprecated
 
-`Sprinkler::valve_name()` returned a pointer to the valve's name, which is now in flash on ESP8266. Like `get_name()`, it is deprecated until 2027.5.0, and on ESP8266 it uses the same RAM copy. Use `valve_log_name()` for logging, or `valve_switch(n)->get_name_to(buffer)` for a copy.
+`Sprinkler::valve_name()` returned a pointer to the valve's name, which is now in flash on ESP8266. Like `get_name()`, it is deprecated until 2027.5.0, and on ESP8266 it uses the same RAM copy. Use `valve_log_name()` for logging, or `control_switch(n)->get_name_to(buffer)` for a copy.
 
 ## Who This Affects
 

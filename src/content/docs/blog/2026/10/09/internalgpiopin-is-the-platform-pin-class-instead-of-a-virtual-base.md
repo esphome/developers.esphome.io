@@ -53,24 +53,7 @@ Components that drive a pin many times, like dht's bit-banged read, gain the mos
 
 ### A subclass of InternalGPIOPin
 
-Before, `InternalGPIOPin` was an abstract class, so this compiled on every platform:
-
-```cpp
-// Before
-class MyPin : public InternalGPIOPin {
-  ...
-};
-```
-
-The name now resolves to the platform's pin class, which was already `final`, so the same code fails with an error such as `base 'HostGPIOPin' is marked 'final'`.
-
-A pin implementation for a new platform belongs next to the existing ones: add the class to the platform component and bind it in the platform chain in `esphome/core/gpio.h`. A test that only needs some internal pin can use the alias directly, which is the host pin in host builds:
-
-```cpp
-// After, in a host unit test
-InternalGPIOPin pin;
-component.set_pin(&pin);
-```
+Before, `InternalGPIOPin` was an abstract class and an external component could provide its own pin implementation behind it. The name now resolves to the platform's pin class, which was already `final`, so a subclass fails with an error such as `base 'HostGPIOPin' is marked 'final'`. Such a pin can derive from `GPIOPin` instead, which works everywhere a component takes a `GPIOPin *` but offers no interrupt API, or the platform can be contributed to ESPHome itself.
 
 ### Reaching the raw attach_interrupt
 

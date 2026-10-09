@@ -4,7 +4,7 @@ date: 2026-11-18
 authors: bdraco
 ---
 
-Entity names are now stored in flash on ESP8266 instead of RAM. `EntityBase::get_name()` is deprecated on **all platforms** and replaced by `get_name_to()` for a copy of the name and `get_log_name()` for logging. On ESP8266, `get_name()` produces a `static_assert` error because the name can no longer be read as a normal C string. On other platforms it keeps working with a deprecation warning and will be removed in 2027.5.0.
+Entity names are now stored in flash on ESP8266 instead of RAM. `EntityBase::get_name()` is deprecated on **all platforms** and replaced by `get_name_to()` for a copy of the name and `get_log_name()` for logging. It keeps working everywhere with a deprecation warning until it is removed in 2027.5.0. On ESP8266 the first call for an entity makes a RAM copy of its name and keeps it, so callers pay back the RAM this change saves for that entity.
 
 This is a **developer breaking change** for external components in **ESPHome 2026.11.0 and later**.
 
@@ -55,17 +55,17 @@ if (entity->name_equals(other)) {
 
 ### `MQTTComponent::friendly_name_()` deprecated
 
-The protected `MQTTComponent::friendly_name_()` helper is deprecated in favor of `log_name_()`, which returns a `const LogString *` for log calls. Like `get_name()`, it fails to compile on ESP8266 and is removed in 2027.5.0.
+The protected `MQTTComponent::friendly_name_()` helper is deprecated in favor of `log_name_()`, which returns a `const LogString *` for log calls. Like `get_name()`, it keeps working until it is removed in 2027.5.0, and on ESP8266 it uses the same RAM copy.
 
 ### `Sprinkler::valve_name()` deprecated
 
-`Sprinkler::valve_name()` returned a pointer to the valve's name, which is now in flash on ESP8266. Like `get_name()`, it is a compile error on ESP8266 and deprecated elsewhere until 2027.5.0. Use `valve_log_name()` for logging, or `valve_switch(n)->get_name_to(buffer)` for a copy.
+`Sprinkler::valve_name()` returned a pointer to the valve's name, which is now in flash on ESP8266. Like `get_name()`, it is deprecated until 2027.5.0, and on ESP8266 it uses the same RAM copy. Use `valve_log_name()` for logging, or `valve_switch(n)->get_name_to(buffer)` for a copy.
 
 ## Who This Affects
 
 **External components that:**
 
-- Call `get_name()` on any entity: deprecation warning on all platforms, compile error on ESP8266
+- Call `get_name()` on any entity: deprecation warning on all platforms
 - Read `this->name_` from an entity subclass: deprecation warning for `c_str()`, compile error for anything else
 - Call `friendly_name_()` from an `MQTTComponent` subclass
 - Call `Sprinkler::valve_name()`
@@ -100,7 +100,7 @@ bool match = sensor->name_equals(other);
 
 ## Timeline
 
-- **ESPHome 2026.11.0 (November 2026):** `get_name()`, `MQTTComponent::friendly_name_()`, `Sprinkler::valve_name()` and `ProgmemStringRef::c_str()` deprecated, `static_assert` for `get_name()` on ESP8266, new APIs available
+- **ESPHome 2026.11.0 (November 2026):** `get_name()`, `MQTTComponent::friendly_name_()`, `Sprinkler::valve_name()` and `ProgmemStringRef::c_str()` deprecated, new APIs available
 - **ESPHome 2027.5.0 (May 2027):** `get_name()`, `MQTTComponent::friendly_name_()`, `Sprinkler::valve_name()` and `ProgmemStringRef::c_str()` removed on all platforms
 
 ## Finding Code That Needs Updates

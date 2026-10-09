@@ -53,7 +53,7 @@ Components that drive a pin many times, like dht's bit-banged read, gain the mos
 
 ### A subclass of InternalGPIOPin
 
-Before, `InternalGPIOPin` was an abstract class and an external component could provide its own pin implementation behind it. The name now resolves to the platform's pin class, which was already `final`, so a subclass fails with an error such as `base 'HostGPIOPin' is marked 'final'`. Such a pin can derive from `GPIOPin` instead, which works everywhere a component takes a `GPIOPin *` but offers no interrupt API, or the platform can be contributed to ESPHome itself.
+Before, `InternalGPIOPin` was an abstract class and an external component could provide its own pin implementation behind it. The name now resolves to the platform's pin class, which was already `final`, so a subclass fails with an error such as `base 'HostGPIOPin' is marked 'final'`. Such a pin can derive from `GPIOPin` instead, which works everywhere a component takes a `GPIOPin *` but offers no interrupt API. A project that already overrides a platform component through `external_components` can instead supply its class as that platform's pin class, which the alias then picks up, or the platform can be contributed to ESPHome itself.
 
 ### Reaching the raw attach_interrupt
 

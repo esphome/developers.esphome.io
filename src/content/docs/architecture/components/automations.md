@@ -165,7 +165,7 @@ When the parent callback's parameters are not the automation's arguments, or the
 
 - `params` are the parent callback's parameters as `[(type, name)]`, rendered as `const T &`.
 - `forward` are the expressions passed to `trigger()`; the default is the parameter names. Write the parent as `automation.parent_ref(var)`, which names it from global scope so a parameter cannot shadow it, and compose lookups on it with `MockObj` calls rather than f-strings of C++.
-- `when` is a filter the callback returns early on: a plain string, or an `ApplyCall` that compares against config values as conditions do. An `ApplyCall` whose config keys are absent is skipped, so an optional filter needs no `if`.
+- `when` is a filter the callback returns early on: a plain string, or an `ApplyCall` that compares against config values as conditions do. An `ApplyCall` whose config keys are absent is skipped, so an optional filter needs no `if`. The filter names the parent as `{parent}`, see [Filters on the parent's state](#filters-on-the-parents-state).
 
 A select's callback carries only the index, while `on_value` exposes the option text and the index:
 
@@ -189,6 +189,33 @@ select_test_select->add_on_state_callback([](const std::remove_cvref_t<size_t> &
     ::automation_id->trigger(StringRef(::select_test_select->option_at(index)), index);
 });
 ```
+
+#### Filters on the parent's state
+
+A filter that checks the parent writes it as `{parent}`, which renders as the parent named from global scope. The entry then needs nothing from `to_code` and sits in the module-level table. Valve `on_open` and `on_closed` fire only in their end state:
+
+```python
+_CALLBACK_AUTOMATIONS = (
+    automation.CallbackAutomation(
+        CONF_ON_OPEN, "add_on_state_callback", when="{parent}->is_fully_open()"
+    ),
+    automation.CallbackAutomation(
+        CONF_ON_CLOSED, "add_on_state_callback", when="{parent}->is_fully_closed()"
+    ),
+)
+```
+
+Generated for a valve with the id `the_valve`:
+
+```cpp
+the_valve->add_on_state_callback([]() -> void {
+    if (!(::the_valve->is_fully_open()))
+      return;
+    ::automation_id->trigger();
+});
+```
+
+A filter that mixes the callback's parameters and the parent is one expression, for example `"state == improv::STATE_STOPPED && !{parent}->is_failed()"`. `build_trigger_callback` has no parent unless it is given one with `parent=`, and a filter that names `{parent}` without it is rejected.
 
 #### Automations that receive the parent
 
@@ -347,7 +374,7 @@ automation.register_apply_action(
 The action is the core `ApplyAction<Ts...>`, which stores one function pointer. Code generation folds the parent and every configured field into one stateless function: constants become immediates, user lambdas are called inline with the trigger arguments, and an absent optional key emits nothing, so the action costs one pointer however many fields it has. With `kp: 1.5` in the config the generated function body is `my_component->set_kp(1.5f);`.
 
 - `ApplyField(conf_key, target, type_)` forwards one key:
-  - `target` is a setter name, or a statement template when it contains `{}` (for example `"position = {}"`; double a literal brace).
+  - `target` is a setter name, or a statement template when it contains `{}` (for example `"position = {}"`; double a literal brace). A template may name the parent as `{parent}`.
   - `type_` is the C++ type a user lambda must return. A plain string is raw C++ type text and may use `{parent}` when the type is only known per instance.
   - `conf_key` may be a tuple of keys to read a nested section.
   - `std::string` constants are emitted as a plain literal, or as `progmem_string(ESPHOME_F(...))` on ESP8266 so the literal stays in flash.

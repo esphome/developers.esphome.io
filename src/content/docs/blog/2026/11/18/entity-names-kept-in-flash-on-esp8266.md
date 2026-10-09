@@ -28,8 +28,6 @@ Flash on ESP8266 can only be read in aligned 32 bit words. Code that reads a nam
 | `get_name()` for anything else | `get_name_to(buffer)` |
 | `name_.c_str()` from a subclass | `LOG_STR_ARG(get_log_name())` |
 
-`get_name()` now returns a `StringRef` by value instead of a reference on platforms other than ESP8266. Code that only reads the result is not affected.
-
 ### `name_` is now a `ProgmemStringRef`
 
 The protected `EntityBase::name_` member is now a `ProgmemStringRef`: a pointer and a length with no operations that read the characters. Comparing it, copying it or reading its characters no longer compiles, on any platform, so these mistakes are caught at build time instead of crashing on ESP8266. Its `c_str()` still works with a deprecation warning, for subclasses that log `this->name_.c_str()`, and will be removed in 2027.5.0.
@@ -55,9 +53,9 @@ if (entity->name_equals(other)) {
 
 `ENTITY_NAME_BUF_SIZE` is 121 bytes, since entity names are limited to 120 bytes.
 
-### `MQTTComponent::friendly_name_()` replaced
+### `MQTTComponent::friendly_name_()` deprecated
 
-The protected `MQTTComponent::friendly_name_()` helper is replaced by `log_name_()`, which returns a `const LogString *` for log calls.
+The protected `MQTTComponent::friendly_name_()` helper is deprecated in favor of `log_name_()`, which returns a `const LogString *` for log calls. Like `get_name()`, it fails to compile on ESP8266 and is removed in 2027.5.0.
 
 ### `Sprinkler::valve_name()` deprecated
 
@@ -102,8 +100,8 @@ bool match = sensor->name_equals(other);
 
 ## Timeline
 
-- **ESPHome 2026.11.0 (November 2026):** `get_name()`, `Sprinkler::valve_name()` and `ProgmemStringRef::c_str()` deprecated, `static_assert` for `get_name()` on ESP8266, new APIs available
-- **ESPHome 2027.5.0 (May 2027):** `get_name()`, `Sprinkler::valve_name()` and `ProgmemStringRef::c_str()` removed on all platforms
+- **ESPHome 2026.11.0 (November 2026):** `get_name()`, `MQTTComponent::friendly_name_()`, `Sprinkler::valve_name()` and `ProgmemStringRef::c_str()` deprecated, `static_assert` for `get_name()` on ESP8266, new APIs available
+- **ESPHome 2027.5.0 (May 2027):** `get_name()`, `MQTTComponent::friendly_name_()`, `Sprinkler::valve_name()` and `ProgmemStringRef::c_str()` removed on all platforms
 
 ## Finding Code That Needs Updates
 

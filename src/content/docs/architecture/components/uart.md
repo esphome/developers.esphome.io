@@ -100,10 +100,10 @@ def _final_validate(config: ConfigType) -> ConfigType:
 FINAL_VALIDATE_SCHEMA = _final_validate
 ```
 
-`claim_exclusive()` rejects a second `my_bridge` entry on the same UART, any other component that names the UART, and
-a `dummy_receiver` in the UART's `debug`. Other components are found by their `uart_id` key and by the key given as the
-third argument, `conf_key`, such as `tcp_uart_id`. Grouped CI builds share one bus between components, so in testing
-mode other components are not checked. `uart_tcp` uses it.
+`claim_exclusive()` claims the UART named by `config[conf_key]`; the third argument, `conf_key`, defaults to `uart_id`
+and can be another key such as `tcp_uart_id`. It rejects a second `my_bridge` entry on that UART, any other component
+that names it by `uart_id` or `conf_key`, and a `dummy_receiver` in the UART's `debug`. Grouped CI builds share one bus
+between components, so in testing mode other components are not checked. `uart_tcp` uses it.
 
 For other messages, `uart.subtree_references_uart(node, uart_id, conf_key="uart_id")` tells whether any part of a
 config names the UART; the CDC-ACM bridge uses it. Neither finds bare `id:` references, such as a `uart.write` action,

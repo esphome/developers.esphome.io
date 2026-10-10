@@ -66,6 +66,7 @@ AUTO_LOAD = noise.stream_auto_load(DOMAIN, ["socket"])
 
 my_link_ns = cg.esphome_ns.namespace("my_link")
 MyLink = my_link_ns.class_("MyLink", cg.Component)
+noise.register_set_key_action(DOMAIN, MyLink)
 
 CONFIG_SCHEMA = cv.All(
     cv.Schema(
@@ -90,16 +91,18 @@ async def to_code(config: ConfigType) -> None:
     cg.add(var.set_port(config[CONF_PORT]))
     if (encryption := config.get(CONF_ENCRYPTION)) is not None:
         # This side dials, so it speaks first
-        stream = noise.new_stream(config[CONF_ID], encryption[CONF_KEY], True)
+        stream = noise.new_stream(config[CONF_ID], encryption.get(CONF_KEY), True)
         cg.add(var.set_noise_stream(stream))
 ```
 
 `new_stream(owner_id, key, initiator)` calls `require_stream()`, creates the stream with the key in flash and, for
-a side that answers (`initiator` false, as on a server), turns on the spare ephemeral key.
+a side that answers (`initiator` false, as on a server), turns on the spare ephemeral key. Without a key it creates
+a stream whose key is set at runtime, see below.
 
-`STREAM_ENCRYPTION_SCHEMA` requires the key. `final_validate_stream_key(owner)` rejects a key that equals the
+`STREAM_ENCRYPTION_SCHEMA` makes `key` optional. `final_validate_stream_key(owner)` rejects a key that equals the
 `api` or `esphome` OTA key, because the peer device holds the stream key; a key the API gets at runtime cannot be
-compared.
+compared. It also rejects an `<owner>.set_encryption_key` action on an entry whose `encryption` has a key or that
+has no `encryption`, and warns when the action is in an `api` action while `api` has no `encryption`.
 
 `USE_NOISE_STREAM` exists only when a component in the build asked for the stream, and `stream_auto_load()` loads
 `noise` only for an entry with `encryption`, so the include, the member, the setter and every use sit under the guard:
@@ -191,3 +194,49 @@ Call `set_log_tag(TAG)` from `setup()`; it names the stream's log lines. On the 
 `link_.ready()` is false. `flush()` sends nothing before the session is up, so a drop during the handshake is
 always seen by `up()`, which resets the session when it finds the link closed. A component calls `reset()` only
 when it closes the link itself and may reopen it before its next `up()`.
+
+## Key set at runtime
+
+With `encryption:` and no `key`, `new_stream()` defines `USE_NOISE_STREAM_RUNTIME_KEY` and creates the stream with
+the constructor that takes a preference hash, made from the owner's id, instead of a key. Builds where every stream
+has its key in YAML compile none of this.
+
+- `load_key()` from `setup()`, after `set_log_tag()`, reads the saved key and returns whether the stream has one; a
+  key from YAML counts. The key is kept in flash and survives a restart. A saved key that has since become the API
+  or OTA key does not count. `load_key()` creates the flash record, never later, because ESP8266 places flash
+  records in the order they are created; until it ran, `set_key()` refuses every key with a warning, as for an
+  `on_boot` action at or above the owner's setup priority.
+- `set_key(link, key)` takes a base64 key. It refuses, with a warning, a key that does not decode to 32 bytes, the
+  all-zeros key, and a key equal to the API key, also one the API got at runtime, or an `esphome` OTA key from YAML.
+  The same key again changes nothing. Otherwise it saves the key, resets the session and the retry wait of earlier
+  failed handshakes, closes the link and returns true; the next session uses the new key.
+- Without a key, `up()` closes a link that is up instead of running a handshake, which would use the all-zeros key.
+  `has_key()` tells `dump_config()` whether the link waits for a key.
+
+`register_set_key_action(domain, owner)` registers `<domain>.set_encryption_key`, which calls the owner's
+`set_encryption_key()` with the key. The owner keeps its loop off while there is no key, so a client does not
+connect and a server does not listen, and turns it on once a key is saved:
+
+```cpp
+void setup() override {
+  this->link_.begin(TAG);
+#ifdef USE_NOISE_STREAM
+  if (this->noise_ != nullptr) {
+    this->noise_->set_log_tag(TAG);
+#ifdef USE_NOISE_STREAM_RUNTIME_KEY
+    if (!this->noise_->load_key()) {
+      this->disable_loop();
+    }
+#endif
+  }
+#endif
+}
+
+#ifdef USE_NOISE_STREAM_RUNTIME_KEY
+void set_encryption_key(const std::string &key) {
+  if (this->noise_ != nullptr && this->noise_->set_key(this->link_, key)) {
+    this->enable_loop();
+  }
+}
+#endif
+```

@@ -90,7 +90,29 @@ paces to the line time at 10 bits per byte (8N1) since `last_write_ms`, a loop s
 `App.get_loop_component_start_time()`: at most one loop interval and 4 s, and at least one byte, so at a low baud
 rate a loop that wakes often can still get ahead of the line. `uart_tcp` uses it.
 
-A component that reads the UART for itself can reject other users in its final validation:
+A component that reads the UART for itself claims it in its final validation:
+
+```python
+from esphome.components import uart
+from esphome.types import ConfigType
+
+DOMAIN = "my_bridge"
+
+
+def _final_validate(config: ConfigType) -> ConfigType:
+    uart.claim_exclusive(config, DOMAIN)
+    return config
+
+
+FINAL_VALIDATE_SCHEMA = _final_validate
+```
+
+`uart.claim_exclusive(config, owner, conf_key="uart_id")` is a plain function, not a coroutine. It claims the UART
+that `config[conf_key]` names and rejects a second `my_bridge` entry on that UART, any other component that names it
+by `uart_id` or `conf_key`, and a `dummy_receiver` in the UART's `debug`. Grouped CI builds share one bus between
+components, so in testing mode other components are not checked. `uart_tcp` uses it.
+
+For other messages or rules, check by hand with `subtree_references_uart()`:
 
 ```python
 from esphome.components import uart
@@ -121,5 +143,5 @@ def _final_validate(config: ConfigType) -> ConfigType:
 FINAL_VALIDATE_SCHEMA = _final_validate
 ```
 
-`uart_tcp` and the CDC-ACM bridge do this. The third argument, `conf_key`, finds the UART under another key than
+The CDC-ACM bridge does this. The third argument, `conf_key`, finds the UART under another key than
 `uart_id`. Bare `id:` references, such as a `uart.write` action, and lambdas are not found.

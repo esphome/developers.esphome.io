@@ -70,18 +70,25 @@ A component that copies bytes into a UART from a faster source, such as a socket
 `paced_write_room()` returns how many bytes a write can take now:
 
 ```cpp
+// Members: the bytes that wait for the UART, and the loop start time of the last write.
+const uint8_t *pending_{nullptr};
+size_t pending_len_{0};
+uint32_t last_write_ms_{0};
+
 // Move at most what the UART can take now.
 size_t n = std::min(this->parent_->paced_write_room(this->last_write_ms_), this->pending_len_);
 if (n != 0) {
   this->write_array(this->pending_, n);
+  this->pending_ += n;
+  this->pending_len_ -= n;
   this->last_write_ms_ = App.get_loop_component_start_time();
 }
 ```
 
 Where the driver reports its TX room, this is `available_for_write()`, and 0 means the TX buffer is full. Otherwise it
-paces to the line time since `last_write_ms`, a loop start time from `App.get_loop_component_start_time()`: at most
-one loop interval and 4 s, and at least one byte, so at a low baud rate a loop that wakes often can still get ahead
-of the line. `uart_tcp` uses it.
+paces to the line time at 10 bits per byte (8N1) since `last_write_ms`, a loop start time from
+`App.get_loop_component_start_time()`: at most one loop interval and 4 s, and at least one byte, so at a low baud
+rate a loop that wakes often can still get ahead of the line. `uart_tcp` uses it.
 
 A component that reads the UART for itself claims it in its final validation:
 
@@ -101,7 +108,7 @@ FINAL_VALIDATE_SCHEMA = _final_validate
 ```
 
 `claim_exclusive()` claims the UART named by `config[conf_key]`; the third argument, `conf_key`, defaults to `uart_id`
-and can be another key such as `tcp_uart_id`. It rejects a second `my_bridge` entry on that UART, any other component
+and can be another key. It rejects a second `my_bridge` entry on that UART, any other component
 that names it by `uart_id` or `conf_key`, and a `dummy_receiver` in the UART's `debug`. Grouped CI builds share one bus
 between components, so in testing mode other components are not checked. `uart_tcp` uses it.
 

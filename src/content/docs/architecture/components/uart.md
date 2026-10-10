@@ -83,36 +83,28 @@ paces to the line time since `last_write_ms`, a loop start time from `App.get_lo
 one loop interval and 4 s, and at least one byte, so at a low baud rate a loop that wakes often can still get ahead
 of the line. `uart_tcp` uses it.
 
-A component that reads the UART for itself can reject other users in its final validation:
+A component that reads the UART for itself claims it in its final validation:
 
 ```python
 from esphome.components import uart
-import esphome.config_validation as cv
-from esphome.const import CONF_UART_ID
-from esphome.core import CORE
-import esphome.final_validate as fv
 from esphome.types import ConfigType
 
 DOMAIN = "my_bridge"
 
 
 def _final_validate(config: ConfigType) -> ConfigType:
-    uart_id = str(config[CONF_UART_ID])
-    # Grouped CI builds share one bus between components.
-    if CORE.testing_mode:
-        return config
-    for domain, domain_conf in fv.full_config.get().items():
-        if domain != DOMAIN and uart.subtree_references_uart(domain_conf, uart_id):
-            raise cv.Invalid(
-                f"The UART '{uart_id}' is also used by '{domain}'. "
-                f"{DOMAIN} requires exclusive use of that UART.",
-                [CONF_UART_ID],
-            )
+    uart.claim_exclusive(config, DOMAIN)
     return config
 
 
 FINAL_VALIDATE_SCHEMA = _final_validate
 ```
 
-`uart_tcp` and the CDC-ACM bridge do this. The third argument, `conf_key`, finds another key than `uart_id`, such as
-`tcp_uart_id`. Bare `id:` references, such as a `uart.write` action, and lambdas are not found.
+`claim_exclusive()` rejects a second `my_bridge` entry on the same UART, any other component that names the UART, and
+a `dummy_receiver` in the UART's `debug`. Other components are found by their `uart_id` key and by the key given as the
+third argument, `conf_key`, such as `tcp_uart_id`. Grouped CI builds share one bus between components, so in testing
+mode other components are not checked. `uart_tcp` uses it.
+
+For other messages, `uart.subtree_references_uart(node, uart_id, conf_key="uart_id")` tells whether any part of a
+config names the UART; the CDC-ACM bridge uses it. Neither finds bare `id:` references, such as a `uart.write` action,
+or lambdas.

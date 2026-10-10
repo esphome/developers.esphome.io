@@ -68,6 +68,7 @@ The arguments to `build_callback_automation`:
 1. `args` -- template args as `[(type, name)]` tuples, exposed as variables in the user's `then:` block. This controls the `Automation<Ts...>` template parameters, **not** the callback signature. When using a custom forwarder, the forwarder's `operator()` signature must match the callback, but `args` can differ (e.g. `args=[]` with `TriggerOnTrueForwarder` which receives `bool` but triggers `Automation<>`)
 1. `config` -- the automation config dict
 1. `forwarder` (optional) -- override the default `TriggerForwarder<Ts...>`
+1. `params`, `forward`, `when` (optional) -- reshape or filter the callback arguments, see [Different callback arguments or a filter](#different-callback-arguments-or-a-filter); they cannot be combined with `forwarder`
 
 For boolean filtering (e.g. `on_press` / `on_release` on a `void(bool)` callback), pass a forwarder. Note that the forwarder receives the `bool` from the callback but triggers `Automation<>` with no args:
 
@@ -80,6 +81,24 @@ for conf_key, forwarder in (
         await automation.build_callback_automation(
             var, "add_on_state_callback", [], conf, forwarder=forwarder
         )
+```
+
+Several callback automations on one parent go in a module-level `_CALLBACK_AUTOMATIONS` tuple; each `CallbackAutomation` entry takes the config key, the method name, the args and, optionally, the same `forwarder`, `params`, `forward` and `when` keywords:
+
+```python
+_CALLBACK_AUTOMATIONS = (
+    automation.CallbackAutomation(
+        CONF_ON_CONNECT, "set_on_connect", [(cg.bool_, "session_present")]
+    ),
+    automation.CallbackAutomation(
+        CONF_ON_DISCONNECT, "set_on_disconnect", [(MQTTClientDisconnectReason, "reason")]
+    ),
+)
+
+
+async def to_code(config: ConfigType) -> None:
+    ...
+    await automation.build_callback_automations(var, config, _CALLBACK_AUTOMATIONS)
 ```
 
 #### C++
@@ -140,6 +159,84 @@ await automation.build_callback_automation(
 )
 ```
 
+#### Different callback arguments or a filter
+
+When the parent callback's parameters are not the automation's arguments, or the trigger should only fire for some values, pass `params`, `forward` and `when` to `build_callback_automation`. The helper then generates a capture-less lambda instead of a forwarder struct; being empty, the lambda is stored inline by `Callback` and `std::function` alike, so nothing is allocated and no Trigger class is needed.
+
+- `params` are the parent callback's parameters as `[(type, name)]`, rendered as `const T &`.
+- `forward` are the expressions passed to `trigger()`; the default is the parameter names. Write the parent as `automation.parent_ref(var)`, which names it from global scope so a parameter cannot shadow it, and compose lookups on it with `MockObj` calls rather than f-strings of C++.
+- `when` is a filter the callback returns early on: a plain string, or an `ApplyCall` that compares against config values as conditions do. An `ApplyCall` whose config keys are absent is skipped, so an optional filter needs no `if`.
+
+A select's callback carries only the index, while `on_value` exposes the option text and the index:
+
+```python
+parent = automation.parent_ref(var)
+index = cg.RawExpression("index")
+await automation.build_callback_automation(
+    var,
+    "add_on_state_callback",
+    [(cg.StringRef, "x"), (cg.size_t, "i")],
+    conf,
+    params=[(cg.size_t, "index")],
+    forward=[cg.StringRef(parent.option_at(index)), index],
+)
+```
+
+Generated:
+
+```cpp
+select_test_select->add_on_state_callback([](const std::remove_cvref_t<size_t> & index) -> void {
+    ::automation_id->trigger(StringRef(::select_test_select->option_at(index)), index);
+});
+```
+
+#### Automations that receive the parent
+
+A callback that carries nothing while the automation receives the parent (fan `on_state`, the display menu triggers) is one line. The third argument is a single `(type, name)` tuple for the automation's one argument, not a list:
+
+```python
+await automation.build_parent_callback_automation(
+    var, "add_on_state_callback", (Fan.operator("ptr"), "x"), conf
+)
+```
+
+Generated for a fan with the id `the_fan`:
+
+```cpp
+the_fan->add_on_state_callback([]() -> void {
+    ::automation_id->trigger(::the_fan);
+});
+```
+
+#### Registration with extra arguments
+
+When the registration takes extra arguments, use `build_trigger_callback` with the same keywords. It builds the automation and returns the lambda, and the component writes the registration call itself, so constant arguments such as a topic and qos are ordinary call arguments. `mqtt.on_message` with its optional `payload` filter:
+
+```python
+for conf in config.get(CONF_ON_MESSAGE, []):
+    callback = await automation.build_trigger_callback(
+        [(cg.std_string, "x")],
+        conf,
+        params=[(cg.std_string, "topic"), (cg.std_string, "payload")],
+        forward=["payload"],
+        when=automation.ApplyCall(
+            "StringRef(payload) == {}",
+            ((CONF_PAYLOAD, cg.std_string, automation.string_ref_literal),),
+        ),
+    )
+    cg.add(var.subscribe(cg.progmem_string(conf[CONF_TOPIC]), callback, conf[CONF_QOS]))
+```
+
+Generated for `payload: "ON"` on ESP8266, where `cg.progmem_string` keeps the topic literal in flash and `string_ref_literal` renders the payload as a flash literal (`StringRef("ON", 2)` on other platforms):
+
+```cpp
+mqtt_client->subscribe(progmem_string(ESPHOME_F("livingroom/ota_mode")), [](const std::remove_cvref_t<std::string> & topic, const std::remove_cvref_t<std::string> & payload) -> void {
+    if (!(StringRef(payload) == ESPHOME_F("ON")))
+      return;
+    ::automation_id->trigger(payload);
+}, 1);
+```
+
 ### Trigger class method
 
 Use this when the trigger needs **mutable state beyond a single `Automation*` pointer** (e.g. tracked previous state for edge detection, or timing logic). A forwarder struct must be pointer-sized with only an `Automation*` field, so any additional state requires a full `Trigger` subclass.
@@ -174,6 +271,21 @@ async def to_code(config: ConfigType) -> None:
         await automation.build_automation(trigger, [], conf)
 ```
 
+Several such triggers on one parent go in a module-level `_TRIGGER_AUTOMATIONS` tuple of `(conf_key, args)` pairs. `build_trigger_automations` instantiates each entry's class from its `CONF_TRIGGER_ID`, passing `var` to the constructor (nothing when `var` is `None`), and builds the automations:
+
+```python
+_TRIGGER_AUTOMATIONS = (
+    (CONF_ON_TURN_ON, []),
+    (CONF_ON_TURN_OFF, []),
+    (CONF_ON_SPEED_SET, [(cg.int_, "x")]),
+)
+
+
+async def to_code(config: ConfigType) -> None:
+    ...
+    await automation.build_trigger_automations(var, config, _TRIGGER_AUTOMATIONS)
+```
+
 #### C++
 
 Define the trigger class in `automation.h`. This example fires only on the off-to-on transition, requiring mutable state (`last_on_`) that cannot be stored in a pointer-sized forwarder:
@@ -205,6 +317,9 @@ The trigger needs to track mutable state (`last_on_`) across callback invocation
 | Simple forwarding | Callback | [`button on_press`](https://github.com/esphome/esphome/blob/dev/esphome/components/button/__init__.py) -- `TriggerForwarder<>` forwards directly |
 | Boolean filtering | Callback with built-in forwarder | [`binary_sensor on_press/on_release`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/__init__.py) -- `TriggerOnTrueForwarder` / `TriggerOnFalseForwarder` |
 | Enum state filtering | Callback with custom forwarder | `lock on_lock/on_unlock` -- `LockStateForwarder<State>` checks enum, single pointer ([esphome/esphome#15199](https://github.com/esphome/esphome/pull/15199), pending) |
+| Different callback arguments or a constant filter | Callback with `params`, `forward`, `when` | [`select on_value`](https://github.com/esphome/esphome/blob/dev/esphome/components/select/__init__.py) -- forwards the option text looked up from the index |
+| Callback carries nothing, automation gets the parent | `build_parent_callback_automation` | [`fan on_state`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/__init__.py) -- forwards `::the_fan` |
+| Registration takes extra arguments | `build_trigger_callback` | [`mqtt on_message`](https://github.com/esphome/esphome/blob/dev/esphome/components/mqtt/__init__.py) -- the component passes the lambda to `subscribe(topic, callback, qos)`, filtered on the configured payload |
 | Extra state needed | Trigger class | [`fan on_turn_on`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/automation.h) -- `FanTurnOnTrigger` tracks `last_on_` for edge detection (mutable state, can't be a forwarder) |
 | Complex logic (timing, state machine) | Trigger class | [`binary_sensor on_multi_click`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/automation.h) -- `MultiClickTrigger` with timing, cooldown, and multiple state fields |
 
@@ -244,23 +359,31 @@ The action is the core `ApplyAction<Ts...>`, which stores one function pointer. 
 
 ### Python
 
+When `play()` has its own logic but the builder only needs to look up the parent component and construct the C++ object, register the action with one call and no builder function:
+
 ```python
 MyAction = my_ns.class_("MyAction", automation.Action)
 
-@automation.register_action(
+automation.register_simple_action(
     "my_component.do_something",
     MyAction,
     cv.Schema({cv.GenerateID(): cv.use_id(MyComponent)}),
     synchronous=True,
 )
-async def my_action_to_code(
-    config: ConfigType, action_id: MockObj, template_arg: MockObj, args: TemplateArgsType
-) -> MockObj:
-    parent = await cg.get_variable(config[CONF_ID])
-    return cg.new_Pvariable(action_id, template_arg, parent)
 ```
 
+`register_simple_action` passes the object named by `config[CONF_ID]` to the constructor. Two sibling helpers cover the other constructor shapes:
+
+- `register_parented_action` for a class deriving from `Parented<T>`: the object is constructed without arguments and `set_parent()` receives the parent.
+- `register_bare_action` for a constructor that takes no arguments at all, typically an action that reaches a global singleton.
+
 Set `synchronous=True` if the action completes immediately (no async operations like delays or waits). Set `synchronous=False` if the action defers `play_next_()` to a later point (e.g. after a delay or async operation completes).
+
+These helpers are available in ESPHome 2026.10.0 and later ([esphome/esphome#19321](https://github.com/esphome/esphome/pull/19321)). When the builder must also set fields, or on earlier versions, use the `@automation.register_action` decorator on a builder function instead (see the templatable example below). The builder body that matches each helper is:
+
+- `register_simple_action`: await `cg.get_variable(config[CONF_ID])` and return `cg.new_Pvariable(action_id, template_arg, parent)`.
+- `register_parented_action`: create `var = cg.new_Pvariable(action_id, template_arg)`, then `await cg.register_parented(var, config[CONF_ID])` and return `var`.
+- `register_bare_action`: return `cg.new_Pvariable(action_id, template_arg)` with no lookup.
 
 ### C++
 
@@ -275,6 +398,15 @@ template<typename... Ts> class MyAction final : public Action<Ts...> {
 
  protected:
   MyComponent *parent_;
+};
+```
+
+The `register_parented_action` shape derives from `Parented<T>` instead, which supplies `set_parent()` and the `parent_` member, so the class declares no constructor:
+
+```cpp
+template<typename... Ts> class MyAction final : public Action<Ts...>, public Parented<MyComponent> {
+ public:
+  void play(const Ts &...) override { this->parent_->do_something(); }
 };
 ```
 
@@ -325,22 +457,35 @@ Passing a raw value such as `cg.add(var.set_state(config[CONF_STATE]))` worked o
 
 Conditions are template classes that return a boolean to control automation flow.
 
+### Conditions that only test the parent
+
+Most conditions are one expression on their parent. Register those with `automation.register_apply_condition`; no C++ class and no builder are written:
+
+```python
+automation.register_apply_condition(
+    "my_component.is_active",
+    cv.Schema({cv.GenerateID(): cv.use_id(MyComponent)}),
+    "is_active()",
+)
+```
+
+The condition is the core `ApplyCondition<Ts...>`, which stores one function pointer to a stateless function that returns the expression applied to the parent, `my_component->is_active()` here. To compare against a configured value pass an `ApplyCall` instead of a string, with the same `{}` placeholders, `(conf_key, type_)` args and `const_fn` as for actions: `automation.ApplyCall("state == {}", ((CONF_STATE, cg.bool_),))` generates `my_component->state == true` for `state: true` and calls a user lambda inline. Every key named by the call must be present in the config. The expression is appended to `parent->`, so it must start with a parent member; a leading `!` would generate `my_component->!is_active()`, so negate with `== false`.
+
+`cover.is_open` and `rtttl.is_playing` in the ESPHome repository are in-tree examples. The hand-written class below is for a `check()` that needs more than one expression on the parent.
+
 ### Python
 
 ```python
 MyCondition = my_ns.class_("MyCondition", automation.Condition)
 
-@automation.register_condition(
-    "my_component.is_active",
+automation.register_simple_condition(
+    "my_component.is_ready",
     MyCondition,
     cv.Schema({cv.GenerateID(): cv.use_id(MyComponent)}),
 )
-async def my_condition_to_code(
-    config: ConfigType, condition_id: MockObj, template_arg: MockObj, args: TemplateArgsType
-) -> MockObj:
-    parent = await cg.get_variable(config[CONF_ID])
-    return cg.new_Pvariable(condition_id, template_arg, parent)
 ```
+
+`register_parented_condition` and `register_bare_condition` mirror the action helpers. A condition whose builder must also set fields uses the `@automation.register_condition` decorator on a builder function. The builder mirrors the templatable action example above with `condition_id` in place of `action_id`; `register_condition` takes no `synchronous=` parameter.
 
 ### C++
 
@@ -348,7 +493,11 @@ async def my_condition_to_code(
 template<typename... Ts> class MyCondition final : public Condition<Ts...> {
  public:
   explicit MyCondition(MyComponent *parent) : parent_(parent) {}
-  bool check(const Ts &...) override { return this->parent_->is_active(); }
+  bool check(const Ts &...) override {
+    if (!this->parent_->is_active())
+      return false;
+    return this->parent_->error_count() == 0;
+  }
 
  protected:
   MyComponent *parent_;

@@ -77,7 +77,7 @@ pin->attach_interrupt(my_isr, arg, gpio::INTERRUPT_ANY_EDGE);
 
 ### A forward declaration of InternalGPIOPin
 
-A header that only holds pin pointers could declare the class instead of including its header. The name is now an alias, and declaring it as a class fails with `using typedef-name 'using InternalGPIOPin = ...' after 'class'`:
+A header that only holds pin pointers could declare the class instead of including its header. The name is now an alias, and declaring it as a class fails. On ESP8266, for example, GCC reports `error: using typedef-name 'using InternalGPIOPin = class esphome::esp8266::ESP8266GPIOPin' after 'class'` when `esphome/core/gpio.h` was already included, or `error: conflicting declaration 'using InternalGPIOPin = class esphome::esp8266::ESP8266GPIOPin'` in `gpio.h` when the forward declaration comes first:
 
 ```cpp
 // Before

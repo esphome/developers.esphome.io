@@ -46,8 +46,9 @@ Components that drive a pin many times, like dht's bit-banged read, gain the mos
 - Derive a class from `InternalGPIOPin`, for example a pin implementation for a platform ESPHome does not ship, or a dummy pin in a unit test.
 - Derive from `InternalGPIOPin` only to reach the protected `attach_interrupt` overload that takes a `void (*)(void *)`.
 - Derive from `GPIOPin` and return `true` from `is_internal()`.
+- Forward declare it with `class InternalGPIOPin;` instead of including `esphome/core/gpio.h`.
 
-**Components that take an `InternalGPIOPin *` or a `GPIOPin *` are not affected.** Setters such as `set_pin(InternalGPIOPin *pin)`, calls like `pin->get_pin()` or `pin->attach_interrupt(...)`, and I/O expander pins that derive from `GPIOPin` compile unchanged. **Standard YAML configurations are not affected.**
+**Components that take an `InternalGPIOPin *` or a `GPIOPin *` are not affected** unless they forward declare it. Setters such as `set_pin(InternalGPIOPin *pin)`, calls like `pin->get_pin()` or `pin->attach_interrupt(...)`, and I/O expander pins that derive from `GPIOPin` compile unchanged. **Standard YAML configurations are not affected.**
 
 ## Migration Guide
 
@@ -72,6 +73,24 @@ The hook is now `attach_interrupt_()`, so the template is the only `attach_inter
 ```cpp
 // After
 pin->attach_interrupt(my_isr, arg, gpio::INTERRUPT_ANY_EDGE);
+```
+
+### A forward declaration of InternalGPIOPin
+
+A header that only holds pin pointers could declare the class instead of including its header. The name is now an alias, and declaring it as a class fails with `using typedef-name 'using InternalGPIOPin = ...' after 'class'`:
+
+```cpp
+// Before
+namespace esphome {
+class InternalGPIOPin;
+}  // namespace esphome
+```
+
+Include the header instead; this works on every ESPHome version, so no version guard is needed:
+
+```cpp
+// After
+#include "esphome/core/gpio.h"
 ```
 
 ### A GPIOPin subclass that returns true from is_internal()
@@ -110,6 +129,7 @@ pin->attach_interrupt(my_isr, this, gpio::INTERRUPT_ANY_EDGE);
 ```bash
 # List every reference, then check the base lists: a class that names InternalGPIOPin
 # as any of its bases is affected, as is a GPIOPin subclass whose is_internal() returns true
+# and any `class InternalGPIOPin;` forward declaration
 grep -rn 'InternalGPIOPin\|is_internal() override' your_component/
 ```
 

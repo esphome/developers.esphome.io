@@ -434,10 +434,13 @@ These are not bugs, so please do not open issue reports for them; a PR that remo
 
 ## Persisting Component State
 
-A component that must survive a reboot stores a small struct through `global_preferences`:
+A component that must survive a reboot stores a small struct through `global_preferences`. The key must be stable
+across builds and unique per instance; a fixed hash combined with one passed from code generation (the `globals`
+component hashes its `id`) does that. Entities use `make_entity_preference<T>()` instead, which derives the key
+from the entity and always uses the platform default backend.
 
 ```cpp
-this->pref_ = global_preferences->make_preference<MyState>(this->get_preference_hash(), in_flash);
+this->pref_ = global_preferences->make_preference<MyState>(fnv1_hash("my_component") ^ this->id_hash_, in_flash);
 this->pref_.save(&state);
 this->pref_.load(&state);
 ```
@@ -450,13 +453,15 @@ Let the user choose with the `storage:` option from `esphome/preferences.py` ins
 
 ```python
 from esphome import preferences
+from esphome.const import CONF_ID, CONF_STORAGE
 
 CONFIG_SCHEMA = cv.Schema({...}).extend(preferences.storage_schema())
 
 
 async def to_code(config: ConfigType) -> None:
-    in_flash = preferences.is_in_flash(config[CONF_STORAGE])
-    cg.add(var.set_in_flash(in_flash))
+    var = cg.new_Pvariable(config[CONF_ID])
+    await cg.register_component(var, config)
+    cg.add(var.set_in_flash(preferences.is_in_flash(config[CONF_STORAGE])))
 ```
 
 `storage_schema()` keeps each platform's historic default (RTC on ESP8266, flash elsewhere). A component that prefers
@@ -487,4 +492,5 @@ emits the define that enables the RTC backend on ESP32, so always route the chos
 - Component Loop Control: [`esphome/core/component.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.h) and [`esphome/core/component.cpp`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.cpp)
 - Wake Loop Threadsafe: PR [#11681](https://github.com/esphome/esphome/pull/11681)
 - Hiding Entities at Boot: PR [#19069](https://github.com/esphome/esphome/pull/19069)
+- Persisting Component State: [`esphome/preferences.py`](https://github.com/esphome/esphome/blob/dev/esphome/preferences.py) and [`esphome/core/preferences.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/preferences.h)
 - [Socket Consumption API](/architecture/components/socket_consumption_api) - For components that use network sockets

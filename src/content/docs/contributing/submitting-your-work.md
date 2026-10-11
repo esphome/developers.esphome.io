@@ -116,12 +116,17 @@ review.
   - AI-assisted output submitted without the author understanding it. If you can't explain and defend every part
       of the change in review, it isn't ready yet. We're not against AI assistance, we just need the author to
       actually own the code.
+- **A PR over the size cap is not reviewed.** The bot adds the `too-big` label when a PR changes more than 1000
+  lines outside `tests/`, and it removes the label by itself once the PR is back under that. Until then nobody will
+  review it. The one exception is a change that genuinely cannot be split, which is rare: ask in `#devs` and, if a
+  maintainer agrees to review it in one piece, they will add the `mega-pr` label.
 - **Plan to break the work into smaller changes** that can be reviewed independently, with **one platform per PR**
-  (for example, `binary_sensor` in one PR, `sensor` in the next, `switch` in another, and so on). For example, a
-  sensor that measures seven parameters and supports both I2C and SPI might be split into:
-  - The base "hub" component
+  (for example, `binary_sensor` in one PR, `sensor` in the next, `switch` in another, and so on). The first PR for a
+  new component brings the hub and a single platform; every further platform is its own PR on top of it. For
+  example, a sensor that measures seven parameters and supports both I2C and SPI might be split into:
+  - The base "hub" component with one platform
   - I2C and SPI connectivity
-  - Each platform (`sensor`, `binary_sensor`, etc.) as its own PR
+  - Each remaining platform (`binary_sensor`, `switch`, etc.) as its own PR
 - It's fine to submit all the PRs at once, but if you do:
   - Link them in the PR descriptions so reviewers can follow the work.
   - Indicate the order in which they should be reviewed or merged, if relevant.

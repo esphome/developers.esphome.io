@@ -441,9 +441,12 @@ from the entity and always uses the platform default backend.
 
 ```cpp
 this->pref_ = global_preferences->make_preference<MyState>(fnv1_hash("my_component") ^ this->id_hash_, in_flash);
+if (!this->pref_.load(&state))
+  state = MyState{};  // first boot, layout change or RTC content lost
 this->pref_.save(&state);
-this->pref_.load(&state);
 ```
+
+Both calls return `false` on failure, and a failed `load()` is the normal path after a power loss on RTC storage.
 
 The second argument picks the backend. `false` means RTC memory on chips that have it: it survives a software reboot
 or a deep-sleep wake, not a power loss, and costs no flash wear, so it is the right choice for values that change
@@ -454,6 +457,7 @@ Let the user choose with the `storage:` option from `esphome/preferences.py` ins
 ```python
 from esphome import preferences
 from esphome.const import CONF_ID, CONF_STORAGE
+from esphome.helpers import fnv1_hash
 
 CONFIG_SCHEMA = cv.Schema({...}).extend(preferences.storage_schema())
 
@@ -461,6 +465,7 @@ CONFIG_SCHEMA = cv.Schema({...}).extend(preferences.storage_schema())
 async def to_code(config: ConfigType) -> None:
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
+    cg.add(var.set_id_hash(fnv1_hash(str(config[CONF_ID]))))
     cg.add(var.set_in_flash(preferences.is_in_flash(config[CONF_STORAGE])))
 ```
 
@@ -492,5 +497,6 @@ emits the define that enables the RTC backend on ESP32, so always route the chos
 - Component Loop Control: [`esphome/core/component.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.h) and [`esphome/core/component.cpp`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.cpp)
 - Wake Loop Threadsafe: PR [#11681](https://github.com/esphome/esphome/pull/11681)
 - Hiding Entities at Boot: PR [#19069](https://github.com/esphome/esphome/pull/19069)
-- Persisting Component State: [`esphome/preferences.py`](https://github.com/esphome/esphome/blob/dev/esphome/preferences.py) and [`esphome/core/preferences.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/preferences.h)
+- Persisting Component State: [`esphome/preferences.py`](https://github.com/esphome/esphome/blob/dev/esphome/preferences.py)
+  and [`esphome/core/preferences.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/preferences.h)
 - [Socket Consumption API](/architecture/components/socket_consumption_api) - For components that use network sockets

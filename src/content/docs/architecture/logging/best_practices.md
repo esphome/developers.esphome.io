@@ -4,10 +4,38 @@ title: "Logging Best Practices"
 
 ## Overview
 
-Logging is an essential part of ESPHome for both debugging and monitoring. It's important to understand that logging
-has performance implications, especially in networked environments.
+This guide covers best practices for efficient logging in ESPHome components
+and platforms. It's important to understand that logging has performance
+implications, especially in networked environments. Following these
+best practices will minimize CPU, RAM, flash, and network overhead.
 
-This guide covers best practices for efficient logging in ESPHome components and platforms.
+## Declaring the log tag
+
+Declare each source file's tag with `ESPHOME_LOG_TAG`, at namespace scope in the `.cpp` file:
+
+```cpp
+#include "esphome/core/log.h"
+
+namespace esphome::neat_temp_sensor {
+
+ESPHOME_LOG_TAG(TAG, "neat_temp_sensor.sensor");
+```
+
+On ESP8266 this keeps the tag string in flash instead of RAM; on other platforms it is a plain constant pointer. The
+macro is available from ESPHome 2026.10.0, and components in the ESPHome repository must use it: CI rejects a plain
+`static const char *const TAG = "...";`.
+
+Because the tag may live in flash, pass `TAG` only to the logging macros. Do not use it as a scheduler name
+(`set_timeout`, `set_interval`, `defer` and friends), pass it to C string functions such as `strcmp` or `strlen`, or build
+a `std::string` from it. CI checks this as well.
+
+External components that also support releases before 2026.10.0 can define a fallback that gives the old declaration:
+
+```cpp
+#ifndef ESPHOME_LOG_TAG
+#define ESPHOME_LOG_TAG(name, tag) static const char *const name = tag
+#endif
+```
 
 ## Understanding Logger Overhead
 
@@ -57,7 +85,7 @@ wasted space and time.
 >
 >
 > ```cpp
-> static const char *const TAG = "neat_temp_sensor.sensor";
+> ESPHOME_LOG_TAG(TAG, "neat_temp_sensor.sensor");
 > // ...
 > ESP_LOGD(TAG, "Enabling neat_temp_sensor communication.");
 > // ...
@@ -75,7 +103,7 @@ wasted space and time.
 >
 >
 > ```cpp
-> static const char *const TAG = "neat_temp_sensor.sensor";
+> ESPHOME_LOG_TAG(TAG, "neat_temp_sensor.sensor");
 > // ...
 > ESP_LOGD(TAG, "Enabling");
 > // ...
@@ -86,6 +114,22 @@ wasted space and time.
 >
 > - Short messages which may be shared by many components/platforms
 > - TAG identifies the component/platform
+
+### Logging State Changes: Don't
+
+Component code should **not** include any log calls for entity state changes. This applies to every entity type that
+publishes its state through the API (`sensor`, `binary_sensor`, `switch`, `text_sensor`, `light`, `cover`, etc.), not
+only sensors:
+
+- The entity base classes already log each published state at the `VERBOSE` level.
+- Client-side logging tools based on aioesphomeapi (including `esphome logs`) receive state changes over the API and
+  insert them into the log output regardless of the device's log level (this can be disabled with the `--no-states`
+  flag).
+
+An extra log call in a component's publish path duplicates this output, adds format strings to flash and costs CPU time
+and network traffic on every state update, which may happen many times per second. Transient internal states that are
+not published to the API (for example, intermediate steps of a multi-step transition) may still warrant a `VERBOSE` log
+when they are useful for debugging.
 
 ## Configuration Logging (`ESP_LOGCONFIG`)
 
@@ -142,7 +186,7 @@ When combining log messages:
 - Each `\n` adds only one byte
 - Consider the length of substituted values (for example, `%s` might expand to 20+ characters/bytes for long strings)
 - The log header (timestamp, level, tag) uses approximately 30 bytes
-- Most combined ESP_LOGCONFIG calls stay well under this limit, even with 8-10 lines
+- Most combined `ESP_LOGCONFIG` calls stay well under this limit, even with 8-10 lines
 
 1. **Use string literal concatenation** for readability:
 

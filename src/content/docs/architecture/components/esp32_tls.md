@@ -14,8 +14,12 @@ Setting the two insecure flags with `add_idf_sdkconfig_option` yourself breaks o
 when your own `verify_ssl` is true turns them off for the whole build.
 
 ```python
-if config[CONF_VERIFY_SSL]:
-    esp32.require_certificate_bundle()
-else:
-    esp32.allow_insecure_tls()
+from esphome.components import esp32
+
+
+async def to_code(config):
+    if config[CONF_VERIFY_SSL]:
+        esp32.require_certificate_bundle()
+    else:
+        esp32.allow_insecure_tls()
 ```

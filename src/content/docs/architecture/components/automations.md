@@ -323,6 +323,39 @@ The trigger needs to track mutable state (`last_on_`) across callback invocation
 | Extra state needed | Trigger class | [`fan on_turn_on`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/automation.h) -- `FanTurnOnTrigger` tracks `last_on_` for edge detection (mutable state, can't be a forwarder) |
 | Complex logic (timing, state machine) | Trigger class | [`binary_sensor on_multi_click`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/automation.h) -- `MultiClickTrigger` with timing, cooldown, and multiple state fields |
 
+### Triggers with short-lived arguments
+
+Some triggers pass arguments that are only valid while the callback runs: a `StringRef` into a receive buffer that the next message overwrites, a `JsonObject` into a document freed when the callback returns, a span into a buffer the hub reuses. Deferring actions (`delay`, `wait_until`, `script.wait`, ...) keep the trigger arguments and use them later — `DelayAction` copies them by value, which copies the pointer but not the data — so a lambda that runs after them reads stale or freed memory.
+
+If the argument cannot be copied cheaply, reject deferring actions at config validation. `automation.validate_synchronous_automation()` is `validate_automation()` with that check added:
+
+```python
+cv.Optional(CONF_ON_JSON): automation.validate_synchronous_automation(
+    "on_json and on_data", "the received data"
+),
+```
+
+The first argument says where the automation is and the second what is short-lived; both go into the error message:
+
+```text
+Deferring actions (delay, wait_until, script.wait, ...) are not allowed in on_json and on_data: the
+received data is only valid while the automation runs. Copy what you need into globals first, then
+defer in a separate script or automation.
+```
+
+The other parameters (`extra_schema`, `extra_validators`, `single`) are passed to `validate_automation()`. When the automation is one alternative among others, use `automation.validate_no_deferring_actions()` on its own after them; it ignores values without an action list, such as a returning lambda:
+
+```python
+cv.Optional(CONF_ON_NO_RESPONSE): cv.All(
+    cv.Any(cv.returning_lambda, automation.validate_automation(single=True)),
+    automation.validate_no_deferring_actions(
+        "modbus_client handlers", "the request/response data"
+    ),
+),
+```
+
+Both helpers use `automation.has_non_synchronous_actions()`, which also finds deferring actions nested in `if`, `repeat` and similar actions. It depends on the `synchronous=` flag each action is registered with, see [Actions](#actions).
+
 ## Actions
 
 Actions are template classes that perform an operation when invoked by an automation.

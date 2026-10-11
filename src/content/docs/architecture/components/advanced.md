@@ -478,7 +478,8 @@ CONFIG_SCHEMA = cv.All(
 ```
 
 `rtc_supported()` is true on every platform with an RTC-backed preferences backend (ESP8266, and ESP32 except the C2
-and C61). `validate_storage` accepts `flash` or `rtc` and rejects `rtc` where it is unavailable. `is_in_flash()` also
+and C61); call it from a validator or a callable default, not while the schema is built at import time, when the
+target is not known yet. `validate_storage` accepts `flash` or `rtc` and rejects `rtc` where it is unavailable. `is_in_flash()` also
 emits the define that enables the RTC backend on ESP32, so always route the chosen value through it in `to_code`.
 
 ## See Also

@@ -432,6 +432,55 @@ These are not bugs, so please do not open issue reports for them; a PR that remo
 - After `setup_priority::AFTER_WIFI` the API camera listener has already read the flag; after `setup_priority::AFTER_CONNECTION`, MQTT has too.
 - Un-hiding a YAML `internal: true` entity skips the duplicate name check, and Zigbee never registers it.
 
+## Persisting Component State
+
+A component that must survive a reboot stores a small struct through `global_preferences`:
+
+```cpp
+this->pref_ = global_preferences->make_preference<MyState>(this->get_preference_hash(), in_flash);
+this->pref_.save(&state);
+this->pref_.load(&state);
+```
+
+The second argument picks the backend. `false` means RTC memory on chips that have it: it survives a software reboot
+or a deep-sleep wake, not a power loss, and costs no flash wear, so it is the right choice for values that change
+often. `true` means flash (NVS on ESP32), which survives a power loss but wears with every write.
+
+Let the user choose with the `storage:` option from `esphome/preferences.py` instead of hard-coding the backend:
+
+```python
+from esphome import preferences
+
+CONFIG_SCHEMA = cv.Schema({...}).extend(preferences.storage_schema())
+
+
+async def to_code(config: ConfigType) -> None:
+    in_flash = preferences.is_in_flash(config[CONF_STORAGE])
+    cg.add(var.set_in_flash(in_flash))
+```
+
+`storage_schema()` keeps each platform's historic default (RTC on ESP8266, flash elsewhere). A component that prefers
+RTC whenever the chip has it resolves its own default with the two lower-level helpers:
+
+```python
+def _storage_default(value: ConfigType) -> ConfigType:
+    if CONF_STORAGE not in value:
+        if not preferences.rtc_supported():
+            raise cv.Invalid("This chip has no RTC memory; set 'storage: flash'", path=[CONF_STORAGE])
+        value[CONF_STORAGE] = preferences.STORAGE_RTC
+    return value
+
+
+CONFIG_SCHEMA = cv.All(
+    cv.Schema({cv.Optional(CONF_STORAGE): preferences.validate_storage}),
+    _storage_default,
+)
+```
+
+`rtc_supported()` is true on every platform with an RTC-backed preferences backend (ESP8266, and ESP32 except the C2
+and C61). `validate_storage` accepts `flash` or `rtc` and rejects `rtc` where it is unavailable. `is_in_flash()` also
+emits the define that enables the RTC backend on ESP32, so always route the chosen value through it in `to_code`.
+
 ## See Also
 
 - Component Loop Control: [`esphome/core/component.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.h) and [`esphome/core/component.cpp`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.cpp)

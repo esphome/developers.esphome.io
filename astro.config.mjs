@@ -86,6 +86,7 @@ export default defineConfig({
                 },
                 "architecture/components/automations",
                 "architecture/components/socket_consumption_api",
+                "architecture/components/esp32_tls",
                 "architecture/components/ipv4_allow",
                 "architecture/components/tcp_client_link",
                 "architecture/components/tcp_listener",

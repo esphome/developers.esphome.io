@@ -343,7 +343,9 @@ received data is only valid while the automation runs. Copy what you need into g
 defer in a separate script or automation.
 ```
 
-The other parameters (`extra_schema`, `extra_validators`, `single`) are passed to `validate_automation()`. When the automation is one alternative among others, use `automation.validate_no_deferring_actions()` on its own after them; it ignores values without an action list, such as a returning lambda:
+The other parameters (`extra_schema`, `extra_validators`, `single`) are passed to `validate_automation()`.
+
+When the automation is one alternative among others, for example inside `cv.Any(...)`, chain `automation.validate_no_deferring_actions()` after it with `cv.All(...)` so the check runs on the validated value; it ignores values without an action list, such as a returning lambda:
 
 ```python
 cv.Optional(CONF_ON_NO_RESPONSE): cv.All(
@@ -354,7 +356,7 @@ cv.Optional(CONF_ON_NO_RESPONSE): cv.All(
 ),
 ```
 
-Both helpers use `automation.has_non_synchronous_actions()`, which also finds deferring actions nested in `if`, `repeat` and similar actions. It depends on the `synchronous=` flag each action is registered with, see [Actions](#actions).
+Both helpers use `automation.has_non_synchronous_actions()`, which also finds deferring actions nested in `if`, `repeat` and similar actions. It depends on the `synchronous=` flag each action is registered with, see [Actions](#actions); an action registered without the flag is treated as `synchronous=False` (with a warning at registration), so it counts as deferring.
 
 ## Actions
 

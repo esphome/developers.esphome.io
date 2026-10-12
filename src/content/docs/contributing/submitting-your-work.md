@@ -117,8 +117,9 @@ review.
       of the change in review, it isn't ready yet. We're not against AI assistance, we just need the author to
       actually own the code.
 - **A PR over the size cap is not reviewed.** The bot adds the `too-big` label when a PR changes more than 1000
-  lines outside `tests/`, and it removes the label by itself once the PR is back at or under that. Until then nobody will
-  pick it up, so please do not wait for a review: split the change instead. There is no exception you can request.
+  lines outside `tests/` or touches more than 15 components or areas, and it removes the label by itself once the PR
+  is back within every limit it exceeded. Until then nobody will pick it up, so please do not wait for a review: split
+  the change instead. There is no exception you can request.
   Rarely, a maintainer agrees in `#devs` to review a change that genuinely cannot be split as one piece and adds the
   `mega-pr` label, but that almost never happens, so plan on splitting rather than wait for it.
 - **Plan to break the work into smaller changes** that can be reviewed independently, with **one platform per PR**

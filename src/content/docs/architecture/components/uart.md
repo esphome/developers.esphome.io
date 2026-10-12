@@ -17,7 +17,7 @@ from esphome.components import uart
 This allows us to use some functions we'll need for validation and code generation later on.
 
 ```python
-DEPENDENCIES = ["uart"]
+AUTO_LOAD = ["uart"]
 ```
 
 Given that this component will use--and consequently depend on--a UART, we must add it as a dependency. This allows
@@ -70,7 +70,8 @@ On a serial line, bytes arrive at the pace of the baud rate, so a reader can fin
 such as the 3.5 characters that end a Modbus RTU frame. Some UARTs hand over received bytes in packets instead, and a
 gap between them says nothing about where a frame ends:
 
-- `tcp_uart` receives TCP segments; its baud rate is only a placeholder.
+- `tcp_uart` reads whatever bytes the network has delivered so far, in chunks timed by the network rather than by
+  the line; its baud rate is only a placeholder.
 - A `usb_uart` channel receives USB packets from the adapter; an FTDI chip, for example, holds bytes for up to 16 ms
   by default (its latency timer).
 - `usb_cdc_acm` learns its baud rate only when the host opens the port.
@@ -84,7 +85,7 @@ import esphome.codegen as cg
 from esphome.components import uart
 import esphome.config_validation as cv
 
-DEPENDENCIES = ["uart"]
+AUTO_LOAD = ["uart"]
 
 my_link_ns = cg.esphome_ns.namespace("my_link")
 MyLink = my_link_ns.class_("MyLink", uart.UARTComponent, cg.Component)

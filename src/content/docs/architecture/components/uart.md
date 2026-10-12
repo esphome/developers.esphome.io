@@ -17,7 +17,7 @@ from esphome.components import uart
 This allows us to use some functions we'll need for validation and code generation later on.
 
 ```python
-AUTO_LOAD = ["uart"]
+DEPENDENCIES = ["uart"]
 ```
 
 Given that this component will use--and consequently depend on--a UART, we must add it as a dependency. This allows

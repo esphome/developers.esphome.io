@@ -283,8 +283,8 @@ is about the effort spent on container optimization (e.g., migrating from `std::
 #### String tables in flash
 
 A fixed set of strings looked up by index, such as mode or state names, goes in a `PROGMEM_STRING_TABLE`. It packs
-the strings into one blob with an offset table, both in flash on ESP8266 and in `.rodata` elsewhere, so nothing is
-copied to RAM and no pointer table is kept:
+the strings into one blob, in flash on ESP8266 and in `.rodata` elsewhere, so nothing is copied to RAM and no pointer
+table is kept:
 
 ```cpp
 #include "esphome/core/progmem.h"
@@ -299,7 +299,8 @@ ESP_LOGD(TAG, "Fan mode: %s", LOG_STR_ARG(FanModeStrings::get_log_str(mode, FanM
 strings, such as ArduinoJson. A table holds up to 255 strings. While the strings total 255 bytes or less, each entry
 has a one-byte offset; a larger table has no offset table and is walked at lookup time, which costs less flash than
 wider offsets for the rarely read message tables that get this big.
-`Name::MAX_LENGTH` is the longest string, which sizes a RAM copy on ESP8266 when the text goes to code that expects an ordinary `const char *` rather than a flash string:
+`Name::MAX_LENGTH` is the longest string, which sizes a RAM copy on ESP8266 when the text goes to code that expects an
+ordinary `const char *` rather than a flash string:
 
 ```cpp
 char message[AlarmMessages::MAX_LENGTH + 1];

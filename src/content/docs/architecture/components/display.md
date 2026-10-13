@@ -117,6 +117,9 @@ def _final_validate(config):
                 config[CONF_UPDATE_INTERVAL] = update_interval("never")
         else:
             config[CONF_SHOW_TEST_CARD] = True
+
+
+FINAL_VALIDATE_SCHEMA = _final_validate
 ```
 
 ## C++

@@ -68,6 +68,7 @@ The arguments to `build_callback_automation`:
 1. `args` -- template args as `[(type, name)]` tuples, exposed as variables in the user's `then:` block. This controls the `Automation<Ts...>` template parameters, **not** the callback signature. When using a custom forwarder, the forwarder's `operator()` signature must match the callback, but `args` can differ (e.g. `args=[]` with `TriggerOnTrueForwarder` which receives `bool` but triggers `Automation<>`)
 1. `config` -- the automation config dict
 1. `forwarder` (optional) -- override the default `TriggerForwarder<Ts...>`
+1. `params`, `forward`, `when` (optional) -- reshape or filter the callback arguments, see [Different callback arguments or a filter](#different-callback-arguments-or-a-filter); they cannot be combined with `forwarder`
 
 For boolean filtering (e.g. `on_press` / `on_release` on a `void(bool)` callback), pass a forwarder. Note that the forwarder receives the `bool` from the callback but triggers `Automation<>` with no args:
 
@@ -80,6 +81,24 @@ for conf_key, forwarder in (
         await automation.build_callback_automation(
             var, "add_on_state_callback", [], conf, forwarder=forwarder
         )
+```
+
+Several callback automations on one parent go in a module-level `_CALLBACK_AUTOMATIONS` tuple; each `CallbackAutomation` entry takes the config key, the method name, the args and, optionally, the same `forwarder`, `params`, `forward` and `when` keywords:
+
+```python
+_CALLBACK_AUTOMATIONS = (
+    automation.CallbackAutomation(
+        CONF_ON_CONNECT, "set_on_connect", [(cg.bool_, "session_present")]
+    ),
+    automation.CallbackAutomation(
+        CONF_ON_DISCONNECT, "set_on_disconnect", [(MQTTClientDisconnectReason, "reason")]
+    ),
+)
+
+
+async def to_code(config: ConfigType) -> None:
+    ...
+    await automation.build_callback_automations(var, config, _CALLBACK_AUTOMATIONS)
 ```
 
 #### C++
@@ -140,6 +159,111 @@ await automation.build_callback_automation(
 )
 ```
 
+#### Different callback arguments or a filter
+
+When the parent callback's parameters are not the automation's arguments, or the trigger should only fire for some values, pass `params`, `forward` and `when` to `build_callback_automation`. The helper then generates a capture-less lambda instead of a forwarder struct; being empty, the lambda is stored inline by `Callback` and `std::function` alike, so nothing is allocated and no Trigger class is needed.
+
+- `params` are the parent callback's parameters as `[(type, name)]`, rendered as `const T &`.
+- `forward` are the expressions passed to `trigger()`; the default is the parameter names. Write the parent as `automation.parent_ref(var)`, which names it from global scope so a parameter cannot shadow it, and compose lookups on it with `MockObj` calls rather than f-strings of C++.
+- `when` is a filter the callback returns early on: a plain string, or an `ApplyCall` that compares against config values as conditions do. An `ApplyCall` whose config keys are absent is skipped, so an optional filter needs no `if`. The filter names the parent as `{parent}`, see [Filters on the parent's state](#filters-on-the-parents-state).
+
+A select's callback carries only the index, while `on_value` exposes the option text and the index:
+
+```python
+parent = automation.parent_ref(var)
+index = cg.RawExpression("index")
+await automation.build_callback_automation(
+    var,
+    "add_on_state_callback",
+    [(cg.StringRef, "x"), (cg.size_t, "i")],
+    conf,
+    params=[(cg.size_t, "index")],
+    forward=[cg.StringRef(parent.option_at(index)), index],
+)
+```
+
+Generated:
+
+```cpp
+select_test_select->add_on_state_callback([](const std::remove_cvref_t<size_t> & index) -> void {
+    ::automation_id->trigger(StringRef(::select_test_select->option_at(index)), index);
+});
+```
+
+#### Filters on the parent's state
+
+A filter that checks the parent writes it as `{parent}`, which renders as the parent named from global scope. The entry then needs nothing from `to_code` and sits in the module-level table. Valve `on_open` and `on_closed` fire only in their end state:
+
+```python
+_CALLBACK_AUTOMATIONS = (
+    automation.CallbackAutomation(
+        CONF_ON_OPEN, "add_on_state_callback", when="{parent}->is_fully_open()"
+    ),
+    automation.CallbackAutomation(
+        CONF_ON_CLOSED, "add_on_state_callback", when="{parent}->is_fully_closed()"
+    ),
+)
+```
+
+Generated for a valve with the id `the_valve`:
+
+```cpp
+the_valve->add_on_state_callback([]() -> void {
+    if (!(::the_valve->is_fully_open()))
+      return;
+    ::automation_id->trigger();
+});
+```
+
+A filter that mixes the callback's parameters and the parent is one expression, for example `"state == improv::STATE_STOPPED && !{parent}->is_failed()"`. `build_trigger_callback` has no parent unless it is given one with `parent=`, and a filter that names `{parent}` without it is rejected.
+
+#### Automations that receive the parent
+
+A callback that carries nothing while the automation receives the parent (fan `on_state`, the display menu triggers) is one line. The third argument is a single `(type, name)` tuple for the automation's one argument, not a list:
+
+```python
+await automation.build_parent_callback_automation(
+    var, "add_on_state_callback", (Fan.operator("ptr"), "x"), conf
+)
+```
+
+Generated for a fan with the id `the_fan`:
+
+```cpp
+the_fan->add_on_state_callback([]() -> void {
+    ::automation_id->trigger(::the_fan);
+});
+```
+
+#### Registration with extra arguments
+
+When the registration takes extra arguments, use `build_trigger_callback` with the same keywords. It builds the automation and returns the lambda, and the component writes the registration call itself, so constant arguments such as a topic and qos are ordinary call arguments. `mqtt.on_message` with its optional `payload` filter:
+
+```python
+for conf in config.get(CONF_ON_MESSAGE, []):
+    callback = await automation.build_trigger_callback(
+        [(cg.std_string, "x")],
+        conf,
+        params=[(cg.std_string, "topic"), (cg.std_string, "payload")],
+        forward=["payload"],
+        when=automation.ApplyCall(
+            "StringRef(payload) == {}",
+            ((CONF_PAYLOAD, cg.std_string, automation.string_ref_literal),),
+        ),
+    )
+    cg.add(var.subscribe(cg.progmem_string(conf[CONF_TOPIC]), callback, conf[CONF_QOS]))
+```
+
+Generated for `payload: "ON"` on ESP8266, where `cg.progmem_string` keeps the topic literal in flash and `string_ref_literal` renders the payload as a flash literal (`StringRef("ON", 2)` on other platforms):
+
+```cpp
+mqtt_client->subscribe(progmem_string(ESPHOME_F("livingroom/ota_mode")), [](const std::remove_cvref_t<std::string> & topic, const std::remove_cvref_t<std::string> & payload) -> void {
+    if (!(StringRef(payload) == ESPHOME_F("ON")))
+      return;
+    ::automation_id->trigger(payload);
+}, 1);
+```
+
 ### Trigger class method
 
 Use this when the trigger needs **mutable state beyond a single `Automation*` pointer** (e.g. tracked previous state for edge detection, or timing logic). A forwarder struct must be pointer-sized with only an `Automation*` field, so any additional state requires a full `Trigger` subclass.
@@ -174,6 +298,21 @@ async def to_code(config: ConfigType) -> None:
         await automation.build_automation(trigger, [], conf)
 ```
 
+Several such triggers on one parent go in a module-level `_TRIGGER_AUTOMATIONS` tuple of `(conf_key, args)` pairs. `build_trigger_automations` instantiates each entry's class from its `CONF_TRIGGER_ID`, passing `var` to the constructor (nothing when `var` is `None`), and builds the automations:
+
+```python
+_TRIGGER_AUTOMATIONS = (
+    (CONF_ON_TURN_ON, []),
+    (CONF_ON_TURN_OFF, []),
+    (CONF_ON_SPEED_SET, [(cg.int_, "x")]),
+)
+
+
+async def to_code(config: ConfigType) -> None:
+    ...
+    await automation.build_trigger_automations(var, config, _TRIGGER_AUTOMATIONS)
+```
+
 #### C++
 
 Define the trigger class in `automation.h`. This example fires only on the off-to-on transition, requiring mutable state (`last_on_`) that cannot be stored in a pointer-sized forwarder:
@@ -205,8 +344,46 @@ The trigger needs to track mutable state (`last_on_`) across callback invocation
 | Simple forwarding | Callback | [`button on_press`](https://github.com/esphome/esphome/blob/dev/esphome/components/button/__init__.py) -- `TriggerForwarder<>` forwards directly |
 | Boolean filtering | Callback with built-in forwarder | [`binary_sensor on_press/on_release`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/__init__.py) -- `TriggerOnTrueForwarder` / `TriggerOnFalseForwarder` |
 | Enum state filtering | Callback with custom forwarder | `lock on_lock/on_unlock` -- `LockStateForwarder<State>` checks enum, single pointer ([esphome/esphome#15199](https://github.com/esphome/esphome/pull/15199), pending) |
+| Different callback arguments or a constant filter | Callback with `params`, `forward`, `when` | [`select on_value`](https://github.com/esphome/esphome/blob/dev/esphome/components/select/__init__.py) -- forwards the option text looked up from the index |
+| Callback carries nothing, automation gets the parent | `build_parent_callback_automation` | [`fan on_state`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/__init__.py) -- forwards `::the_fan` |
+| Registration takes extra arguments | `build_trigger_callback` | [`mqtt on_message`](https://github.com/esphome/esphome/blob/dev/esphome/components/mqtt/__init__.py) -- the component passes the lambda to `subscribe(topic, callback, qos)`, filtered on the configured payload |
 | Extra state needed | Trigger class | [`fan on_turn_on`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/automation.h) -- `FanTurnOnTrigger` tracks `last_on_` for edge detection (mutable state, can't be a forwarder) |
 | Complex logic (timing, state machine) | Trigger class | [`binary_sensor on_multi_click`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/automation.h) -- `MultiClickTrigger` with timing, cooldown, and multiple state fields |
+
+### Triggers with short-lived arguments
+
+Some triggers pass arguments that are only valid while the callback runs: a `StringRef` into a receive buffer that the next message overwrites, a `JsonObject` into a document freed when the callback returns, a span into a buffer the hub reuses. Deferring actions (`delay`, `wait_until`, `script.wait`, ...) keep the trigger arguments and use them later — `DelayAction` copies them by value, which copies the pointer but not the data — so a lambda that runs after them reads stale or freed memory.
+
+If the argument cannot be copied cheaply, reject deferring actions at config validation. `automation.validate_synchronous_automation()` is `validate_automation()` with that check added:
+
+```python
+cv.Optional(CONF_ON_JSON): automation.validate_synchronous_automation(
+    "on_json and on_data", "the received data"
+),
+```
+
+The first argument says where the automation is and the second what is short-lived; both go into the error message:
+
+```text
+Deferring actions (delay, wait_until, script.wait, ...) are not allowed in on_json and on_data: the
+received data is only valid while the automation runs. Copy what you need into globals first, then
+defer in a separate script or automation.
+```
+
+The other parameters (`extra_schema`, `extra_validators`, `single`) are passed to `validate_automation()`.
+
+When the automation is one alternative among others, for example inside `cv.Any(...)`, chain `automation.validate_no_deferring_actions()` after it with `cv.All(...)` so the check runs on the validated value; it ignores values without an action list, such as a returning lambda:
+
+```python
+cv.Optional(CONF_ON_NO_RESPONSE): cv.All(
+    cv.Any(cv.returning_lambda, automation.validate_automation(single=True)),
+    automation.validate_no_deferring_actions(
+        "modbus_client handlers", "the request/response data"
+    ),
+),
+```
+
+Both helpers use `automation.has_non_synchronous_actions()`, which also finds deferring actions nested in `if`, `repeat` and similar actions. It depends on the `synchronous=` flag each action is registered with, see [Actions](#actions); an action registered without the flag is treated as `synchronous=False` (with a warning at registration), so it counts as deferring.
 
 ## Actions
 
@@ -232,12 +409,12 @@ automation.register_apply_action(
 The action is the core `ApplyAction<Ts...>`, which stores one function pointer. Code generation folds the parent and every configured field into one stateless function: constants become immediates, user lambdas are called inline with the trigger arguments, and an absent optional key emits nothing, so the action costs one pointer however many fields it has. With `kp: 1.5` in the config the generated function body is `my_component->set_kp(1.5f);`.
 
 - `ApplyField(conf_key, target, type_)` forwards one key:
-  - `target` is a setter name, or a statement template when it contains `{}` (for example `"position = {}"`; double a literal brace).
+  - `target` is a setter name, or a statement template when it contains `{}` (for example `"position = {}"`; double a literal brace). A template may name the parent as `{parent}`.
   - `type_` is the C++ type a user lambda must return. A plain string is raw C++ type text and may use `{parent}` when the type is only known per instance.
   - `conf_key` may be a tuple of keys to read a nested section.
   - `std::string` constants are emitted as a plain literal, or as `progmem_string(ESPHOME_F(...))` on ESP8266 so the literal stays in flash.
   - `const_fn=` renders a constant when `cg.safe_exp` is not the right spelling; it receives the action config and the value. A `!lambda` value bypasses it, so the target must also accept a plain `type_` argument.
-- `ApplyCall("set_range({}, {})", ((CONF_LOW, cg.float_), (CONF_HIGH, cg.float_)))` folds several keys into one statement; each arg may carry a third `const_fn` element. It is skipped when none of the keys is set and a partial set is a config error. A call with no keys, such as `ApplyCall("stop()")` or a trailing `ApplyCall("publish_state()")`, is always emitted, in the order given.
+- `ApplyCall("set_range({}, {})", ((CONF_LOW, cg.float_), (CONF_HIGH, cg.float_)))` folds several keys into one statement; each arg may carry a third `const_fn` element. It is skipped when none of the keys is set and a partial set is a config error. A call with no keys, such as `ApplyCall("stop()")` or a trailing `ApplyCall("publish_state()")`, is always emitted, in the order given. An `ApplyCall` template may name the parent as `{parent}` too.
 - `call="make_call"` is for actions that build a call object: every statement, follow-up calls included, targets the call object returned by `parent->make_call()`, and `perform()` on it is appended last.
 
 `cover.control` and `cover.template.publish` in the ESPHome repository are in-tree examples. The hand-written class below is for actions whose `play()` has logic beyond forwarding values.
@@ -354,7 +531,7 @@ automation.register_apply_condition(
 )
 ```
 
-The condition is the core `ApplyCondition<Ts...>`, which stores one function pointer to a stateless function that returns the expression applied to the parent, `my_component->is_active()` here. To compare against a configured value pass an `ApplyCall` instead of a string, with the same `{}` placeholders, `(conf_key, type_)` args and `const_fn` as for actions: `automation.ApplyCall("state == {}", ((CONF_STATE, cg.bool_),))` generates `my_component->state == true` for `state: true` and calls a user lambda inline. Every key named by the call must be present in the config. The expression is appended to `parent->`, so it must start with a parent member; a leading `!` would generate `my_component->!is_active()`, so negate with `== false`.
+The condition is the core `ApplyCondition<Ts...>`, which stores one function pointer to a stateless function that returns the expression applied to the parent, `my_component->is_active()` here. To compare against a configured value pass an `ApplyCall` instead of a string, with the same `{}` placeholders, `(conf_key, type_)` args and `const_fn` as for actions: `automation.ApplyCall("state == {}", ((CONF_STATE, cg.bool_),))` generates `my_component->state == true` for `state: true` and calls a user lambda inline. Every key named by the call must be present in the config. The expression is appended to `parent->`, so it must start with a parent member; a leading `!` would generate `my_component->!is_active()`, so negate with `== false`. The template may name the parent as `{parent}` later in the expression, but `{parent}` cannot start it, so it does not get around the leading `!` limit.
 
 `cover.is_open` and `rtttl.is_playing` in the ESPHome repository are in-tree examples. The hand-written class below is for a `check()` that needs more than one expression on the parent.
 

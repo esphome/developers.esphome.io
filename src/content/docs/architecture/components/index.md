@@ -43,6 +43,8 @@ import esphome.codegen as cg
 
 from esphome.const import CONF_ID
 
+DOMAIN = "example_component"
+
 CONF_FOO = "foo"
 CONF_BAR = "bar"
 CONF_BAZ = "baz"
@@ -81,6 +83,14 @@ import esphome.codegen as cg
 `config_validation` is a module that contains all the common validation method that are used to validate the
 configuration. Components may contain their own validations as well and this is very extensible. `codegen` is a module
 that contains all the code generation method that are used to generate the C++ code that is placed into `main.cpp`.
+
+```python
+DOMAIN = "example_component"
+```
+
+Every component defines `DOMAIN` as a plain string equal to its folder name. Refer to the component by name through
+this constant rather than repeating the string. CI fails if a component's `__init__.py` does not define it. See
+[`DOMAIN`](#domain) below.
 
 ```python
 example_component_ns = cg.esphome_ns.namespace("example_component")
@@ -170,12 +180,16 @@ If the config value is not set, then we do not call the setter function.
   an alias from `ALIASES` is used, telling users when the legacy name will stop working.
 - `AUTO_LOAD`: A list of components that will be automatically loaded if they are not already specified in the
   configuration. This can be a method that can be run with access to the `CORE` information like the target platform.
-- `CONFLICTS_WITH`: A list of components which conflict with this component. If the user has one of them in their
-  config, a validation error will be generated.
 - `CODEOWNERS`: A list of GitHub usernames that are responsible for this component. `script/build_codeowners.py` will
   update the `CODEOWNERS` file.
+- `CONFLICTS_WITH`: A list of components which conflict with this component. If the user has one of them in their
+  config, a validation error will be generated.
 - `DEPENDENCIES`: A list of components that this component depends on. If these components are not present in the
    configuration, or loaded by another component, validation will fail and the user will be shown an error.
+- `DOMAIN`: Required. The component's name as a plain string, equal to its folder name (e.g. `DOMAIN = "uart"`).
+  Keep it in alphabetical order with the other metadata constants such as `CODEOWNERS` and `DEPENDENCIES`. The
+  `lint_component_domain` check in `script/ci-custom.py` fails if a component's top-level `__init__.py` does not define it with the right
+  value. Platform modules such as `<name>/sensor/__init__.py` are not checked. See [`DOMAIN`](#domain).
 - `MULTI_CONF`: If set to `True`, the user can use this component multiple times in their configuration. If set to a
   number, the user can use this component that number of times.
 - `MULTI_CONF_NO_DEFAULT`: This is a special flag that allows the component to be auto-loaded without an instance of
@@ -184,6 +198,37 @@ If the config value is not set, then we do not call the setter function.
   component such as an external I2C UART expander.
 - `PREFETCH_FILES`: A generator that lets a component's remote files be downloaded in one parallel batch before schema
   validation instead of one at a time during it. See [Remote file prefetching](#remote-file-prefetching).
+
+### `DOMAIN`
+
+Use `DOMAIN` wherever code needs the component's name, instead of repeating the string literal. Inside the component:
+
+```python
+from esphome.core import CORE
+
+AUTO_LOAD = ["socket"]
+CODEOWNERS = ["@example"]
+DEPENDENCIES = ["i2c"]
+DOMAIN = "example_component"
+MULTI_CONF = True
+
+
+def _get_data() -> dict:
+    # Per-build state for this component, keyed by its name
+    return CORE.data.setdefault(DOMAIN, {})
+```
+
+From another component, import it under a clear alias:
+
+```python
+from esphome.components.psram import DOMAIN as PSRAM_DOMAIN
+from esphome.core import CORE
+
+if PSRAM_DOMAIN in CORE.loaded_integrations:
+    ...
+```
+
+The imported constant also works with other name-based helpers, such as `cv.requires_component(PSRAM_DOMAIN)`.
 
 ### Final validation
 
@@ -484,6 +529,29 @@ In addition, for `PollingComponent`:
 
 > [!WARNING]
 > Code in these methods (and elsewhere) [must not block](/contributing/code/#c).
+
+### Reporting warnings and errors
+
+A component reports trouble through its status flags, which drive the status LED and the device's warning and error
+state:
+
+- `status_set_warning()` / `status_set_error()` set the flag until the component clears it with
+  `status_clear_warning()` / `status_clear_error()`. Pass a `LOG_STR("...")` message to log why; without one the log
+  says "unspecified".
+- `status_momentary_warning()` / `status_momentary_error()` set the flag and clear it again after a timeout (5000 ms by
+  default). Use them for one-off failures, such as a single failed read. A new call restarts the timeout.
+- `mark_failed()` marks the component as failed when it cannot work at all, typically from `setup()`.
+
+```cpp
+this->status_momentary_warning();                          // cleared after 5000 ms
+this->status_momentary_warning(1000);                      // cleared after 1000 ms
+this->status_momentary_error(LOG_STR("Read failed"), 500);  // logs the reason
+```
+
+Before ESPHome 2026.11.0 the momentary calls required a name as their first argument, for example
+`status_momentary_warning("read", 1000)`. The named form still compiles but is deprecated, and will be removed in
+2027.5.0: the name was only used to key the timer, it is kept as a string (RAM on ESP8266), and it can clash with the
+component's own `set_timeout()` names. Drop the name to migrate.
 
 ### Component-specific methods
 

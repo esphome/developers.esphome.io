@@ -299,7 +299,7 @@ ESP_LOGD(TAG, "Fan mode: %s", LOG_STR_ARG(FanModeStrings::get_log_str(mode, FanM
 strings, such as ArduinoJson. A table holds up to 255 strings. While the strings total 255 bytes or less, each entry
 has a one-byte offset; a larger table has no offset table and is walked at lookup time, which costs less flash than
 wider offsets for the rarely read message tables that get this big.
-`Name::MAX_LENGTH` is the longest string, which sizes a RAM copy on ESP8266 when the text has to outlive the call:
+`Name::MAX_LENGTH` is the longest string, which sizes a RAM copy on ESP8266 when the text goes to code that expects an ordinary `const char *` rather than a flash string:
 
 ```cpp
 char message[AlarmMessages::MAX_LENGTH + 1];

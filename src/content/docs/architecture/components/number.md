@@ -230,6 +230,16 @@ class LD2410Component : public PollingComponent {
 
 Always null-check before use - the user may have configured only one of them.
 
+In `to_code`, bind the hub as the parent once with `number.sub_numbers()`, then create each configured number and
+pass it to its setter. The range goes on each call:
+
+```python
+hub = await cg.get_variable(config[CONF_LD2410_ID])
+numbers = number.sub_numbers(config, parent=hub)
+await numbers(CONF_TIMEOUT, hub.set_timeout_number, min_value=0, max_value=900, step=1)
+await numbers(CONF_LIGHT_THRESHOLD, hub.set_light_threshold_number, min_value=0, max_value=255, step=1)
+```
+
 ### Choosing between them
 
 Neither pattern is the "modern" one and neither is deprecated. They express different relationships between a device

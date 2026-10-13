@@ -421,6 +421,9 @@ In general, we try to avoid use of external libraries.
   - Many constants used in components are already defined in `esphome/const.py`; no new constants
       should be added there unless used in core code.
   - Create a separate PR if/when you wish to move a constant into `esphome/components/const/__init__.py`.
+- Every component's `__init__.py` **must** define `DOMAIN = "<name>"`, where `<name>` is the component's folder name,
+  or CI checks will fail. Use `DOMAIN` (or `from esphome.components.<name> import DOMAIN as <NAME>_DOMAIN` from another
+  component) instead of repeating the component name as a string, for example `CORE.data[DOMAIN]`.
 - Using `AUTO_LOAD` to load main platform components (`sensor`, `binary_sensor`, `switch`, etc.) is not permitted.
 - Use Python's walrus operator for optional config gathering, except for boolean values. For example:
   `sensor_config := config.get(CONF_SENSOR)`
@@ -459,6 +462,9 @@ In general, we try to avoid use of external libraries.
   - For any [`Component`](https://esphome.io/api/classesphome_1_1_component) (which is nearly everything), the
       well-known `set_timeout` method is also available; this can be a handy alternative to implementing a state
       machine.
+  - ESPHome warns in the log when a component holds the loop for too long; see
+      [The Loop Blocking Warning](/architecture/components/advanced#the-loop-blocking-warning) for how the warning
+      works and the narrow case where `UnavoidableBlockingScope` may be used.
 
 #### Components/platforms and entities
 
@@ -840,6 +846,8 @@ Unlike C++, most Python code in ESPHome is **internal implementation** unless ex
 > import esphome.codegen as cg
 > import esphome.config_validation as cv
 > from esphome.const import CONF_ID
+>
+> DOMAIN = "my_component"
 >
 > # PUBLIC - documented configuration schema
 > CONF_CUSTOM_PARAM = "custom_param"

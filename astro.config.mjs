@@ -77,6 +77,7 @@ export default defineConfig({
                 {
                   label: "Common hardware interfaces",
                   items: [
+                    "architecture/components/bluetooth",
                     "architecture/components/gpio",
                     "architecture/components/i2c",
                     "architecture/components/spi",
@@ -86,9 +87,11 @@ export default defineConfig({
                 },
                 "architecture/components/automations",
                 "architecture/components/socket_consumption_api",
+                "architecture/components/esp32_tls",
                 "architecture/components/ipv4_allow",
                 "architecture/components/tcp_client_link",
                 "architecture/components/tcp_listener",
+                "architecture/components/mdns",
                 "architecture/components/advanced",
                 {
                   label: "Entity base classes",
@@ -124,7 +127,10 @@ export default defineConfig({
               label: "API",
               items: ["architecture/api", "architecture/api/protocol_details"],
             },
-            "architecture/logging",
+            {
+              label: "Logging",
+              items: ["architecture/logging/overview", "architecture/logging/best_practices"],
+            },
             {
               label: "CI",
               items: ["architecture/ci", "architecture/ci/component_tests"],

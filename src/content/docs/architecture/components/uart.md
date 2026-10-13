@@ -168,4 +168,6 @@ The check is best effort: the third argument, `conf_key`, finds the UART under a
 `id:` references, such as a `uart.write` action, and lambdas are not found. The loop above skips the component's own
 domain, which fits a top-level, single-instance component; a platform (whose config sits under `sensor:` and the like)
 or a `MULTI_CONF` component must skip its own config node instead, or it rejects itself and misses a second instance
-on the same bus. `uart_tcp` and `usb_cdc_acm` do this.
+on the same bus. `uart_tcp` runs the check exactly as shown. The `cdc_acm_uart` bridge platform skips its whole
+`bridge:` domain and records the ids it has claimed in `fv.full_config.get().data`, so a second bridge on the same
+UART is rejected too.

@@ -123,10 +123,15 @@ if (n != 0) {
 }
 ```
 
-Where the driver reports its TX room, this is `available_for_write()`, and 0 means the TX buffer is full. Otherwise it
-paces to the line time at 10 bits per byte (8N1) since `last_write_ms`, a loop start time from
-`App.get_loop_component_start_time()`: at most one loop interval and 4 s, and at least one byte, so at a low baud
-rate a loop that wakes often can still get ahead of the line. `uart_tcp` uses it.
+It returns `size_t`, so `std::min` with a `size_t` length works as shown. What it returns:
+
+- Where the driver reports its TX room, `available_for_write()`; 0 means the TX buffer is full.
+- Otherwise, the bytes the line carries at 10 bits per byte (8N1) in the time since `last_write_ms`, a loop start
+  time from `App.get_loop_component_start_time()`. That time is capped at one loop interval and at 4 s, whichever is
+  smaller.
+- Never less than one byte. At a low baud rate a loop that wakes often can therefore still get ahead of the line.
+
+`uart_tcp` uses it.
 
 A component that reads the UART for itself can reject other users in its final validation:
 
@@ -159,5 +164,8 @@ def _final_validate(config: ConfigType) -> ConfigType:
 FINAL_VALIDATE_SCHEMA = _final_validate
 ```
 
-`uart_tcp` and the CDC-ACM bridge do this. The third argument, `conf_key`, finds the UART under another key than
-`uart_id`. Bare `id:` references, such as a `uart.write` action, and lambdas are not found.
+The check is best effort: the third argument, `conf_key`, finds the UART under another key than `uart_id`, but bare
+`id:` references, such as a `uart.write` action, and lambdas are not found. The loop above skips the component's own
+domain, which fits a top-level, single-instance component; a platform (whose config sits under `sensor:` and the like)
+or a `MULTI_CONF` component must skip its own config node instead, or it rejects itself and misses a second instance
+on the same bus. `uart_tcp` and `usb_cdc_acm` do this.

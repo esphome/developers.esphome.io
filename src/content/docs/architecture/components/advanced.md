@@ -535,3 +535,4 @@ emits the define that enables the RTC backend on ESP32, so always route the chos
 - Persisting Component State: [`esphome/preferences.py`](https://github.com/esphome/esphome/blob/dev/esphome/preferences.py)
   and [`esphome/core/preferences.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/preferences.h)
 - [Socket Consumption API](/architecture/components/socket_consumption_api) - For components that use network sockets
+- [Network Address Families](/architecture/components/network_address_families) - For components that need IPv4 or IPv6

@@ -78,6 +78,47 @@ If your driver accepts a `lambda:` that isn't handled by `register_display` (unc
 full schema deal with it), process it with `cg.process_lambda()` and pass `display.DisplayRef` as the lambda's
 parameter type so the user's lambda receives `it` as a `display::Display &`.
 
+### Components that draw into a display
+
+Some components draw into a display from outside its `lambda:` or `pages:`, for example LVGL or `vnc`. Such a
+component tells the display about it by calling `display.register_external_writer()` from its `CONFIG_SCHEMA`:
+
+```python
+def _register_writer(config):
+    display.register_external_writer(config[CONF_DISPLAY_ID], DOMAIN)
+    return config
+
+
+CONFIG_SCHEMA = cv.All(
+    cv.Schema({cv.GenerateID(CONF_DISPLAY_ID): cv.use_id(display.Display), ...}),
+    _register_writer,
+)
+```
+
+The ID may still be unresolved at that point (an auto-picked `display_id`). The ID pass resolves it in place before
+final validation, so the lookups below work from any `FINAL_VALIDATE_SCHEMA`:
+
+- `display.get_external_writers(display_id)` returns the names of the components registered for that display. A
+  component can use it to reject a second writer on the same display.
+- `display.has_external_writer(display_id)` is true if any component registered for that display, or if LVGL is in the
+  configuration.
+
+A driver that would otherwise force a test card on a display without a `lambda:` or `pages:` should check
+`has_external_writer()` in its final validation. If it is true, the driver should leave the test card off, because
+`test_card()` clears the buffer on the first update and would wipe what the other component drew. It should also
+default `update_interval` to `never`, because the other component decides when to call `update()`. The `it8951` and
+`epaper_spi` drivers do this:
+
+```python
+def _final_validate(config):
+    if CONF_LAMBDA not in config and CONF_PAGES not in config:
+        if display.has_external_writer(config[CONF_ID]):
+            if CONF_UPDATE_INTERVAL not in config:
+                config[CONF_UPDATE_INTERVAL] = update_interval("never")
+        else:
+            config[CONF_SHOW_TEST_CARD] = True
+```
+
 ## C++
 
 The C++ class inherits from `display::DisplayBuffer` (or `display::Display` directly, for unbuffered drivers). Note

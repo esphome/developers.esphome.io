@@ -284,9 +284,10 @@ is about the effort spent on container optimization (e.g., migrating from `std::
 
 A component that saves large values, or one value per configured entity, reserves them from its `to_code` with
 `preferences.reserve_preferences()`: the count, the size of one value in bytes, and whether the value is saved to
-flash (the `storage:` option described under
-[Persisting Component State](/architecture/components/advanced/#persisting-component-state)). On platforms with
-room to spare the call does nothing.
+flash, the same flag the component passes to `make_preference()` (the `storage:` option described under
+[Persisting Component State](/architecture/components/advanced/#persisting-component-state)). Leave the flag out
+for a component that calls the two-argument `make_preference()`, which follows `restore_from_flash`. On platforms
+with room to spare the call does nothing.
 
 ```python
 from esphome import preferences

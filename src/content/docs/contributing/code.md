@@ -282,23 +282,23 @@ is about the effort spent on container optimization (e.g., migrating from `std::
 
 #### Saved settings on the ESP8266
 
-A component whose saved values are large, or that saves one per configured entity, should check at config time that
-they fit the ESP8266's space for saved settings, and reject or warn about the configuration when they do not. Use
-`preference_slots()` from `esphome.components.esp8266.const`; it takes the saved value's size in bytes, whether the
-value is saved to flash, and the `restore_from_flash` setting, and returns how many such values fit:
+A component that saves large values, or one value per configured entity, reserves them from its `to_code` with
+`reserve_preferences()` from `esphome.components.esp8266.const`, giving the count, the size of one value in bytes
+and whether the value is saved to flash. After all code generation the esp8266 component adds up every
+component's reservations and fails the build when they cannot fit; on other platforms the call does nothing.
 
 ```python
-from esphome.components.esp8266.const import preference_slots
+from esphome.components.esp8266 import const as esp8266_const
 
-max_zones = preference_slots(94, in_flash=False, restore_from_flash=in_flash)
-if len(zones) > max_zones:
-    raise cv.Invalid(f"only {max_zones} zones fit in the ESP8266's space for saved settings")
+async def to_code(config):
+    ...
+    esp8266_const.reserve_preferences(len(zones), 94)
 ```
 
-The sizes it works from are the ones `preferences.cpp` builds with, so the check and the device agree. RTC memory
-holds 110 words in two regions that a single value cannot span, and the flash store holds 128 words with
-`restore_from_flash` or 64 without, so a value that passes config validation would otherwise fail to save on the
-device with only a log line to show for it.
+The space is shared by every component, so no component can judge its own share on its own. RTC memory holds
+110 words in two regions that a single value cannot span, and the flash store holds 128 words with
+`restore_from_flash` or 64 without; the check uses the same sizes `preferences.cpp` builds with. Saved settings
+that do not reserve are not counted, so the check is a floor: it warns once reservations pass the first RTC region.
 
 ### Gating optional features behind conditional compilation
 

@@ -12,6 +12,8 @@ write error closes the link, logs it and schedules the next attempt; the caller 
 
 - `begin(tag)` from `setup()`; `set_host`, `set_port` and `set_reconnect_interval` from codegen setters.
 - `poll()` once per loop while acting as a client. It is an inline no-op while connected or backing off.
+- `connected()` is true while the stream is up, `connecting()` while an attempt is still pending, and
+  `in_backoff()` while the link waits before the next attempt.
 - `adopt(sock)` takes over an accepted socket; the [TCP listener](/architecture/components/tcp_listener/)
   is the usual caller.
 - `read(buf, len)` returns bytes, 0 when nothing can move now, and -1 when the link dropped.

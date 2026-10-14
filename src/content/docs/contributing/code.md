@@ -283,22 +283,31 @@ is about the effort spent on container optimization (e.g., migrating from `std::
 #### Saved settings on the ESP8266
 
 A component that saves large values, or one value per configured entity, reserves them from its `to_code` with
-`reserve_preferences()` from `esphome.components.esp8266.const`, giving the count, the size of one value in bytes
-and whether the value is saved to flash. After all code generation the esp8266 component adds up every
-component's reservations and fails the build when they cannot fit; on other platforms the call does nothing.
+`reserve_preferences()` from `esphome.components.esp8266.const`: the count, the size of one value in bytes, and
+whether the value is saved to flash (the `storage:` option described under
+[Persisting Component State](/architecture/components/advanced/#persisting-component-state)). On other platforms
+the call does nothing.
 
 ```python
+from esphome import preferences
 from esphome.components.esp8266 import const as esp8266_const
+
+ZONE_SAVED_BYTES = 94  # sizeof(Polygon), pinned by a static_assert in polygon.h
+
 
 async def to_code(config):
     ...
-    esp8266_const.reserve_preferences(len(zones), 94)
+    esp8266_const.reserve_preferences(
+        len(zones), ZONE_SAVED_BYTES, preferences.is_in_flash(config[CONF_STORAGE])
+    )
 ```
 
-The space is shared by every component, so no component can judge its own share on its own. RTC memory holds
-110 words in two regions that a single value cannot span, and the flash store holds 128 words with
-`restore_from_flash` or 64 without; the check uses the same sizes `preferences.cpp` builds with. Saved settings
-that do not reserve are not counted, so the check is a floor: it warns once reservations pass the first RTC region.
+After all code generation the esp8266 component adds up every component's reservations, because the space is
+shared and no component can judge its own share. Each value takes its size rounded up to 4-byte words plus one
+checksum word, so a 94-byte value takes 25 words. RTC memory holds 110 words in two regions of 78 and 32 that a
+single value cannot span, and the flash store holds 128 words with `restore_from_flash` or 64 without. The build
+fails when the reserved values cannot fit. It only warns once reservations spill past the first RTC region,
+because saved values that do not reserve, such as a switch's restore state, also use that space and are not counted.
 
 ### Gating optional features behind conditional compilation
 

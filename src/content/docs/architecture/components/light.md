@@ -217,6 +217,38 @@ Two further optional overrides exist for advanced cases:
   smooth (gamma-aware) transition.
 - `state->get_effect_name()`: the name of the currently active effect, or `"None"`.
 
+### Mirroring a light that lives elsewhere
+
+Some outputs do not drive hardware but stand in for a light that is controlled somewhere else, for example the
+`homeassistant` light platform, which follows a Home Assistant light entity and sends every local change back as an
+action. Such an output learns the light's state from outside, and that state must not go through a `LightCall`: a
+call validates against the traits, may start a transition, and ends in a `write_state()` the output would then send
+back to where the state came from.
+
+`LightState::set_external_state()` takes the reported values over directly:
+
+```cpp
+LightColorValues values = this->state_->remote_values;  // attributes not reported keep what the light has
+values.set_state(true);
+values.set_brightness(reported_brightness / 255.0f);
+if (!this->state_->set_external_state(values)) {
+  // A local change still waits to be written, or a transition or flash runs: that change is
+  // newer than the report, and a fresh report follows once it has reached the other side
+  return;
+}
+```
+
+The values become the light's current and target values at once and are published to the API and the other
+listeners, including the `on_turn_on` and `on_turn_off` triggers; nothing is written to the output and nothing is
+saved. Nothing is published when the values did not change.
+
+The call returns `false` and changes nothing while a local change still waits for the next `write_state()` or while a
+transition or flash runs. The output decides what to do then: drop the report when the other side will report again
+after the local change reaches it, or try again from its next `write_state()`.
+
+Since reported state never reaches `write_state()`, every write the output sees is a local change, except the very
+first one, which carries the initial state the light core sets up at boot.
+
 ## Exposing multiple lights from one component
 
 Hardware sometimes drives more than one light from a single controller - an LED driver hub might expose a plain

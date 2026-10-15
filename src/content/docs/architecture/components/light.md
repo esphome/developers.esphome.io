@@ -240,7 +240,8 @@ if (!this->state_->set_external_state(values)) {
 
 The values become the light's current and target values at once and are published to the API and the other
 listeners, including the `on_turn_on` and `on_turn_off` triggers; nothing is written to the output and nothing is
-saved. Nothing is published when the values did not change.
+saved. Nothing is published when the values did not change, unless an effect was running: that is published so
+clients drop the effect name.
 
 The call returns `false` and changes nothing while a local change still waits for the next `write_state()` or while a
 transition or flash runs. The output decides what to do then: drop the report when the other side will report again

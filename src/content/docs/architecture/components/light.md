@@ -243,7 +243,7 @@ listeners, including the `on_turn_on` and `on_turn_off` triggers; nothing is wri
 saved. Nothing is published when the values did not change.
 
 The call returns `false` and changes nothing while a local change still waits for the next `write_state()` or while a
-transition or flash runs. The output decides what to do then: drop the report when the other side will report again
+transition, flash or effect runs. The output decides what to do then: drop the report when the other side will report again
 after the local change reaches it, or try again from its next `write_state()`.
 
 Since reported state never reaches `write_state()`, every write the output sees is a local change, except the very

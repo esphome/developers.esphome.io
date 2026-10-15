@@ -280,6 +280,32 @@ Choose containers carefully on embedded systems:
 Note: Avoiding heap allocation after `setup()` is always required regardless of component type. The prioritization above
 is about the effort spent on container optimization (e.g., migrating from `std::vector` to `StaticVector`).
 
+#### Constant data in flash on the ESP8266
+
+On the ESP8266, `const` tables and string literals live in RAM unless they are marked `PROGMEM`; the other platforms
+keep them in flash either way. Mark constant arrays `PROGMEM` and read them with `progmem_memcpy()` or
+`progmem_read_byte()` from `esphome/core/hal.h`, which are a plain `memcpy` and dereference elsewhere, so no `#ifdef`
+is needed.
+
+A fixed set of names (status words, mode names, model names) goes into a `PROGMEM_STRING_TABLE` from
+`esphome/core/progmem.h`. The table packs the strings into one flash blob; a name is logged with `get_log_str()` and
+`LOG_STR_ARG`, copied out with `ESPHOME_strncpy_P()` before `publish_state()`, and looked up from a RAM string with
+`progmem_string_table_find()`, which returns the index of the matching string or `-1`:
+
+```cpp
+PROGMEM_STRING_TABLE(ColorModeNames, "onoff", "brightness", "white", "color_temp");
+
+// value is what Home Assistant or the device sent, in RAM
+const int16_t index = progmem_string_table_find<ColorModeNames>(value.c_str(), value.size());
+if (index < 0) {
+  ESP_LOGW(TAG, "Unknown color mode '%s'", value.c_str());
+  return;
+}
+```
+
+The lookup takes a pointer and a length rather than a `StringRef`, because `string_ref.h` includes `progmem.h`. It
+walks the blob once, so a table too large for one-byte offsets costs the same as a small one.
+
 ### Gating optional features behind conditional compilation
 
 ESPHome runs on devices with very limited RAM and flash. Every byte added to a base class, core component, or widely

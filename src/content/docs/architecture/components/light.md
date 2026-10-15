@@ -244,7 +244,8 @@ saved. Nothing is published when the values did not change.
 
 The call returns `false` and changes nothing while a local change still waits for the next `write_state()` or while a
 transition, flash or effect runs. The output decides what to do then: drop the report when the other side will report again
-after the local change reaches it, or try again from its next `write_state()`.
+after the local change reaches it, or try again from its next `write_state()`. An effect does not end by itself, so to
+take a report over while one runs, stop it first with `make_call().set_effect(0)`.
 
 Since reported state never reaches `write_state()`, every write the output sees is a local change, except the very
 first one, which carries the initial state the light core sets up at boot.

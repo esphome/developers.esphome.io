@@ -61,6 +61,11 @@ As mentioned in the [codebase standards](/contributing/code/#c), all components/
 `PollingComponent`; our example here is no different. Note that, since it's an I2C device, it also inherits from
 `I2CDevice`.
 
+Finally, the component implements the usual set of methods [as described here](/architecture/components/index#common-methods). This is all
+that's required for our minimal I2C component!
+
+## Checking the chip ID
+
 Most chips have a register that holds a fixed ID. Reading it in `setup()` shows that the right chip answers at the
 address. `check_chip_id()` reads the register, compares it, and marks the component failed when it does not match:
 
@@ -92,8 +97,5 @@ if (!this->check_chip_id(this, APDS9306_PART_ID, 0xB1, 0xFD))
   return;
 ```
 
-The ID is accepted when `(id & mask) == expected`. Keep your own code when the chip needs more than one register read
-to identify, or when a wrong ID should only warn.
-
-Finally, the component implements the usual set of methods [as described here](/architecture/components/index#common-methods). This is all
-that's required for our minimal I2C component!
+The ID is accepted when `(id & mask) == (expected & mask)`. Keep your own code when the chip needs more than one
+register read to identify, or when a wrong ID should only warn.

@@ -187,7 +187,7 @@ The rules for an override:
 
 - Copy a block as is only when it is laid out exactly the way your own `draw_absolute_pixel_internal()` stores
   pixels: the same bitness and byte order, no software rotation, and no clipping region. Send everything else to
-  `display::Display::draw_pixels_()`, which draws per pixel and so honours rotation and clipping.
+  `display::Display::draw_pixels_()`, which draws per pixel and so honors rotation and clipping.
 - Call `display::Display::draw_pixels_()` for that fallback, never `draw_pixels_at()`: `draw_pixels_at()` calls your
   override again.
 - If your driver keeps a frame buffer and sends it to the panel at the end of `update()`, a block drawn during

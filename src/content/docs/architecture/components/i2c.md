@@ -63,3 +63,24 @@ As mentioned in the [codebase standards](/contributing/code/#c), all components/
 
 Finally, the component implements the usual set of methods [as described here](/architecture/components/index#common-methods). This is all
 that's required for our minimal I2C component!
+
+## Changing some bits of a register
+
+Many chips pack several settings into one register byte. To change only some of the bits, read the register, replace
+those bits and write it back. `update_register()` on `I2CDevice` does all three steps:
+
+```cpp
+// Before
+uint8_t data;
+this->read_byte(address, &data);
+data |= (1 << bit_position);
+return this->write_byte(address, data);
+
+// After
+return this->update_register(address, 1 << bit_position, 1 << bit_position);
+```
+
+`update_register(reg, mask, value)` keeps the bits outside `mask` and takes the bits inside `mask` from `value`; bits
+of `value` outside `mask` are ignored, so pass `0` as the value to clear bits. It returns `false` when the read or the
+write fails. After a failed read it writes nothing, so a bus error never leads to a wrong value being written. The
+write happens even when the value does not change. The old and new values are logged at the `VERBOSE` level.

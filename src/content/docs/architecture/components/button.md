@@ -50,7 +50,8 @@ need a separate `cv.GenerateID()`.
 
 Many modules, such as radar sensors, have their own factory reset, restart, or "read the settings back" command, and
 their components offer a button for each. Use the presets for these, so every component shows them with the same
-device class, entity category and icon:
+device class, entity category and icon. This example is a hub with child buttons, as `ld2410` has; see
+[Sub-configs on a single platform entry](#sub-configs-on-a-single-platform-entry) for its `to_code`:
 
 ```python
 CONFIG_SCHEMA = {

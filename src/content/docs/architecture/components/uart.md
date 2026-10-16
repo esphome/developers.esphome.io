@@ -133,7 +133,30 @@ It returns `size_t`, so `std::min` with a `size_t` length works as shown. What i
 
 `uart_tcp` uses it.
 
-A component that reads the UART for itself can reject other users in its final validation:
+A component that reads the UART for itself claims it in its final validation:
+
+```python
+from esphome.components import uart
+from esphome.types import ConfigType
+
+DOMAIN = "my_bridge"
+
+
+def _final_validate(config: ConfigType) -> None:
+    uart.claim_exclusive(config, DOMAIN)
+
+
+FINAL_VALIDATE_SCHEMA = _final_validate
+```
+
+`uart.claim_exclusive(config, owner, conf_key="uart_id")` is a plain function, not a coroutine. It claims the UART
+that `config[conf_key]` names and rejects a second `my_bridge` entry on that UART, any other component that names it
+by `uart_id` or `conf_key`, and a `dummy_receiver` in the UART's `debug`. `owner` is the component's top-level
+config key: the check skips that domain and keeps the claims per `conf_key` in `fv.full_config.get().data[owner]`.
+Grouped CI builds share one bus between components, so in testing mode other components are not checked. `uart_tcp`
+uses it.
+
+For other messages or rules, check by hand with `subtree_references_uart()`:
 
 ```python
 from esphome.components import uart
@@ -168,6 +191,6 @@ The check is best effort: the third argument, `conf_key`, finds the UART under a
 `id:` references, such as a `uart.write` action, and lambdas are not found. The loop above skips the component's own
 domain, which fits a top-level, single-instance component; a platform (whose config sits under `sensor:` and the like)
 or a `MULTI_CONF` component must skip its own config node instead, or it rejects itself and misses a second instance
-on the same bus. `uart_tcp` runs the check exactly as shown. The `cdc_acm_uart` bridge platform skips its whole
+on the same bus. The `cdc_acm_uart` bridge platform skips its whole
 `bridge:` domain and records the ids it has claimed in `fv.full_config.get().data`, so a second bridge on the same
 UART is rejected too.

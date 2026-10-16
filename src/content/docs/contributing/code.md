@@ -338,6 +338,27 @@ fails when the reserved values cannot fit in any order. It only warns once reser
 region, because the fit then depends on setup order, and saved values that do not reserve, such as a switch's
 restore state, also use that space and are not counted.
 
+### Helpers for raw device data
+
+`esphome/core/helpers.h` has small helpers for the byte work that device protocols need. Use them instead of writing
+the same loop again in each component.
+
+#### Signed values of unusual widths
+
+Sensors often report a signed value in a width that is not a C++ type, such as 12 or 24 bits. `sign_extend<BITS>()`
+turns the low `BITS` bits of a `uint32_t` into an `int32_t`; any higher bits are ignored:
+
+```cpp
+// Before
+int32_t raw = (int32_t) (raw_energy << 8) >> 8; /* Sign-extend */
+
+// After
+int32_t raw = sign_extend<24>(raw_energy);
+```
+
+`sign_extend<24>(0xFFFFFE)` is `-2`. `BITS` can be from 1 to 32, which is checked when the code compiles. It is
+`constexpr`, so it also works in constants.
+
 ### Gating optional features behind conditional compilation
 
 ESPHome runs on devices with very limited RAM and flash. Every byte added to a base class, core component, or widely

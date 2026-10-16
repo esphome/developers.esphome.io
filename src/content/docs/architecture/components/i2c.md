@@ -89,8 +89,8 @@ array, such as an accelerometer's X, Y and Z registers. As with `read_bytes_16()
 destination partly written.
 
 To decode values from a block read in one go, use the helpers in `esphome/core/helpers.h`: `encode_value<T>(bytes)`
-reads `sizeof(T)` bytes most significant first, and `encode_value_le<T>(bytes)` reads them least significant first. Both work for signed types
-too, so a signed reading needs no cast:
+reads `sizeof(T)` bytes most significant first, and `encode_value_le<T>(bytes)` reads them least significant first.
+Both work for signed types too, so a signed reading needs no cast:
 
 ```cpp
 // Before

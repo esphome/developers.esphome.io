@@ -186,6 +186,13 @@ If the config value is not set, then we do not call the setter function.
   config, a validation error will be generated.
 - `DEPENDENCIES`: A list of components that this component depends on. If these components are not present in the
    configuration, or loaded by another component, validation will fail and the user will be shown an error.
+- `DOC_URL`: An explicit documentation link for this component, e.g. `DOC_URL = "https://example.com/my_component"`.
+  Only meaningful for a component loaded via [`external_components:`](https://esphome.io/components/external_components/),
+  since built-in components already link to esphome.io automatically. The source-level
+  [`doc_url`](https://esphome.io/components/external_components/#documentation-links) key in the user's
+  `external_components:` entry gives every component from that source a link built from its base URL
+  (`<doc_url>/components/<name>/`). `DOC_URL` takes priority over it and points this component's errors at an exact
+  page.
 - `DOMAIN`: Required. The component's name as a plain string, equal to its folder name (e.g. `DOMAIN = "uart"`).
   Keep it in alphabetical order with the other metadata constants such as `CODEOWNERS` and `DEPENDENCIES`. The
   `lint_component_domain` check in `script/ci-custom.py` fails if a component's top-level `__init__.py` does not define it with the right

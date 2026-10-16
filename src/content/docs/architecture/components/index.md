@@ -239,9 +239,9 @@ any other components and potentially fail the validation stage if an important d
 For example, many components that rely on `uart` can use the `FINAL_VALIDATE_SCHEMA` to ensure that the `tx_pin` and/or
 `rx_pin` are configured.
 
-A platform often needs a setting of the hub it belongs to, for example a sensor that only exists when the hub is a
-certain model. `fv.get_declaring_config(id)` returns the config block that declares an ID, so the hub's options are one
-call away:
+A platform often needs a setting of the hub it belongs to, for example a sensor that only works when the hub has a
+certain option set. `fv.get_declaring_config(id)` returns the config block that declares an ID, so the hub's options
+are one call away:
 
 ```python
 import esphome.final_validate as fv
@@ -270,8 +270,8 @@ bmi270_config = full_config.get_config_for_path(bmi270_path)
 ```
 
 It reads the full configuration being validated. Outside final validation, such as in `to_code`, pass the config as
-the second argument: `fv.get_declaring_config(config[CONF_ID], CORE.config)`. It raises `KeyError` for an ID that
-nothing declares.
+the second argument: `fv.get_declaring_config(config[CONF_BMI270_ID], CORE.config)`. It raises `KeyError` for an ID
+that nothing declares.
 
 ### Platform components
 

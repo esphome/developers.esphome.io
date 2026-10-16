@@ -295,7 +295,7 @@ PROGMEM_STRING_TABLE(FanModeStrings, "AUTO", "LOW", "MEDIUM", "HIGH", "UNKNOWN")
 ESP_LOGD(TAG, "Fan mode: %s", LOG_STR_ARG(FanModeStrings::get_log_str(mode, FanModeStrings::LAST_INDEX)));
 ```
 
-`get_log_str()` returns a `LogString *` for logging and `get_progmem_str()` a `ProgmemStr` for code that reads flash
+`get_log_str()` returns a `const LogString *` for logging and `get_progmem_str()` a `ProgmemStr` for code that reads flash
 strings, such as ArduinoJson. A table holds up to 255 strings. While the strings total 255 bytes or less, each entry
 has a one-byte offset; a larger table has no offset table and is walked at lookup time, which costs less flash than
 wider offsets for the rarely read message tables that get this big.
@@ -307,6 +307,36 @@ char message[AlarmMessages::MAX_LENGTH + 1];
 ESPHOME_strncpy_P(message, reinterpret_cast<const char *>(AlarmMessages::get_progmem_str(code, AlarmMessages::LAST_INDEX)),
                   sizeof(message));
 ```
+
+### Saved settings on the ESP8266
+
+A component that saves large values, or one value per configured entity, reserves them from its `to_code` with
+`preferences.reserve_preferences()`: the count, the size of one value in bytes, and whether the value is saved to
+flash, the same flag the component passes to `make_preference()` (the `storage:` option described under
+[Persisting Component State](/architecture/components/advanced/#persisting-component-state)). Leave the flag out
+for a component that calls `make_preference()` without an `in_flash` argument, which follows `restore_from_flash`.
+On platforms with room to spare the call does nothing.
+
+```python
+from esphome import preferences
+
+ZONE_SAVED_BYTES = 94  # sizeof(Polygon), pinned by a static_assert in polygon.h
+
+
+async def to_code(config):
+    ...
+    preferences.reserve_preferences(
+        len(zones), ZONE_SAVED_BYTES, preferences.is_in_flash(config[CONF_STORAGE])
+    )
+```
+
+After all code generation the esp8266 component adds up every component's reservations, because the space is
+shared and no component can judge its own share. Each value takes its size rounded up to 4-byte words plus one
+checksum word, so a 94-byte value takes 25 words. RTC memory holds 110 words in two regions of 78 and 32 that a
+single value cannot span, and the flash store holds 128 words with `restore_from_flash` or 64 without. The build
+fails when the reserved values cannot fit in any order. It only warns once reservations spill past the first RTC
+region, because the fit then depends on setup order, and saved values that do not reserve, such as a switch's
+restore state, also use that space and are not counted.
 
 ### Gating optional features behind conditional compilation
 

@@ -83,10 +83,10 @@ if (!this->read_byte_16_le(AS7341_ASTEP, &data))
 return data;
 ```
 
-`read_byte_16_le()` and `write_byte_16_le()` return `false` when the transfer fails. To decode values from a block read in one go, use the helpers in
-`esphome/core/helpers.h`: `encode_value<T>(bytes)` reads `sizeof(T)` bytes most significant first, and
-`encode_value_le<T>(bytes)` reads them least significant first. Both work for signed types too, so a signed reading
-needs no cast:
+`read_byte_16_le()` and `write_byte_16_le()` return `false` when the transfer fails. To decode values from a block
+read in one go, use the helpers in `esphome/core/helpers.h`: `encode_value<T>(bytes)` reads `sizeof(T)` bytes most
+significant first, and `encode_value_le<T>(bytes)` reads them least significant first. Both work for signed types
+too, so a signed reading needs no cast:
 
 ```cpp
 // Before

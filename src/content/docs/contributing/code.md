@@ -341,7 +341,7 @@ restore state, also use that space and are not counted.
 ### Helpers for raw device data
 
 `esphome/core/helpers.h` has small helpers for the byte work that device protocols need. Use them instead of writing
-the same loop again in each component.
+the same bit and byte handling again in each component.
 
 #### Signed values of unusual widths
 

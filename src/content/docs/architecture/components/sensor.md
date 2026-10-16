@@ -305,10 +305,11 @@ this->detection_distance_sensor_.publish_state_if_not_dup(new_detect_distance);
 
 The member `name##_sensor_` is a `sensor::SensorWithDedup<type>`, and the setter is the same `set_##name##_sensor()`,
 so the Python side does not change. Choose `type` as the type of the raw reading, so the comparison is exact and the
-stored value is small. `publish_state_unknown()` publishes `NAN` once until a real value arrives, `has_sensor()` tells
-whether the sensor is configured, and `get_sensor()` returns the `sensor::Sensor *`. In `dump_config()` use
-`LOG_SENSOR_WITH_DEDUP(prefix, type, member)` in place of `LOG_SENSOR`. A `SensorWithDedup` can also be used
-directly, for example in a `std::array` of per-target sensors.
+stored value is small. `publish_state_unknown()` publishes `NAN`; calling it again before a real value arrives does
+nothing. `has_sensor()` tells whether the sensor is configured, and `get_sensor()` returns the `sensor::Sensor *`. In
+`dump_config()` use `LOG_SENSOR_WITH_DEDUP(prefix, type, member)` in place of `LOG_SENSOR`. A `SensorWithDedup` can
+also be used directly, for example in a `std::array` of per-target sensors. `SensorWithDedup` was added in ESPHome
+2026.11.0.
 
 ### Choosing between them
 

@@ -283,6 +283,33 @@ void MyComponent::update() {
 }
 ```
 
+#### Skipping repeated values
+
+A device that streams frames many times a second, such as a presence radar, mostly repeats the last value. Publishing
+each one runs the filters and sends an update for nothing. Declare such a sensor with `SUB_SENSOR_WITH_DEDUP(name, type)`
+from `sensor_with_dedup.h` instead of `SUB_SENSOR(name)`. It keeps the last published value next to the pointer and
+skips a value equal to it:
+
+```cpp
+#include "esphome/components/sensor/sensor_with_dedup.h"
+
+class LD2412Component final : public Component, public uart::UARTDevice {
+  SUB_SENSOR_WITH_DEDUP(light, uint8_t)
+  SUB_SENSOR_WITH_DEDUP(detection_distance, int)
+  ...
+};
+
+// No null check needed: nothing is published when the sensor is not configured
+this->detection_distance_sensor_.publish_state_if_not_dup(new_detect_distance);
+```
+
+The member `name##_sensor_` is a `sensor::SensorWithDedup<type>`, and the setter is the same `set_##name##_sensor()`,
+so the Python side does not change. Choose `type` as the type of the raw reading, so the comparison is exact and the
+stored value is small. `publish_state_unknown()` publishes `NAN` once until a real value arrives, `has_sensor()` tells
+whether the sensor is configured, and `get_sensor()` returns the `sensor::Sensor *`. In `dump_config()` use
+`LOG_SENSOR_WITH_DEDUP(prefix, type, member)` in place of `LOG_SENSOR`. A `SensorWithDedup` can also be used
+directly, for example in a `std::array` of per-target sensors.
+
 ### Choosing between them
 
 Neither pattern is the "modern" one and neither is deprecated. They express different relationships between a device and

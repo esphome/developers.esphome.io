@@ -76,7 +76,7 @@ it.draw_pixels_at(0, 0, w, h, buffer, display::COLOR_BITNESS_565, true);
 
 Until you migrate, such a call draws correctly but per pixel, even on a display that can copy blocks.
 
-**External display drivers that override `draw_pixels_at()`** keep working until 2027.5.0: their override still receives every block, as RGB, and its call to `display::Display::draw_pixels_at(...)` for anything it cannot copy still draws per pixel. Overriding a deprecated function does not produce a warning, so check your driver by hand. To migrate, rename the override and drop the order:
+**External display drivers that override `draw_pixels_at()`** keep working until 2027.5.0: their override still receives every block, as RGB, and its call to `display::Display::draw_pixels_at(...)` for anything it cannot copy still draws per pixel. Until you migrate, add `using display::Display::draw_pixels_at;` to the driver's class, or your override hides the new forms when they are called through your driver's type, and do not also override `draw_pixels_internal()`. Overriding a deprecated function does not produce a warning, so check your driver by hand. To migrate, rename the override and drop the order:
 
 ```cpp
 // OLD

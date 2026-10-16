@@ -171,3 +171,7 @@ or a `MULTI_CONF` component must skip its own config node instead, or it rejects
 on the same bus. `uart_tcp` runs the check exactly as shown. The `cdc_acm_uart` bridge platform skips its whole
 `bridge:` domain and records the ids it has claimed in `fv.full_config.get().data`, so a second bridge on the same
 UART is rejected too.
+
+## See Also
+
+- [Virtual UART](/architecture/components/uart_virtual/)

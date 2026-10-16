@@ -80,13 +80,17 @@ static constexpr i2c::I2CRegValue ES8156_INIT[] PROGMEM = {
 };
 
 void ES8156::setup() {
-  if (!this->write_registers(ES8156_INIT))
+  if (!this->write_registers(ES8156_INIT)) {
     this->mark_failed(LOG_STR("Failed to initialize"));
+    return;
+  }
+  // Writes that depend on the configuration follow here as separate calls
 }
 ```
 
 The entries are written in order, each as its own transfer, and `write_registers()` stops and returns `false` at the
 first one that fails. Mark the table `PROGMEM` so it stays in flash on ESP8266; `write_registers()` copies one entry at
 a time out of flash. The same register may appear more than once, for steps such as a reset sequence. Passing the
-array finds its length; `write_registers(table, count)` takes a pointer and a count instead. Writes that depend on the
-configuration or need a delay between them stay as separate calls around the tables.
+array itself lets `write_registers()` work out the entry count; with only a pointer, such as a table picked at run
+time, call `write_registers(table, count)`. Writes that depend on the configuration or need a delay between them stay
+as separate calls around the tables.

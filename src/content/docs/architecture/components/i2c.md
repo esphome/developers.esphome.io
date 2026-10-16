@@ -66,9 +66,9 @@ that's required for our minimal I2C component!
 
 ## Multi-byte values
 
-`read_byte_16()` and `write_byte_16()` on `I2CDevice` send the most significant byte first. Many chips store 16-bit
-registers the other way round, least significant byte first. Use `read_byte_16_le()` and `write_byte_16_le()` for
-those instead of swapping the bytes yourself:
+`read_byte_16()` and `write_byte_16()` on `I2CDevice` treat the first byte on the wire as the most significant byte.
+Many chips store 16-bit registers the other way round, least significant byte first. Use `read_byte_16_le()` and
+`write_byte_16_le()` for those instead of swapping the bytes yourself:
 
 ```cpp
 // Before
@@ -78,11 +78,12 @@ return this->swap_bytes(data);
 
 // After
 uint16_t data;
-this->read_byte_16_le(AS7341_ASTEP, &data);
+if (!this->read_byte_16_le(AS7341_ASTEP, &data))
+  return 0;
 return data;
 ```
 
-Both return `false` when the transfer fails. To decode values from a block read in one go, use the helpers in
+`read_byte_16_le()` and `write_byte_16_le()` return `false` when the transfer fails. To decode values from a block read in one go, use the helpers in
 `esphome/core/helpers.h`: `encode_value<T>(bytes)` reads `sizeof(T)` bytes most significant first, and
 `encode_value_le<T>(bytes)` reads them least significant first. Both work for signed types too, so a signed reading
 needs no cast:

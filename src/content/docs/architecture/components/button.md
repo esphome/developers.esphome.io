@@ -157,7 +157,7 @@ purely additive, and each action naturally gets its own `press_action()` via its
 Many components instead nest optional sub-keys under one platform entry, one per action. Note an important difference
 from the sensor case: `sensor_schema()` can be called with no class at all, because `sensor::Sensor` is concrete and a
 bare instance is perfectly usable - it just holds a value. `button::Button` is abstract: `press_action()` is pure
-virtual, so there is no generic button to fall back on and every button needs its own subclass. `button_schema()`
+virtual, so there is no generic button to fall back on and every button needs a concrete class. `button_schema()`
 reflects that by making `class_` a required argument rather than defaulting it to `cv.UNDEFINED`.
 
 > [!NOTE]
@@ -167,10 +167,11 @@ reflects that by making `class_` a required argument rather than defaulting it t
 > subclass whenever the base class is abstract, whether or not the helper forces you to. Only `sensor`,
 > `binary_sensor`, `text_sensor` and `event` have non-abstract bases where omitting it genuinely works.
 
-So every sub-config, even inline ones, must still declare and pass its own concrete class, exactly as
+So every sub-config, even inline ones, must still pass a concrete class, exactly as
 [`ld2450`](https://github.com/esphome/esphome/tree/dev/esphome/components/ld2450) does for its `factory_reset` and
 `restart` sub-configs: `cv.Optional(CONF_FACTORY_RESET): button.button_schema(FactoryResetButton)`, with
-`FactoryResetButton` declared as its own `button.Button` subclass.
+`FactoryResetButton` declared as its own `button.Button` subclass. A button whose press only calls the hub can pass
+the shared `button.ApplyButton` instead, as shown below.
 
 The hub still uses `SUB_BUTTON(name)` from `button.h`, which generates a protected `name##_button_` member (defaulted
 to `nullptr`) and a public `set_##name##_button()` setter, exactly as for the other entity types. Always null-check
@@ -195,19 +196,19 @@ await buttons(CONF_FACTORY_RESET, hub.set_factory_reset_button)
 await buttons(CONF_RESTART, hub.set_restart_button)
 ```
 
+See [Exposing multiple sensors from one component](/architecture/components/sensor#exposing-multiple-sensors-from-one-component)
+for a fully worked example of both patterns.
+
 A button whose press only calls one method of the hub can use the shared `button.ApplyButton` class instead of a
-subclass of its own. `tfluna` declares both buttons with `button.button_schema(button.ApplyButton, ...)` and creates
-them like this:
+subclass of its own, as described in
+[Entities that only call the hub](/architecture/components/index#entities-that-only-call-the-hub).
+[`tfluna`](https://github.com/esphome/esphome/tree/dev/esphome/components/tfluna) declares both buttons with
+`button.button_schema(button.ApplyButton, ...)` and creates them like this:
 
 ```python
 await buttons(CONF_FACTORY_RESET, hub.set_reset_button, apply="factory_reset()")
 await buttons(CONF_RESTART, hub.set_restart_button, apply="restart()")
 ```
-
-See [Entities that only call the hub](/architecture/components/index#entities-that-only-call-the-hub).
-
-See [Exposing multiple sensors from one component](/architecture/components/sensor#exposing-multiple-sensors-from-one-component)
-for a fully worked example of both patterns.
 
 ### Choosing between them
 

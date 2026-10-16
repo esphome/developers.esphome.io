@@ -503,6 +503,10 @@ async def to_code(config: ConfigType) -> None:
     cg.add(var.set_in_flash(preferences.is_in_flash(config[CONF_STORAGE])))
 ```
 
+On the ESP8266 the space for saved values is small and shared; a component that saves large values or one per
+entity reserves them so the total is checked, see
+[Saved settings on the ESP8266](/contributing/code/#saved-settings-on-the-esp8266).
+
 `storage_schema()` keeps each platform's historic default (RTC on ESP8266, flash elsewhere). A component that prefers
 RTC whenever the chip has it resolves its own default with the two lower-level helpers:
 

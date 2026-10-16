@@ -63,3 +63,36 @@ As mentioned in the [codebase standards](/contributing/code/#c), all components/
 
 Finally, the component implements the usual set of methods [as described here](/architecture/components/index#common-methods). This is all
 that's required for our minimal I2C component!
+
+## Multi-byte values
+
+`read_byte_16()` and `write_byte_16()` on `I2CDevice` send the most significant byte first. Many chips store 16-bit
+registers the other way round, least significant byte first. Use `read_byte_16_le()` and `write_byte_16_le()` for
+those instead of swapping the bytes yourself:
+
+```cpp
+// Before
+uint16_t data;
+this->read_byte_16(AS7341_ASTEP, &data);
+return this->swap_bytes(data);
+
+// After
+uint16_t data;
+this->read_byte_16_le(AS7341_ASTEP, &data);
+return data;
+```
+
+Both return `false` when the transfer fails. To decode values from a block read in one go, use the helpers in
+`esphome/core/helpers.h`: `encode_value<T>(bytes)` reads `sizeof(T)` bytes most significant first, and
+`encode_value_le<T>(bytes)` reads them least significant first. Both work for signed types too, so a signed reading
+needs no cast:
+
+```cpp
+// Before
+const uint16_t ch0 = encode_uint16(raw[2], raw[1]);
+data.acceleration[motion::X_AXIS] = static_cast<int16_t>(encode_uint16(raw_data[0], raw_data[1])) * accel_factor;
+
+// After
+const uint16_t ch0 = encode_value_le<uint16_t>(&raw[1]);
+data.acceleration[motion::X_AXIS] = encode_value<int16_t>(raw_data) * accel_factor;
+```

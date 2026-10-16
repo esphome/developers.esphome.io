@@ -553,6 +553,27 @@ Before ESPHome 2026.11.0 the momentary calls required a name as their first argu
 2027.5.0: the name was only used to key the timer, it is kept as a string (RAM on ESP8266), and it can clash with the
 component's own `set_timeout()` names. Drop the name to migrate.
 
+A read or write that runs again on every update sets the warning when it fails and clears it when it works again.
+`status_comm_result(ok)` does both and returns `ok`, so the failure check stays one line:
+
+```cpp
+// Before
+if (!this->read_bytes(REG_RED_DATA_LSB, buffer, sizeof(buffer))) {
+  this->status_set_warning(LOG_STR(ESP_LOG_MSG_COMM_FAIL));
+  return;
+}
+this->status_clear_warning();
+
+// After
+if (!this->status_comm_result(this->read_bytes(REG_RED_DATA_LSB, buffer, sizeof(buffer))))
+  return;
+```
+
+Without a message the warning says "Communication failed" (`ESP_LOG_MSG_COMM_FAIL`). Pass a `LOG_STR("...")` as the
+second argument for another text, for example
+`this->status_comm_result(ok, LOG_STR("Failed to read one or more registers"))`. Use it for failures after `setup()`;
+a device that cannot be set up at all still calls `mark_failed()`.
+
 ### Component-specific methods
 
 - "Setter" methods: it's common to have at least one configuration variable which must be defined by the user in order

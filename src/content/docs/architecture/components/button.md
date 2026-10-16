@@ -48,6 +48,31 @@ CONFIG_SCHEMA = button.button_schema(MyButton).extend(cv.COMPONENT_SCHEMA)
 Passing your class (`MyButton`) as the first argument tells the helper which class to declare the ID for, so you do not
 need a separate `cv.GenerateID()`.
 
+Many modules, such as radar sensors, have their own factory reset, restart, or "read the settings back" command, and
+their components offer a button for each. Use the presets for these, so every component shows them with the same
+device class, entity category and icon:
+
+```python
+CONFIG_SCHEMA = {
+    cv.GenerateID(CONF_LD2410_ID): cv.use_id(LD2410Component),
+    cv.Optional(CONF_FACTORY_RESET): button.factory_reset_button_schema(
+        FactoryResetButton
+    ),
+    cv.Optional(CONF_RESTART): button.restart_button_schema(RestartButton),
+    cv.Optional(CONF_QUERY_PARAMS): button.query_button_schema(QueryButton),
+}
+```
+
+| Preset | Device class | Entity category | Icon |
+| ------ | ------------ | --------------- | ---- |
+| `factory_reset_button_schema()` | `restart` | `config` | `mdi:restart-alert` |
+| `restart_button_schema()` | `restart` | `diagnostic` | `mdi:restart` |
+| `query_button_schema()` | none | `diagnostic` | `mdi:database` |
+
+They are only for the connected module. A button that restarts or resets the ESPHome device itself belongs to the
+[`restart`](https://esphome.io/components/button/restart/) and
+[`factory_reset`](https://esphome.io/components/button/factory_reset/) platforms.
+
 ### Code generation
 
 In `to_code`, use the `button.new_button()` helper. It calls `cg.new_Pvariable()` for you *and* generates all the code

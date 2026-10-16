@@ -42,6 +42,12 @@ review a PR from someone you don't know:
 
 If a reviewer asks you why something was done a particular way, "the AI wrote it" is not an answer.
 
+## Say that you used AI
+
+If you used AI to help write your PR, say so in the PR description, along with which tool you used and roughly what it
+did (for example, "Claude Code wrote the initial implementation and the test YAMLs; I reviewed and tested them on an
+ESP32"). It doesn't count against your PR; it helps reviewers know where to look more closely.
+
 ## Plan the work yourself; let the AI implement it
 
 AI assistants are good at implementing a clear, specific instruction. They are **not** good at deciding the overall

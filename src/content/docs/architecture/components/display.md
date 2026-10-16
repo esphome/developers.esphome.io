@@ -84,7 +84,10 @@ Some components draw into a display from outside its `lambda:` or `pages:`, for 
 component tells the display about it by calling `display.register_external_writer()` from its `CONFIG_SCHEMA`:
 
 ```python
-def _register_writer(config):
+from esphome.types import ConfigType
+
+
+def _register_writer(config: ConfigType) -> ConfigType:
     display.register_external_writer(config[CONF_DISPLAY_ID], DOMAIN)
     return config
 
@@ -110,7 +113,7 @@ default `update_interval` to `never`, because the other component decides when t
 `epaper_spi` drivers do this:
 
 ```python
-def _final_validate(config):
+def _final_validate(config: ConfigType) -> None:
     if CONF_LAMBDA not in config and CONF_PAGES not in config:
         if display.has_external_writer(config[CONF_ID]):
             if CONF_UPDATE_INTERVAL not in config:

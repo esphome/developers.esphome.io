@@ -49,6 +49,45 @@ await uart.register_uart_device(var, config)
 
 Since this is a serial device which uses a UART, we must register it as such so it is handled appropriately by ESPHome.
 
+### Forwarding UARTs
+
+A component that is itself a UART but passes on the bytes of another UART has no baud rate, data bits, parity or stop
+bits of its own. Devices on it that require them would be rejected. `uart.inherit_settings(uart_id, source_id)` makes
+`final_validate_device_schema()` check those devices against the settings of the source UART instead, following every
+hop. No pins are checked on a forwarding UART: `require_tx` and `require_rx` apply to hardware UARTs only.
+
+Call it from `CONFIG_SCHEMA`. `to_code` runs after final validation, so a call there is always too late. Final
+validation runs in YAML order, so a call from final validation can miss devices that were checked before it. `inherit_settings` is a plain function, not a coroutine:
+
+```python
+import esphome.codegen as cg
+from esphome.components import uart
+import esphome.config_validation as cv
+from esphome.const import CONF_ID, CONF_UART_ID
+from esphome.types import ConfigType
+
+DEPENDENCIES = ["uart"]
+
+my_tap_ns = cg.esphome_ns.namespace("my_tap")
+MyTap = my_tap_ns.class_("MyTap", uart.UARTComponent, cg.Component)
+
+
+def _inherit_settings(config: ConfigType) -> ConfigType:
+    uart.inherit_settings(config[CONF_ID], config[CONF_UART_ID])
+    return config
+
+
+CONFIG_SCHEMA = cv.All(
+    cv.Schema(
+        {
+            cv.GenerateID(): cv.declare_id(MyTap),
+            cv.Required(CONF_UART_ID): cv.use_id(uart.UARTComponent),
+        }
+    ).extend(cv.COMPONENT_SCHEMA),
+    _inherit_settings,
+)
+```
+
 ## C++
 
 The C++ class for this example component is quite simple.

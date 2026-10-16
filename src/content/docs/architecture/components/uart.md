@@ -64,6 +64,50 @@ As mentioned in the [codebase standards](/contributing/code/#c), all components/
 Finally, the component implements the usual set of methods [as described here](/architecture/components/index#common-methods). This is all
 that's required for our minimal UART component!
 
+## Reading what has arrived
+
+A component that parses a byte stream usually reads everything the UART has received on each pass of `loop()`.
+Reading in blocks costs less than one call per byte. `read_available()` on `UARTDevice` reads the bytes available
+now through a buffer on the stack and calls a function for each byte:
+
+```cpp
+// Before
+void Tuya::loop() {
+  // Read all available bytes in batches to reduce UART call overhead.
+  size_t avail = this->available();
+  uint8_t buf[64];
+  while (avail > 0) {
+    size_t to_read = std::min(avail, sizeof(buf));
+    if (!this->read_array(buf, to_read)) {
+      break;
+    }
+    avail -= to_read;
+
+    for (size_t i = 0; i < to_read; i++) {
+      this->handle_char_(buf[i]);
+    }
+  }
+  process_command_queue_();
+}
+
+// After
+void Tuya::loop() {
+  this->read_available([this](uint8_t b) { this->handle_char_(b); });
+  process_command_queue_();
+}
+```
+
+`read_available_chunks()` does the same but calls the function once per block, as
+`(const uint8_t *data, size_t len)`, for code that copies or scans whole blocks. Details:
+
+- The buffer is 64 bytes by default; pick another size with the template argument, as in
+  `read_available_chunks<MAX_LINE_LENGTH>(...)`.
+- Only the bytes that were available when the call started are read, so a fast sender cannot keep `loop()` busy.
+  To read a set number of bytes instead, pass it as the second argument; it must not be more than `available()`.
+- If the function returns `bool`, returning `false` stops the reading. The bytes of the current block after that
+  point have already been taken from the UART and are lost. A function that returns `void` always continues.
+- Both return `false` only when a read from the UART fails.
+
 ## UARTs Without Line Timing
 
 On a serial line, bytes arrive at the pace of the baud rate, so a reader can find the end of a frame from a quiet gap,

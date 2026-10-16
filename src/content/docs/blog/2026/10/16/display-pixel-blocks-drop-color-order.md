@@ -4,7 +4,7 @@ date: 2026-10-16
 authors: clydebarrow
 ---
 
-ESPHome 2026.11.0 removes the `ColorOrder` argument from `Display::draw_pixels_at()` and from the `ColorUtil` color conversions. Pixel blocks and packed colors are always RGB. `draw_pixels_at()` is no longer virtual: a display driver that copies blocks itself now overrides the protected `draw_pixels_()`. The forms that take a `ColorOrder` still work, with a deprecation warning, until 2027.5.0.
+ESPHome 2026.11.0 removes the `ColorOrder` argument from `Display::draw_pixels_at()` and from the `ColorUtil` color conversions. Pixel blocks and packed colors are always RGB. `draw_pixels_at()` is no longer virtual: a display driver that copies blocks itself now overrides the protected `draw_pixels_internal()`. The forms that take a `ColorOrder` still work, with a deprecation warning, until 2027.5.0.
 
 This is a **developer breaking change** for external display components in **ESPHome 2026.11.0 and later**, with a deprecation period until **2027.5.0**.
 
@@ -18,7 +18,7 @@ This is a **developer breaking change** for external display components in **ESP
 
 ### Changes
 
-- [PR #20884](https://github.com/esphome/esphome/pull/20884): drops the color order from `draw_pixels_at()` and `ColorUtil`, and adds the `draw_pixels_()` hook.
+- [PR #20884](https://github.com/esphome/esphome/pull/20884): drops the color order from `draw_pixels_at()` and `ColorUtil`, and adds the `draw_pixels_internal()` hook.
 
 ## What's Changing
 
@@ -36,11 +36,11 @@ void draw_pixels_at(int x_start, int y_start, int w, int h, const uint8_t *ptr, 
                     bool big_endian);
 
 // NEW - protected and virtual; drivers override this one
-virtual void draw_pixels_(int x_start, int y_start, int w, int h, const uint8_t *ptr, ColorBitness bitness,
-                          bool big_endian, int x_offset, int y_offset, int x_pad);
+virtual void draw_pixels_internal(int x_start, int y_start, int w, int h, const uint8_t *ptr, ColorBitness bitness,
+                                  bool big_endian, int x_offset, int y_offset, int x_pad);
 ```
 
-The base `draw_pixels_()` draws the block per pixel through `draw_pixel_at()`, as the old base `draw_pixels_at()` did. See [Drawing blocks of pixels](/architecture/components/display#drawing-blocks-of-pixels) for the rules an override must follow.
+The base `draw_pixels_internal()` draws the block per pixel through `draw_pixel_at()`, as the old base `draw_pixels_at()` did. See [Drawing blocks of pixels](/architecture/components/display#drawing-blocks-of-pixels) for the rules an override must follow.
 
 ### ColorUtil
 
@@ -91,17 +91,17 @@ void draw_pixels_at(int x_start, int y_start, int w, int h, const uint8_t *ptr, 
 }
 
 // NEW
-void draw_pixels_(int x_start, int y_start, int w, int h, const uint8_t *ptr, display::ColorBitness bitness,
-                  bool big_endian, int x_offset, int y_offset, int x_pad) override {
+void draw_pixels_internal(int x_start, int y_start, int w, int h, const uint8_t *ptr, display::ColorBitness bitness,
+                          bool big_endian, int x_offset, int y_offset, int x_pad) override {
   if (bitness != display::COLOR_BITNESS_565 || ...) {
-    display::Display::draw_pixels_(x_start, y_start, w, h, ptr, bitness, big_endian, x_offset, y_offset, x_pad);
+    display::Display::draw_pixels_internal(x_start, y_start, w, h, ptr, bitness, big_endian, x_offset, y_offset, x_pad);
     return;
   }
   ...
 }
 ```
 
-The fallback must call `display::Display::draw_pixels_()`. Calling `draw_pixels_at()` there would call your own override again.
+The fallback must call `display::Display::draw_pixels_internal()`. Calling `draw_pixels_at()` there would call your own override again.
 
 **Code that uses `ColorUtil` with a `ColorOrder`** gets a deprecation warning; drop the order as shown above. If you relied on BGR or GRB packing, swap the channels of the `Color` yourself before converting.
 
@@ -115,7 +115,7 @@ grep -rnE 'draw_pixels_at|COLOR_ORDER_(RGB|BGR|GRB)|Rgb565ToMono\(' --include='*
 
 ## Timeline
 
-- **ESPHome 2026.11.0:** `draw_pixels_at()` and `ColorUtil` take no color order; drivers override `draw_pixels_()`. The forms with a `ColorOrder` are deprecated.
+- **ESPHome 2026.11.0:** `draw_pixels_at()` and `ColorUtil` take no color order; drivers override `draw_pixels_internal()`. The forms with a `ColorOrder` are deprecated.
 - **ESPHome 2027.5.0:** the forms with a `ColorOrder` are removed. An override of the old `draw_pixels_at()` no longer compiles.
 
 ## Questions?

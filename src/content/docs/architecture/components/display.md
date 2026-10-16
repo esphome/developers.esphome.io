@@ -158,19 +158,20 @@ Pixels are always RGB, with red in the most significant bits. `bitness` is one o
 The caller makes sure the block lies on the screen. The block may be drawn while a clipping region is set.
 
 By default the block is decoded and drawn per pixel through `draw_pixel_at()`, so it works on every display,
-including rotation and clipping. A driver that can do better overrides the protected virtual `draw_pixels_()`, which
-takes the same parameters. A typical override copies the rows straight into its frame buffer when they are already in
-the buffer's own format, and sends everything else back to the base version:
+including rotation and clipping. A driver that can do better overrides the protected virtual
+`draw_pixels_internal()`, which takes the same parameters. A typical override copies the rows straight into its frame
+buffer when they are already in the buffer's own format, and sends everything else back to the base version:
 
 ```cpp
 class MyDisplay : public display::DisplayBuffer {
  protected:
-  void draw_pixels_(int x_start, int y_start, int w, int h, const uint8_t *ptr, display::ColorBitness bitness,
-                    bool big_endian, int x_offset, int y_offset, int x_pad) override {
+  void draw_pixels_internal(int x_start, int y_start, int w, int h, const uint8_t *ptr, display::ColorBitness bitness,
+                            bool big_endian, int x_offset, int y_offset, int x_pad) override {
     // Anything that is not laid out like the frame buffer is drawn per pixel by the base version
     if (bitness != display::COLOR_BITNESS_565 || !big_endian ||
         this->rotation_ != display::DISPLAY_ROTATION_0_DEGREES || this->is_clipping()) {
-      display::Display::draw_pixels_(x_start, y_start, w, h, ptr, bitness, big_endian, x_offset, y_offset, x_pad);
+      display::Display::draw_pixels_internal(x_start, y_start, w, h, ptr, bitness, big_endian, x_offset, y_offset,
+                                             x_pad);
       return;
     }
     const size_t stride = x_offset + w + x_pad;
@@ -187,9 +188,9 @@ The rules for an override:
 
 - Copy a block as is only when it is laid out exactly the way your own `draw_absolute_pixel_internal()` stores
   pixels: the same bitness and byte order, no software rotation, and no clipping region. Send everything else to
-  `display::Display::draw_pixels_()`, which draws per pixel and so honors rotation and clipping.
-- Call `display::Display::draw_pixels_()` for that fallback, never `draw_pixels_at()`: `draw_pixels_at()` calls your
-  override again.
+  `display::Display::draw_pixels_internal()`, which draws per pixel and so honors rotation and clipping.
+- Call `display::Display::draw_pixels_internal()` for that fallback, never `draw_pixels_at()`: `draw_pixels_at()`
+  calls your override again.
 - If your driver keeps a frame buffer and sends it to the panel at the end of `update()`, a block drawn during
   `update()` must go into that buffer and mark its area as changed. Writing it straight to the panel would be painted
   over by the buffer when `update()` sends it. Outside `update()`, for example from LVGL, a driver may write the block

@@ -133,6 +133,69 @@ your `update()` implementation is responsible for flushing that buffer out over 
 Allocate your buffer during `setup()` with the base class's `init_internal_(buffer_length)`, sized appropriately for
 your pixel format (for example `width * height / 8` for a 1-bit-per-pixel panel).
 
+### Drawing blocks of pixels
+
+LVGL and `image` don't draw an image one `draw_pixel_at()` call at a time. They hand the display a whole block of
+pixels with the public `draw_pixels_at()`:
+
+```cpp
+// The block is w x h pixels, read from a source buffer whose lines are x_offset + w + x_pad pixels long,
+// starting y_offset lines and x_offset pixels in. It is drawn with its top left corner at x_start, y_start.
+void draw_pixels_at(int x_start, int y_start, int w, int h, const uint8_t *ptr, display::ColorBitness bitness,
+                    bool big_endian, int x_offset, int y_offset, int x_pad);
+// The same, for a block that fills its source buffer with no gaps
+void draw_pixels_at(int x_start, int y_start, int w, int h, const uint8_t *ptr, display::ColorBitness bitness,
+                    bool big_endian);
+```
+
+Pixels are always RGB, with red in the most significant bits. `bitness` is one of:
+
+- `COLOR_BITNESS_565`: 2 bytes per pixel; `big_endian` says which byte comes first.
+- `COLOR_BITNESS_888`: 3 bytes per pixel, stored blue, green, red in memory, as LVGL and ESPHome images store it.
+  `big_endian` is ignored.
+- `COLOR_BITNESS_332`: 1 byte per pixel.
+
+The caller makes sure the block lies on the screen. The block may be drawn while a clipping region is set.
+
+By default the block is decoded and drawn per pixel through `draw_pixel_at()`, so it works on every display,
+including rotation and clipping. A driver that can do better overrides the protected virtual `draw_pixels_()`, which
+takes the same parameters. A typical override copies the rows straight into its frame buffer when they are already in
+the buffer's own format, and sends everything else back to the base version:
+
+```cpp
+class MyDisplay : public display::DisplayBuffer {
+ protected:
+  void draw_pixels_(int x_start, int y_start, int w, int h, const uint8_t *ptr, display::ColorBitness bitness,
+                    bool big_endian, int x_offset, int y_offset, int x_pad) override {
+    // Anything that is not laid out like the frame buffer is drawn per pixel by the base version
+    if (bitness != display::COLOR_BITNESS_565 || !big_endian ||
+        this->rotation_ != display::DISPLAY_ROTATION_0_DEGREES || this->is_clipping()) {
+      display::Display::draw_pixels_(x_start, y_start, w, h, ptr, bitness, big_endian, x_offset, y_offset, x_pad);
+      return;
+    }
+    const size_t stride = x_offset + w + x_pad;
+    for (int y = 0; y != h; y++) {
+      memcpy(this->buffer_ + ((y_start + y) * this->get_width_internal() + x_start) * 2,
+             ptr + ((y_offset + y) * stride + x_offset) * 2, w * 2);
+    }
+    // Mark the copied area as changed, as draw_absolute_pixel_internal() does for single pixels
+  }
+};
+```
+
+The rules for an override:
+
+- Copy a block as is only when it is laid out exactly the way your own `draw_absolute_pixel_internal()` stores
+  pixels: the same bitness and byte order, no software rotation, and no clipping region. Send everything else to
+  `display::Display::draw_pixels_()`, which draws per pixel and so honours rotation and clipping.
+- Call `display::Display::draw_pixels_()` for that fallback, never `draw_pixels_at()`: `draw_pixels_at()` calls your
+  override again.
+- If your driver keeps a frame buffer and sends it to the panel at the end of `update()`, a block drawn during
+  `update()` must go into that buffer and mark its area as changed. Writing it straight to the panel would be painted
+  over by the buffer when `update()` sends it. Outside `update()`, for example from LVGL, a driver may write the block
+  straight to the panel.
+- Don't override `draw_pixels_at()` itself: it is not virtual.
+
 ### Useful members
 
 - `get_width()` / `get_height()`: the *rotated* dimensions as seen by drawing code (call your own

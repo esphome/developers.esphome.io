@@ -200,20 +200,21 @@ void SMT100Component::loop() {
 }
 ```
 
-`LineReader<N, TERMINATOR = '\n', IGNORE = '\r'>` has a buffer of `N` bytes, so a line holds up to `N - 1`
-characters. `TERMINATOR` ends a line and is not stored. `IGNORE` is dropped wherever it appears; set it to `'\0'` to
-drop nothing but NUL bytes. `feed()` takes one byte and returns the finished line, ending in a NUL, or `nullptr`
-while the line is not complete. The line stays valid until the next call on the reader, and the caller may change it,
-for example with `strtok()`. Empty lines are returned too, as an empty string.
+`LineReader<N, TERMINATOR = '\n', IGNORE = '\r'>` has a buffer of `N` bytes, so a line holds up to `N - 1` characters.
+`TERMINATOR` ends a line and is not stored. `IGNORE` is dropped wherever it appears; set it to `'\0'` to drop nothing
+but NUL bytes. `feed()` takes one byte and returns the finished line, ending in a NUL, or `nullptr` while the line is
+not complete; `feed(c, len)` also sets `len` to the line's length. The line stays valid until the next call on the
+reader, and the caller may change it, for example with `strtok()`. Empty lines are returned too, as an empty string.
 
 A line longer than `N - 1` characters is dropped up to its terminator, and `overflowed()` is `true` right after the
 byte that made it too long. A device that does not always end its lines can use that moment to report the start of
 the line and start again, as `hrxl_maxsonar_wr` does:
 
 ```cpp
-const char *line = this->line_reader_.feed(data);
+size_t len;
+const char *line = this->line_reader_.feed(data, len);
 if (line != nullptr) {
-  this->handle_line_(line, strlen(line));
+  this->handle_line_(line, len);
 } else if (this->line_reader_.overflowed()) {
   ESP_LOGW(TAG, "Invalid data read from sensor: %s", this->line_reader_.partial());
   this->line_reader_.reset();
@@ -221,5 +222,6 @@ if (line != nullptr) {
 ```
 
 `partial()` returns the line collected so far, for prompts that have no line end. `reset()` forgets it and starts a
-new line with the next byte, and `discard_line()` drops everything up to the next terminator. Besides the buffer the
+new line with the next byte, `restart_with(c)` starts a new line with `c`, and `discard_line()` drops everything up
+to the next terminator. `log_if_overflowed(TAG)` logs one shared warning when a line was dropped. Besides the buffer the
 reader keeps one byte for its position, or two bytes when `N` is 254 or more.

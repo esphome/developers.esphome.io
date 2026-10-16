@@ -280,6 +280,34 @@ Choose containers carefully on embedded systems:
 Note: Avoiding heap allocation after `setup()` is always required regardless of component type. The prioritization above
 is about the effort spent on container optimization (e.g., migrating from `std::vector` to `StaticVector`).
 
+#### String tables in flash
+
+A fixed set of strings looked up by index, such as mode or state names, goes in a `PROGMEM_STRING_TABLE`. It packs
+the strings into one blob, in flash on ESP8266 and in `.rodata` elsewhere, so nothing is copied to RAM and no pointer
+table is kept:
+
+```cpp
+#include "esphome/core/progmem.h"
+
+PROGMEM_STRING_TABLE(FanModeStrings, "AUTO", "LOW", "MEDIUM", "HIGH", "UNKNOWN");
+
+// An index past the end returns the fallback, so the last entry is the usual "unknown" text
+ESP_LOGD(TAG, "Fan mode: %s", LOG_STR_ARG(FanModeStrings::get_log_str(mode, FanModeStrings::LAST_INDEX)));
+```
+
+`get_log_str()` returns a `const LogString *` for logging and `get_progmem_str()` a `ProgmemStr` for code that reads flash
+strings, such as ArduinoJson. A table holds up to 255 strings. While the strings total 255 bytes or less, each entry
+has a one-byte offset; a larger table has no offset table and is walked at lookup time, which costs less flash than
+wider offsets for the rarely read message tables that get this big.
+`Name::MAX_LENGTH` is the longest string, which sizes a RAM copy on ESP8266 when the text goes to code that expects an
+ordinary `const char *` rather than a flash string:
+
+```cpp
+char message[AlarmMessages::MAX_LENGTH + 1];
+ESPHOME_strncpy_P(message, reinterpret_cast<const char *>(AlarmMessages::get_progmem_str(code, AlarmMessages::LAST_INDEX)),
+                  sizeof(message));
+```
+
 ### Saved settings on the ESP8266
 
 A component that saves large values, or one value per configured entity, reserves them from its `to_code` with

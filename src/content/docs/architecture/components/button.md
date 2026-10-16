@@ -195,6 +195,17 @@ await buttons(CONF_FACTORY_RESET, hub.set_factory_reset_button)
 await buttons(CONF_RESTART, hub.set_restart_button)
 ```
 
+A button whose press only calls one method of the hub can use the shared `button.ApplyButton` class instead of a
+subclass of its own. `tfluna` declares both buttons with `button.button_schema(button.ApplyButton, ...)` and creates
+them like this:
+
+```python
+await buttons(CONF_FACTORY_RESET, hub.set_reset_button, apply="factory_reset()")
+await buttons(CONF_RESTART, hub.set_restart_button, apply="restart()")
+```
+
+See [Entities that only call the hub](/architecture/components/index#entities-that-only-call-the-hub).
+
 See [Exposing multiple sensors from one component](/architecture/components/sensor#exposing-multiple-sensors-from-one-component)
 for a fully worked example of both patterns.
 

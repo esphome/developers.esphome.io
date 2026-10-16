@@ -142,9 +142,8 @@ from esphome.types import ConfigType
 DOMAIN = "my_bridge"
 
 
-def _final_validate(config: ConfigType) -> ConfigType:
+def _final_validate(config: ConfigType) -> None:
     uart.claim_exclusive(config, DOMAIN)
-    return config
 
 
 FINAL_VALIDATE_SCHEMA = _final_validate
@@ -152,8 +151,10 @@ FINAL_VALIDATE_SCHEMA = _final_validate
 
 `uart.claim_exclusive(config, owner, conf_key="uart_id")` is a plain function, not a coroutine. It claims the UART
 that `config[conf_key]` names and rejects a second `my_bridge` entry on that UART, any other component that names it
-by `uart_id` or `conf_key`, and a `dummy_receiver` in the UART's `debug`. Grouped CI builds share one bus between
-components, so in testing mode other components are not checked. `uart_tcp` uses it.
+by `uart_id` or `conf_key`, and a `dummy_receiver` in the UART's `debug`. `owner` is the component's top-level
+config key: the check skips that domain and keeps the claims per `conf_key` in `fv.full_config.get().data[owner]`.
+Grouped CI builds share one bus between components, so in testing mode other components are not checked. `uart_tcp`
+uses it.
 
 For other messages or rules, check by hand with `subtree_references_uart()`:
 

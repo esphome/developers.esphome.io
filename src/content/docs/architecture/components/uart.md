@@ -49,6 +49,22 @@ await uart.register_uart_device(var, config)
 
 Since this is a serial device which uses a UART, we must register it as such so it is handled appropriately by ESPHome.
 
+When the component is created with `cg.new_Pvariable()`, `uart.new_uart_component()` creates it, registers it as a
+component and registers it on the UART in one call:
+
+```python
+# Before
+var = cg.new_Pvariable(config[CONF_ID], config[CONF_HISTORICAL_MODE])
+await cg.register_component(var, config)
+await uart.register_uart_device(var, config)
+
+# After
+var = await uart.new_uart_component(config, config[CONF_HISTORICAL_MODE])
+```
+
+Arguments after `config` go to the constructor. See [Interfacing via I2C](/architecture/components/i2c#python) for
+the I2C and SPI versions.
+
 ## C++
 
 The C++ class for this example component is quite simple.

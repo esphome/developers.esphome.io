@@ -49,6 +49,17 @@ await spi.register_spi_device(var, config)
 
 Since this is an SPI device, we must register it as such so it is handled appropriately by ESPHome.
 
+When the component is created with `cg.new_Pvariable()`, `spi.new_spi_component()` creates it, registers it as a
+component and registers it on the bus in one call:
+
+```python
+var = await spi.new_spi_component(config)
+```
+
+Arguments after `config` go to the constructor. A device that only writes to the bus still calls
+`spi.register_spi_device(var, config, write_only=True)` itself, after creating and registering the component. See
+[Interfacing via I2C](/architecture/components/i2c#python) for the I2C and UART versions.
+
 ## C++
 
 The C++ class for this example component is quite simple.

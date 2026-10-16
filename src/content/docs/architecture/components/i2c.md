@@ -49,6 +49,23 @@ await i2c.register_i2c_device(var, config)
 
 Since this is an I2C device, we must register it as such so it is handled appropriately by ESPHome.
 
+Most I2C components create the object, register it as a component and register it on the bus, in that order.
+`i2c.new_i2c_component()` does the three steps in one call and returns the new object:
+
+```python
+# Before
+var = cg.new_Pvariable(config[CONF_ID])
+await cg.register_component(var, config)
+await i2c.register_i2c_device(var, config)
+
+# After
+var = await i2c.new_i2c_component(config)
+```
+
+Any further arguments go to the constructor, for example `await i2c.new_i2c_component(config, interrupt_pin)`.
+`uart.new_uart_component()` and `spi.new_spi_component()` do the same for the other buses. A component that is
+created another way, such as a sensor created with `sensor.new_sensor()`, still calls `register_i2c_device()` itself.
+
 ## C++
 
 The C++ class for this example component is quite simple.

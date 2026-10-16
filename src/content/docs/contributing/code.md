@@ -365,9 +365,10 @@ for (uint8_t i = 0; i < 5; i++)
 const uint8_t checksum = xor_bytes(this->buffer_, 5);
 ```
 
-Other checksums are built from these. An inverted XOR is `~xor_bytes(data, len)`, and `dfplayer`'s negated 16-bit
-sum is `static_cast<uint16_t>(-sum16_bytes(buffer + 1, 6))`. Pass the starting value to include bytes that are not
-next to the data, such as a header sent separately.
+Other checksums are built from these. An inverted XOR is `static_cast<uint8_t>(~xor_bytes(data, len))`, and
+`dfplayer`'s negated 16-bit sum is `static_cast<uint16_t>(-sum16_bytes(buffer + 1, 6))`. Keep the cast: `~` and `-`
+widen the result to `int`, so comparing it to a received byte without the cast always fails. Pass the starting value
+to include bytes that are not next to the data, such as a header sent separately.
 
 ### Gating optional features behind conditional compilation
 

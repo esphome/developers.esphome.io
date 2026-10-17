@@ -64,6 +64,35 @@ As mentioned in the [codebase standards](/contributing/code/#c), all components/
 Finally, the component implements the usual set of methods [as described here](/architecture/components/index#common-methods). This is all
 that's required for our minimal UART component!
 
+## Reading what has arrived
+
+A component that parses a byte stream usually reads everything the UART has received on each pass of `loop()`.
+Reading in blocks costs less than one call per byte. `read_available()` on `UARTDevice` reads the bytes available
+now through a buffer on the stack and calls a function for each byte. It replaces the `available()` and
+`read_array()` batching loop that many components used to carry:
+
+```cpp
+void Tuya::loop() {
+  this->read_available([this](uint8_t b) { this->handle_char_(b); });
+  process_command_queue_();
+}
+```
+
+`read_available_chunks()` does the same but calls the function once per block, as
+`(const uint8_t *data, size_t len)`, for code that copies or scans whole blocks. Details:
+
+- The buffer is 64 bytes by default. Both helpers take another size as the template argument.
+- Only the bytes that were available when the call started are read, so a fast sender cannot keep `loop()` busy.
+  To read a set number of bytes instead, pass it after the function; it must not be more than `available()`:
+
+  ```cpp
+  this->read_available_chunks<128>([this](const uint8_t *data, size_t len) { this->parse_(data, len); }, count);
+  ```
+
+- If the function returns `bool`, returning `false` stops the reading. With `read_available()`, the rest of the
+  current block has already been taken from the UART and is lost. A function that returns `void` always continues.
+- Both return `false` only when a read from the UART fails; stopping early still returns `true`.
+
 ## UARTs Without Line Timing
 
 On a serial line, bytes arrive at the pace of the baud rate, so a reader can find the end of a frame from a quiet gap,

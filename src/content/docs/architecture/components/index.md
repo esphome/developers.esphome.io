@@ -129,14 +129,14 @@ each choice to its enumerator. Build that dict with `options()` on the enum inst
 ```python
 DimMethod = ac_dimmer_ns.enum("DimMethod")
 
-# Before
+# Written out by hand
 DIM_METHODS = {
     "LEADING_PULSE": DimMethod.DIM_METHOD_LEADING_PULSE,
     "LEADING": DimMethod.DIM_METHOD_LEADING,
     "TRAILING": DimMethod.DIM_METHOD_TRAILING,
 }
 
-# After
+# The same dict built by options()
 DIM_METHODS = DimMethod.options(
     "LEADING_PULSE", "LEADING", "TRAILING", prefix="DIM_METHOD_"
 )
@@ -151,9 +151,16 @@ CONFIG_SCHEMA = cv.Schema(
 ```
 
 Each choice maps to `prefix` plus the choice in upper case, with every character that is not a letter or a digit
-turned into `_`. So `adc`'s `sampling_mode.options("avg", "min", "max")` maps `"avg"` to `SamplingMode::AVG`, and
-is used with `cv.enum(SAMPLING_MODES, lower=True)`. When a choice does not follow that rule, write the dict out by
-hand, or add the odd entries to the dict that `options()` returns.
+turned into `_`. `prefix` is optional and defaults to empty: `adc`'s `sampling_mode.options("avg", "min", "max")` maps
+`"avg"` to `SamplingMode::AVG`, and is used with `cv.enum(SAMPLING_MODES, lower=True)`.
+
+`options()` returns a plain dict. When a choice does not follow the rule, add it to that dict, or write the whole dict
+out by hand:
+
+```python
+MODES = MyEnum.options("A", "B", prefix="MODE_")
+MODES["LEGACY"] = MyEnum.MODE_OLD_NAME
+```
 
 #### Code generation
 

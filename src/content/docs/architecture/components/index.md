@@ -278,6 +278,40 @@ any other components and potentially fail the validation stage if an important d
 For example, many components that rely on `uart` can use the `FINAL_VALIDATE_SCHEMA` to ensure that the `tx_pin` and/or
 `rx_pin` are configured.
 
+A platform often needs a setting of the hub it belongs to, for example a sensor that only works when the hub has a
+certain option set. `fv.get_declaring_config(id)` returns the config block that declares an ID, so the hub's options
+are one call away:
+
+```python
+import esphome.final_validate as fv
+
+
+def _final_validate(config: ConfigType) -> None:
+    if config[CONF_TYPE] not in _MAGNETIC_FIELDS:
+        return
+    bmi270_config = fv.get_declaring_config(config[CONF_BMI270_ID])
+    if bmi270_config.get(CONF_AUX_DEVICE) != "BMM150":
+        raise cv.Invalid(
+            "This sensor requires the parent bmi270's 'aux_device' to be set to 'BMM150'",
+            path=[CONF_TYPE],
+        )
+
+
+FINAL_VALIDATE_SCHEMA = _final_validate
+```
+
+This replaces looking the path up by hand:
+
+```python
+full_config = fv.full_config.get()
+bmi270_path = full_config.get_path_for_id(config[CONF_BMI270_ID])[:-1]
+bmi270_config = full_config.get_config_for_path(bmi270_path)
+```
+
+It reads the full configuration being validated. Outside final validation, such as in `to_code`, pass the config as
+the second argument: `fv.get_declaring_config(config[CONF_BMI270_ID], CORE.config)`. It raises `KeyError` for an ID
+that nothing declares.
+
 ### Platform components
 
 Some components are **platform components**: instead of a single configuration block, the top-level YAML key holds a

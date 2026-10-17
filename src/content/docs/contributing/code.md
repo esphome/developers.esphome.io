@@ -343,6 +343,33 @@ restore state, also use that space and are not counted.
 `esphome/core/helpers.h` has small helpers for the byte work that device protocols need. Use them instead of writing
 the same bit and byte handling again in each component.
 
+#### Checksums
+
+Many serial and I2C devices end a frame with a simple checksum. These helpers cover the common kinds; each takes a
+pointer, a length and an optional starting value:
+
+| Helper | Result |
+| ------ | ------ |
+| `sum_bytes(data, len, sum = 0)` | Sum of the bytes, kept to 8 bits |
+| `sum16_bytes(data, len, sum = 0)` | Sum of the bytes, kept to 16 bits |
+| `xor_bytes(data, len, init = 0)` | XOR of the bytes |
+| `crc8()`, `crc16()`, `crc16be()` | CRCs with a choice of polynomial and bit order |
+
+```cpp
+// Before
+uint8_t checksum = 0;
+for (uint8_t i = 0; i < 5; i++)
+  checksum ^= this->buffer_[i];
+
+// After
+const uint8_t checksum = xor_bytes(this->buffer_, 5);
+```
+
+Other checksums are built from these. An inverted XOR is `static_cast<uint8_t>(~xor_bytes(data, len))`, and
+`dfplayer`'s negated 16-bit sum is `static_cast<uint16_t>(-sum16_bytes(buffer + 1, 6))`. Keep the cast: `~` and `-`
+widen the result to `int`, so comparing it to a received byte without the cast always fails. Pass the starting value
+to include bytes that are not next to the data, such as a header sent separately.
+
 #### Signed values of unusual widths
 
 Sensors often report a signed value in a width that is not a C++ type, such as 12 or 24 bits. `sign_extend<BITS>()`

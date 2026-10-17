@@ -280,6 +280,13 @@ Choose containers carefully on embedded systems:
 Note: Avoiding heap allocation after `setup()` is always required regardless of component type. The prioritization above
 is about the effort spent on container optimization (e.g., migrating from `std::vector` to `StaticVector`).
 
+#### Constant data in flash on the ESP8266
+
+On the ESP8266, `const` tables and string literals live in RAM unless they are marked `PROGMEM`; the other platforms
+keep them in flash either way. Mark constant arrays `PROGMEM` and read them with `progmem_memcpy()` or
+`progmem_read_byte()` from `esphome/core/hal.h`, which are a plain `memcpy` and dereference elsewhere, so no `#ifdef`
+is needed.
+
 #### String tables in flash
 
 A fixed set of strings looked up by index, such as mode or state names, goes in a `PROGMEM_STRING_TABLE`. It packs
@@ -307,6 +314,23 @@ char message[AlarmMessages::MAX_LENGTH + 1];
 ESPHOME_strncpy_P(message, reinterpret_cast<const char *>(AlarmMessages::get_progmem_str(code, AlarmMessages::LAST_INDEX)),
                   sizeof(message));
 ```
+
+A name that a device or Home Assistant sends arrives in RAM and is matched against the table with
+`progmem_string_table_find()`, which returns the index of the matching string or `-1`:
+
+```cpp
+PROGMEM_STRING_TABLE(ColorModeNames, "onoff", "brightness", "white", "color_temp");
+
+// value is what Home Assistant or the device sent, in RAM
+const int16_t index = progmem_string_table_find<ColorModeNames>(value.c_str(), value.size());
+if (index < 0) {
+  ESP_LOGW(TAG, "Unknown color mode '%s'", value.c_str());
+  return;
+}
+```
+
+The lookup takes a pointer and a length rather than a `StringRef`, because `string_ref.h` includes `progmem.h`. It
+walks the blob once whatever the table size, so it suits a name that arrives now and then, not a hot path.
 
 ### Saved settings on the ESP8266
 

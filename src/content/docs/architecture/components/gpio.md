@@ -68,7 +68,7 @@ that's required for our minimal GPIO component!
 
 A component for an I/O expander chip offers its pins to other components through a pin schema, so a user can write
 `pin: {xl9535: my_expander, number: 3}` wherever a GPIO pin is accepted. ESPHome has shared pieces for both halves of
-this, used by `xl9535`, `pca6416a` and others.
+this; the examples below use `xl9535`.
 
 ### Python
 
@@ -79,7 +79,13 @@ Then create the pin with `pins.new_parented_pin()`:
 
 ```python
 from esphome import pins
+import esphome.codegen as cg
+import esphome.config_validation as cv
 from esphome.const import CONF_INPUT, CONF_OUTPUT
+from esphome.cpp_generator import MockObj
+from esphome.types import ConfigType
+
+# xl9535_ns, XL9535Component, CONF_XL9535 and validate_pin are defined by the component
 
 AUTO_LOAD = ["gpio_expander"]
 

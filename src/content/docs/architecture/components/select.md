@@ -223,8 +223,9 @@ await selects(CONF_DAC_OUTPUT, hub.set_dac_output_select, options=DAC_OUTPUT_OPT
 await selects(CONF_ADC_INPUT_MIC, hub.set_adc_input_mic_select, options=ADC_INPUT_OPTIONS)
 ```
 
-A select that only passes the new option's index to the hub needs no class of its own: declare it with
-`select.ApplySelect` and pass `apply=` to the call. See
+A select that only passes the new option to the hub needs no class of its own: declare it with
+`select.ApplySelect` and pass `apply=` to the call. `apply` can use `index` or `option`, the selected option's text,
+as `ld2410` does with `apply="set_baud_rate(option)"`. See
 [Entities that only call the hub](/architecture/components/index#entities-that-only-call-the-hub).
 
 ### Choosing between them

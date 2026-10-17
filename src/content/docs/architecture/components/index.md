@@ -454,7 +454,7 @@ async def to_code(config: ConfigType) -> None:
 | `button` | `button.ApplyButton` | `entity` | (not available) |
 | `switch` | `switch.ApplySwitch` | `entity`, `state` | `state` |
 | `number` | `number.ApplyNumber` | `entity`, `value` | `value` |
-| `select` | `select.ApplySelect` | `entity`, `index` | `index` |
+| `select` | `select.ApplySelect` | `entity`, `index`, `option` (the selected option's text) | `index` |
 
 `publish="before"` or `publish="after"` publishes the new state before or after the call. Leave it out when the hub
 publishes the state itself, for example once the device confirms the change. Code generation stops with an error

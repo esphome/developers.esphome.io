@@ -99,3 +99,34 @@ if (!this->check_chip_id(this, APDS9306_PART_ID, 0xB1, 0xFD))
 
 The ID is accepted when `(id & mask) == (expected & mask)`. Keep your own code when the chip needs more than one
 register read to identify, or when a wrong ID should only warn.
+
+## Writing a list of registers
+
+Chips such as audio codecs are set up by writing a long, fixed list of registers. Keep the list as a table of
+`i2c::I2CRegValue` entries, one register and one value each, and send it with `write_registers()`:
+
+```cpp
+static constexpr i2c::I2CRegValue ES8156_INIT[] PROGMEM = {
+    // REG02 MODE CONFIG 1: Enable software mode for I2C control of volume/mute
+    {ES8156_REG02_SCLK_MODE, 0x04},
+    // REG20 ANALOG SYSTEM: Configure analog signal path
+    {ES8156_REG20_ANALOG_SYS1, 0x2A},
+    ...
+    {ES8156_REG25_ANALOG_SYS5, 0x20},
+};
+
+void ES8156::setup() {
+  if (!this->write_registers(ES8156_INIT)) {
+    this->mark_failed(LOG_STR("Failed to initialize"));
+    return;
+  }
+  // Writes that depend on the configuration follow here as separate calls
+}
+```
+
+The entries are written in order, each as its own transfer, and `write_registers()` stops and returns `false` at the
+first one that fails. Mark the table `PROGMEM` so it stays in flash on ESP8266; `write_registers()` copies one entry at
+a time out of flash. The same register may appear more than once, for steps such as a reset sequence. Passing the
+array itself lets `write_registers()` work out the entry count; with only a pointer, such as a table picked at run
+time, call `write_registers(table, count)`. Writes that depend on the configuration or need a delay between them stay
+as separate calls around the tables.

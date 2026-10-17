@@ -174,14 +174,15 @@ UART is rejected too.
 
 ## Reading text lines
 
-Devices that send text, one reading per line, need the bytes collected until the line ends. `uart::LineReader` from
-`esphome/components/uart/line_reader.h` does this in a fixed buffer, with no `std::string` and no heap use:
+Devices that send text, one reading per line, need the bytes collected until the line ends. `LineReader` from
+`esphome/core/line_reader.h` does this in a fixed buffer, with no `std::string` and no heap use. It takes bytes from any
+source, not only a UART:
 
 ```cpp
 // smt100.h
-#include "esphome/components/uart/line_reader.h"
+#include "esphome/core/line_reader.h"
 
-uart::LineReader<MAX_LINE_LENGTH, '\r', '\n'> line_reader_;
+LineReader<MAX_LINE_LENGTH, '\r', '\n'> line_reader_;
 ```
 
 ```cpp
@@ -200,11 +201,12 @@ void SMT100Component::loop() {
 }
 ```
 
-`LineReader<N, TERMINATOR = '\n', IGNORE = '\r'>` has a buffer of `N` bytes, so a line holds up to `N - 1` characters.
-`TERMINATOR` ends a line and is not stored. `IGNORE` is dropped wherever it appears; set it to `'\0'` to drop nothing
-but NUL bytes. `feed()` takes one byte and returns the finished line, ending in a NUL, or `nullptr` while the line is
-not complete; `feed(c, len)` also sets `len` to the line's length. The line stays valid until the next call on the
-reader, and the caller may change it, for example with `strtok()`. Empty lines are returned too, as an empty string.
+`LineReader<N, TERMINATOR_CHAR = '\n', IGNORE_CHAR = '\r'>` has a buffer of `N` bytes, so a line holds up to `N - 1`
+characters. `TERMINATOR_CHAR` ends a line and is not stored. `IGNORE_CHAR` is dropped wherever it appears; set it to
+`'\0'` to drop nothing but NUL bytes. `feed()` takes one byte and returns the finished line, ending in a NUL, or
+`nullptr` while the line is not complete; `feed(c, len)` also sets `len` to the line's length. The line stays valid
+until the next call on the reader, and the caller may change it, for example with `strtok()`. Empty lines are returned
+too, as an empty string.
 
 A line longer than `N - 1` characters is dropped up to its terminator, and `overflowed()` is `true` right after the
 byte that made it too long. A device that does not always end its lines can use that moment to report the start of

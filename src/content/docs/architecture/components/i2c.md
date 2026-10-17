@@ -99,3 +99,41 @@ if (!this->check_chip_id(this, APDS9306_PART_ID, 0xB1, 0xFD))
 
 The ID is accepted when `(id & mask) == (expected & mask)`. Keep your own code when the chip needs more than one
 register read to identify, or when a wrong ID should only warn.
+
+## Multi-byte values
+
+`read_byte_16()` and `write_byte_16()` on `I2CDevice` treat the first byte on the wire as the most significant byte.
+Many chips store 16-bit registers the other way round, least significant byte first. Use `read_byte_16_le()` and
+`write_byte_16_le()` for those instead of swapping the bytes yourself:
+
+```cpp
+// Before
+uint16_t data;
+this->read_byte_16(AS7341_ASTEP, &data);
+return this->swap_bytes(data);
+
+// After
+uint16_t data;
+if (!this->read_byte_16_le(AS7341_ASTEP, &data))
+  return 0;
+return data;
+```
+
+`read_byte_16_le()` and `write_byte_16_le()` return `false` when the transfer fails.
+`read_bytes_16_le(reg, words, count)` reads `count` consecutive little-endian words into a `uint16_t` or `int16_t`
+array, such as an accelerometer's X, Y and Z registers. As with `read_bytes_16()`, a failed read can leave the
+destination partly written.
+
+To decode values from a block read in one go, use the helpers in `esphome/core/helpers.h`: `encode_value<T>(bytes)`
+reads `sizeof(T)` bytes most significant first, and `encode_value_le<T>(bytes)` reads them least significant first.
+Both work for signed types too, so a signed reading needs no cast:
+
+```cpp
+// Before
+const uint16_t ch0 = encode_uint16(raw[2], raw[1]);
+data.acceleration[motion::X_AXIS] = static_cast<int16_t>(encode_uint16(raw_data[0], raw_data[1])) * accel_factor;
+
+// After
+const uint16_t ch0 = encode_value_le<uint16_t>(&raw[1]);
+data.acceleration[motion::X_AXIS] = encode_value<int16_t>(raw_data) * accel_factor;
+```

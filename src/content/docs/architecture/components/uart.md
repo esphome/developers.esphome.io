@@ -223,7 +223,8 @@ if (line != nullptr) {
 }
 ```
 
-`partial()` returns the line collected so far, for prompts that have no line end. `reset()` forgets it and starts a
-new line with the next byte, `restart_with(c)` starts a new line with `c`, and `discard_line()` drops everything up
-to the next terminator. `log_if_overflowed(TAG)` logs one shared warning when a line was dropped. Besides the buffer the
+`partial()` returns the line collected so far, for prompts that have no line end. `reset()` forgets it and starts a new
+line with the next byte, `restart_with(c)` starts a new line with `c`, and `discard_line()` drops everything up to the
+next terminator. `log_if_overflowed(TAG)` logs one shared warning when a line was dropped; a component that calls it
+adds `cg.add_define("USE_LINE_READER")` in its `to_code`, which compiles that shared code in. Besides the buffer the
 reader keeps one byte for its position, or two bytes when `N` is 254 or more.

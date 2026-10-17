@@ -64,6 +64,42 @@ As mentioned in the [codebase standards](/contributing/code/#c), all components/
 Finally, the component implements the usual set of methods [as described here](/architecture/components/index#common-methods). This is all
 that's required for our minimal I2C component!
 
+## Checking the chip ID
+
+Most chips have a register that holds a fixed ID. Reading it in `setup()` shows that the right chip answers at the
+address. `check_chip_id()` reads the register, compares it, and marks the component failed when it does not match:
+
+```cpp
+// Before
+uint8_t id;
+if (!this->read_byte(APDS9930_ID | APDS9930_CMD, &id)) {
+  this->mark_failed(LOG_STR("Communication failed"));
+  return;
+}
+if (id != APDS9930_CHIP_ID) {
+  ESP_LOGE(TAG, "Wrong ID 0x%02X (expected 0x%02X)", id, APDS9930_CHIP_ID);
+  this->mark_failed(LOG_STR("Wrong chip ID"));
+  return;
+}
+
+// After
+if (!this->check_chip_id(this, APDS9930_ID | APDS9930_CMD, APDS9930_CHIP_ID))
+  return;
+```
+
+The first argument is the component to mark failed, since `I2CDevice` is not a component itself. The failure reason is
+"Communication failed" when the read fails and "Wrong chip ID" when the ID does not match. An optional fourth argument
+is a mask, for an ID register that also holds other bits or for a family of chips whose IDs differ in a few bits:
+
+```cpp
+// 0xB1 for APDS9306, 0xB3 for APDS9306-065; they differ only in bit 1
+if (!this->check_chip_id(this, APDS9306_PART_ID, 0xB1, 0xFD))
+  return;
+```
+
+The ID is accepted when `(id & mask) == (expected & mask)`. Keep your own code when the chip needs more than one
+register read to identify, or when a wrong ID should only warn.
+
 ## Changing some bits of a register
 
 Many chips pack several settings into one register byte. To change only some of the bits, read the register, replace

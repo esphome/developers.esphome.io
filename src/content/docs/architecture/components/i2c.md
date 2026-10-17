@@ -72,12 +72,15 @@ those bits and write it back. `update_register()` on `I2CDevice` does all three 
 ```cpp
 // Before
 uint8_t data;
-this->read_byte(address, &data);
+this->read_byte(address, &data);  // a failed read leaves data unset, and it is written anyway
 data |= (1 << bit_position);
 return this->write_byte(address, data);
 
 // After
 return this->update_register(address, 1 << bit_position, 1 << bit_position);
+
+// Clearing the same bit
+return this->update_register(address, 1 << bit_position, 0);
 ```
 
 `update_register(reg, mask, value)` keeps the bits outside `mask` and takes the bits inside `mask` from `value`; bits

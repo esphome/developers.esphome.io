@@ -54,16 +54,16 @@ component and registers it on the UART in one call:
 
 ```python
 # Before
-var = cg.new_Pvariable(config[CONF_ID], config[CONF_HISTORICAL_MODE])
+var = cg.new_Pvariable(config[CONF_ID])
 await cg.register_component(var, config)
 await uart.register_uart_device(var, config)
 
 # After
-var = await uart.new_uart_component(config, config[CONF_HISTORICAL_MODE])
+var = await uart.new_uart_component(config)
 ```
 
-Arguments after `config` go to the constructor. See [Interfacing via I2C](/architecture/components/i2c#python) for
-the I2C and SPI versions.
+Arguments after `config` go to the constructor, for example `await uart.new_uart_component(config, config[CONF_MODE])`.
+[I2C](/architecture/components/i2c#python) and [SPI](/architecture/components/spi#python) have the same helper.
 
 ## C++
 

@@ -63,7 +63,8 @@ var = await i2c.new_i2c_component(config)
 ```
 
 Any further arguments go to the constructor, for example `await i2c.new_i2c_component(config, interrupt_pin)`.
-`uart.new_uart_component()` and `spi.new_spi_component()` do the same for the other buses. A component that is
+[`uart.new_uart_component()`](/architecture/components/uart#python) and
+[`spi.new_spi_component()`](/architecture/components/spi#python) do the same for the other buses. A component that is
 created another way, such as a sensor created with `sensor.new_sensor()`, still calls `register_i2c_device()` itself.
 
 ## C++

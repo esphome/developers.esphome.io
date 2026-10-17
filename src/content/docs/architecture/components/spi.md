@@ -53,12 +53,18 @@ When the component is created with `cg.new_Pvariable()`, `spi.new_spi_component(
 component and registers it on the bus in one call:
 
 ```python
+# Before
+var = cg.new_Pvariable(config[CONF_ID])
+await cg.register_component(var, config)
+await spi.register_spi_device(var, config)
+
+# After
 var = await spi.new_spi_component(config)
 ```
 
 Arguments after `config` go to the constructor. A device that only writes to the bus still calls
-`spi.register_spi_device(var, config, write_only=True)` itself, after creating and registering the component. See
-[Interfacing via I2C](/architecture/components/i2c#python) for the I2C and UART versions.
+`spi.register_spi_device(var, config, write_only=True)` itself, after creating and registering the component.
+[I2C](/architecture/components/i2c#python) and [UART](/architecture/components/uart#python) have the same helper.
 
 ## C++
 

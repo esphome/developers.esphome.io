@@ -62,12 +62,14 @@ schema helpers don't take your class as an argument.
 ### Code generation
 
 In `to_code`, register the display with `display.register_display()`. This calls `cg.register_component()` for you
-*and* generates the code for all of the common options - `rotation`, `pages`, the `lambda`, and so on:
+*and* generates the code for the common options - `rotation`, `pages`, `on_page_change`, and so on. Pass a
+top-level `lambda:` on with `display.add_writer()`:
 
 ```python
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await display.register_display(var, config)
+    await display.add_writer(var, config)
 
     if reset_pin := config.get(CONF_RESET_PIN):
         pin = await cg.gpio_pin_expression(reset_pin)

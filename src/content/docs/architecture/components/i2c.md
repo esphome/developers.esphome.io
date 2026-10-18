@@ -99,3 +99,27 @@ if (!this->check_chip_id(this, APDS9306_PART_ID, 0xB1, 0xFD))
 
 The ID is accepted when `(id & mask) == (expected & mask)`. Keep your own code when the chip needs more than one
 register read to identify, or when a wrong ID should only warn.
+
+## Changing some bits of a register
+
+Many chips pack several settings into one register byte. To change only some of the bits, read the register, replace
+those bits and write it back. `update_register()` on `I2CDevice` does all three steps:
+
+```cpp
+// Before
+uint8_t data;
+this->read_byte(address, &data);  // a failed read leaves data unset, and it is written anyway
+data |= (1 << bit_position);
+return this->write_byte(address, data);
+
+// After
+return this->update_register(address, 1 << bit_position, 1 << bit_position);
+
+// Clearing the same bit
+return this->update_register(address, 1 << bit_position, 0);
+```
+
+`update_register(reg, mask, value)` keeps the bits outside `mask` and takes the bits inside `mask` from `value`; bits
+of `value` outside `mask` are ignored, so pass `0` as the value to clear bits. It returns `false` when the read or the
+write fails. After a failed read it writes nothing, so a bus error never leads to a wrong value being written. The
+write happens even when the value does not change. The old and new values are logged at the `VERBOSE` level.

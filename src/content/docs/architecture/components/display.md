@@ -74,9 +74,9 @@ async def to_code(config):
         cg.add(var.set_reset_pin(pin))
 ```
 
-If your driver accepts a `lambda:` that isn't handled by `register_display` (uncommon - most drivers just let the
-full schema deal with it), pass it to the driver with `display.add_writer()`. It does nothing when no lambda is
-configured, and the user's lambda receives `it` as a `display::Display &`:
+`register_display` sets up the lambdas inside `pages:`, but not a top-level `lambda:`. A driver whose schema accepts
+`lambda:` passes it on with `display.add_writer()`, which does nothing when no lambda is configured. The user's lambda
+receives `it` as a `display::Display &`:
 
 ```python
 await display.add_writer(var, config)
@@ -84,6 +84,8 @@ await display.add_writer(var, config)
 
 A driver with its own drawing class passes that type as the third argument, for example
 `await display.add_writer(var, config, TM1637DisplayRef)`.
+`display.add_writer()` is available in ESPHome 2026.11.0 and later (esphome/esphome#21027); earlier releases process
+the lambda with `cg.process_lambda()` and pass it to `var.set_writer()`.
 
 ### Components that draw into a display
 

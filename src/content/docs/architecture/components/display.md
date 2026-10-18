@@ -62,19 +62,30 @@ schema helpers don't take your class as an argument.
 ### Code generation
 
 In `to_code`, register the display with `display.register_display()`. This calls `cg.register_component()` for you
-*and* generates the code for all of the common options - `rotation`, `pages`, the `lambda`, and so on:
+*and* generates the code for the common options - `rotation`, `pages`, `on_page_change`, and so on. Pass a
+top-level `lambda:` on with `display.add_writer()`:
 
 ```python
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await display.register_display(var, config)
+    await display.add_writer(var, config)
 
     await cg.add_pin(var.set_reset_pin, config.get(CONF_RESET_PIN))
 ```
 
-If your driver accepts a `lambda:` that isn't handled by `register_display` (uncommon - most drivers just let the
-full schema deal with it), process it with `cg.process_lambda()` and pass `display.DisplayRef` as the lambda's
-parameter type so the user's lambda receives `it` as a `display::Display &`.
+`register_display` sets up the lambdas inside `pages:`, but not a top-level `lambda:`. A driver whose schema accepts
+`lambda:` passes it on with `display.add_writer()`, which does nothing when no lambda is configured. The user's lambda
+receives `it` as a `display::Display &`:
+
+```python
+await display.add_writer(var, config)
+```
+
+A driver with its own drawing class passes that type as the third argument, for example
+`await display.add_writer(var, config, TM1637DisplayRef)`.
+`display.add_writer()` is available in ESPHome 2026.11.0 and later (esphome/esphome#21027); earlier releases process
+the lambda with `cg.process_lambda()` and pass it to `var.set_writer()`.
 
 ### Components that draw into a display
 

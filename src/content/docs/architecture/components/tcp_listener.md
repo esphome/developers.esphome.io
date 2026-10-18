@@ -10,7 +10,7 @@ resolver.
 
 The listener owns the listen socket and, when the config passes a list, an
 [IPv4 allow list](/architecture/components/ipv4_allow/).
-It accepts one peer at a time and adopts the socket into the caller's `TcpClientLink`. A second connection waits
+`poll()` accepts one peer at a time and adopts the socket into the caller's `TcpClientLink`. A second connection waits
 in the stack until the first one drops. The listen backlog is 1 unless `set_backlog()` sets another before the first
 poll.
 

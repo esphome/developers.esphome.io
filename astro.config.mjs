@@ -82,6 +82,7 @@ export default defineConfig({
                     "architecture/components/i2c",
                     "architecture/components/spi",
                     "architecture/components/uart",
+                    "architecture/components/usb_host",
                   ],
                 },
                 "architecture/components/automations",

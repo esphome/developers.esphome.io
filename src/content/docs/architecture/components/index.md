@@ -123,6 +123,45 @@ a boolean value for the key `foo`. The user also may or may not (hence `Optional
 generates a unique ID (C++ variable name used in the generated code) for this component but also allows the user to
 specify their own `id` in their configuration in the event that they wish to refer to it in their automations.
 
+An option with a fixed set of choices that maps to a C++ enum is validated with `cv.enum()`, which takes a dict from
+each choice to its enumerator. Build that dict with `options()` on the enum instead of writing each line out:
+
+```python
+DimMethod = ac_dimmer_ns.enum("DimMethod")
+
+# Written out by hand
+DIM_METHODS = {
+    "LEADING_PULSE": DimMethod.DIM_METHOD_LEADING_PULSE,
+    "LEADING": DimMethod.DIM_METHOD_LEADING,
+    "TRAILING": DimMethod.DIM_METHOD_TRAILING,
+}
+
+# The same dict built by options()
+DIM_METHODS = DimMethod.options(
+    "LEADING_PULSE", "LEADING", "TRAILING", prefix="DIM_METHOD_"
+)
+
+CONFIG_SCHEMA = cv.Schema(
+    {
+        cv.Optional(CONF_METHOD, default="leading pulse"): cv.enum(
+            DIM_METHODS, upper=True, space="_"
+        ),
+    }
+)
+```
+
+Each choice maps to `prefix` plus the choice in upper case, with every character that is not a letter or a digit
+turned into `_`. `prefix` is optional and defaults to empty: `adc`'s `sampling_mode.options("avg", "min", "max")` maps
+`"avg"` to `SamplingMode::AVG`, and is used with `cv.enum(SAMPLING_MODES, lower=True)`.
+
+`options()` returns a plain dict. When a choice does not follow the rule, add it to that dict, or write the whole dict
+out by hand:
+
+```python
+MODES = MyEnum.options("A", "B", prefix="MODE_")
+MODES["LEGACY"] = MyEnum.MODE_OLD_NAME
+```
+
 #### Code generation
 
 The `to_code` method is called after the entire configuration has been validated. It is given the parsed `config`
@@ -167,6 +206,23 @@ if bar := config.get(CONF_BAR):
 
 If the user has set `bar` in the configuration, this line will generate the C++ code to call `set_bar` on the object.
 If the config value is not set, then we do not call the setter function.
+
+Pins and references to other components have helpers that build the value and pass it to the setter in one call.
+`cg.add_pin()` builds the pin expression; `cg.add_variable()` looks up the component that an ID points to:
+
+```python
+await cg.add_pin(var.set_cs_pin, config[CONF_CS_PIN])
+await cg.add_pin(var.set_reset_pin, config.get(CONF_RESET_PIN))
+await cg.add_variable(var.set_time, config.get(CONF_TIME_ID))
+```
+
+Both do nothing when given `None`, so `config.get()` handles an optional key without an `if`. Both return what they
+created (or `None`) for the rare case where it is used again. For a class that derives from `Parented<T>`, use
+`await cg.register_parented(var, config[CONF_MY_HUB_ID])` instead.
+
+These helpers are available in ESPHome 2026.11.0 and later (esphome/esphome#21018). An external component that
+supports earlier releases builds the value with `cg.gpio_pin_expression()` or `cg.get_variable()` and calls the
+setter with `cg.add()`, as in the `bar` example above.
 
 ### Further information
 

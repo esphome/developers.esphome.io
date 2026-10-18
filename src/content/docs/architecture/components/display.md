@@ -69,9 +69,7 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await display.register_display(var, config)
 
-    if reset_pin := config.get(CONF_RESET_PIN):
-        pin = await cg.gpio_pin_expression(reset_pin)
-        cg.add(var.set_reset_pin(pin))
+    await cg.add_pin(var.set_reset_pin, config.get(CONF_RESET_PIN))
 ```
 
 If your driver accepts a `lambda:` that isn't handled by `register_display` (uncommon - most drivers just let the

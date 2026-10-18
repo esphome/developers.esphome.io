@@ -486,9 +486,10 @@ The second argument picks the backend. `false` means RTC memory on chips that ha
 or a deep-sleep wake, not a power loss, and costs no flash wear, so it is the right choice for values that change
 often. `true` means flash (NVS on ESP32), which survives a power loss but wears with every write.
 
-Entities pass the same choice as the second argument of `make_entity_preference<T>(version, in_flash)`. It keeps the
-key that `make_entity_preference<T>(version)` uses, which always takes the platform default backend, so letting the
-user change the choice doesn't orphan a value saved before:
+Entities pass the same choice as the second argument of `make_entity_preference<T>(version, in_flash)`. It derives the
+same key as `make_entity_preference<T>(version)`, which always uses the platform default backend, so adding a
+`storage:` option to an existing entity doesn't orphan values saved under the default. Switching to the other backend
+starts from an empty value, like a first boot:
 
 ```cpp
 this->rtc_ = this->make_entity_preference<bool>(0, in_flash);

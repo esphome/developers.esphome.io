@@ -471,7 +471,7 @@ These are not bugs, so please do not open issue reports for them; a PR that remo
 A component that must survive a reboot stores a small struct through `global_preferences`. The key must be stable
 across builds and unique per instance; a fixed hash combined with one passed from code generation (the `globals`
 component hashes its `id`) does that. Entities use `make_entity_preference<T>()` instead, which derives the key
-from the entity and always uses the platform default backend.
+from the entity.
 
 ```cpp
 this->pref_ = global_preferences->make_preference<MyState>(fnv1_hash("my_component") ^ this->id_hash_, in_flash);
@@ -485,6 +485,14 @@ Both calls return `false` on failure, and a failed `load()` is the normal path a
 The second argument picks the backend. `false` means RTC memory on chips that have it: it survives a software reboot
 or a deep-sleep wake, not a power loss, and costs no flash wear, so it is the right choice for values that change
 often. `true` means flash (NVS on ESP32), which survives a power loss but wears with every write.
+
+Entities pass the same choice as the second argument of `make_entity_preference<T>(version, in_flash)`. It keeps the
+key that `make_entity_preference<T>(version)` uses, which always takes the platform default backend, so letting the
+user change the choice doesn't orphan a value saved before:
+
+```cpp
+this->rtc_ = this->make_entity_preference<bool>(0, in_flash);
+```
 
 Let the user choose with the `storage:` option from `esphome/preferences.py` instead of hard-coding the backend:
 

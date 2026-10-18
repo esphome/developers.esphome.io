@@ -75,8 +75,15 @@ async def to_code(config):
 ```
 
 If your driver accepts a `lambda:` that isn't handled by `register_display` (uncommon - most drivers just let the
-full schema deal with it), process it with `cg.process_lambda()` and pass `display.DisplayRef` as the lambda's
-parameter type so the user's lambda receives `it` as a `display::Display &`.
+full schema deal with it), pass it to the driver with `display.add_writer()`. It does nothing when no lambda is
+configured, and the user's lambda receives `it` as a `display::Display &`:
+
+```python
+await display.add_writer(var, config)
+```
+
+A driver with its own drawing class passes that type as the third argument, for example
+`await display.add_writer(var, config, TM1637DisplayRef)`.
 
 ### Components that draw into a display
 

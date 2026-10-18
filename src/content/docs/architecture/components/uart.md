@@ -172,6 +172,63 @@ on the same bus. `uart_tcp` runs the check exactly as shown. The `cdc_acm_uart` 
 `bridge:` domain and records the ids it has claimed in `fv.full_config.get().data`, so a second bridge on the same
 UART is rejected too.
 
+## Reading text lines
+
+Devices that send text, one reading per line, need the bytes collected until the line ends. `LineReader` from
+`esphome/core/line_reader.h` does this in a fixed buffer, with no `std::string` and no heap use. It takes bytes from any
+source, not only a UART:
+
+```cpp
+// smt100.h
+#include "esphome/core/line_reader.h"
+
+LineReader<MAX_LINE_LENGTH, '\r', '\n'> line_reader_;
+```
+
+```cpp
+// smt100.cpp
+void SMT100Component::loop() {
+  while (this->available() != 0) {
+    const int readch = this->read();
+    if (readch <= 0)
+      continue;
+    char *line = this->line_reader_.feed(readch);
+    if (line != nullptr && line[0] != '\0') {
+      char *token = strtok(line, ",");
+      ...
+    }
+  }
+}
+```
+
+`LineReader<N, TERMINATOR_CHAR = '\n', IGNORE_CHAR = '\r'>` has a buffer of `N` bytes, so a line holds up to `N - 1`
+characters. `TERMINATOR_CHAR` ends a line and is not stored. `IGNORE_CHAR` is dropped wherever it appears; set it to
+`'\0'` to drop nothing but NUL bytes. `feed()` takes one byte and returns the finished line, ending in a NUL, or
+`nullptr` while the line is not complete; `feed(c, len)` also sets `len` to the line's length. The line stays valid
+until the next call on the reader, and the caller may change it, for example with `strtok()`. Empty lines are returned
+too, as an empty string.
+
+A line longer than `N - 1` characters is dropped up to its terminator, and `overflowed()` is `true` right after the
+byte that made it too long. A device that does not always end its lines can use that moment to report the start of
+the line and start again, as `hrxl_maxsonar_wr` does:
+
+```cpp
+size_t len;
+const char *line = this->line_reader_.feed(data, len);
+if (line != nullptr) {
+  this->handle_line_(line, len);
+} else if (this->line_reader_.overflowed()) {
+  ESP_LOGW(TAG, "Invalid data read from sensor: %s", this->line_reader_.partial());
+  this->line_reader_.reset();
+}
+```
+
+`partial()` returns the line collected so far, for prompts that have no line end. `reset()` forgets it and starts a new
+line with the next byte, `restart_with(c)` starts a new line with `c`, and `discard_line()` drops everything up to the
+next terminator. `log_if_overflowed(TAG)` logs one shared warning when a line was dropped; a component that calls it
+adds `cg.add_define("USE_LINE_READER")` in its `to_code`, which compiles that shared code in. Besides the buffer the
+reader keeps one byte for its position, or two bytes when `N` is 254 or more.
+
 ## See Also
 
 - [Virtual UART](/architecture/components/uart_virtual/)

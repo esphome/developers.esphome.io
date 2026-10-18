@@ -185,6 +185,14 @@ await cg.register_component(var, config)
 This line generates `App.register_component(var)` in C++ which registers the component so that its `setup`, `loop`
 and/or `update` methods are called correctly.
 
+For a component on a bus, these two calls and the bus registration are replaced by one helper:
+`i2c.new_i2c_component()`, `uart.new_uart_component()`, `spi.new_spi_component()`,
+`modbus.new_modbus_client_component()`, `ble_device_base.new_ble_device_component()` or
+`ble_client.new_ble_node_component()`.
+Each takes `config` and passes any further arguments to the constructor, for example
+`var = await i2c.new_i2c_component(config)`. The modbus and BLE helpers are available in ESPHome 2026.11.0 and later
+(esphome/esphome#21025).
+
 Assuming the user has `foo: true` in their YAML configuration, this line:
 
 ```python
@@ -206,6 +214,23 @@ if bar := config.get(CONF_BAR):
 
 If the user has set `bar` in the configuration, this line will generate the C++ code to call `set_bar` on the object.
 If the config value is not set, then we do not call the setter function.
+
+Pins and references to other components have helpers that build the value and pass it to the setter in one call.
+`cg.add_pin()` builds the pin expression; `cg.add_variable()` looks up the component that an ID points to:
+
+```python
+await cg.add_pin(var.set_cs_pin, config[CONF_CS_PIN])
+await cg.add_pin(var.set_reset_pin, config.get(CONF_RESET_PIN))
+await cg.add_variable(var.set_time, config.get(CONF_TIME_ID))
+```
+
+Both do nothing when given `None`, so `config.get()` handles an optional key without an `if`. Both return what they
+created (or `None`) for the rare case where it is used again. For a class that derives from `Parented<T>`, use
+`await cg.register_parented(var, config[CONF_MY_HUB_ID])` instead.
+
+These helpers are available in ESPHome 2026.11.0 and later (esphome/esphome#21018). An external component that
+supports earlier releases builds the value with `cg.gpio_pin_expression()` or `cg.get_variable()` and calls the
+setter with `cg.add()`, as in the `bar` example above.
 
 ### Further information
 

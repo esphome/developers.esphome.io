@@ -71,13 +71,15 @@ async def to_code(config: ConfigType) -> None:
   auto-migrates an explicit legacy `esp32_ble_id:` until its removal in 2027.2.0.
 
 A listener that is a plain component rather than an entity (for example a hub whose sensors are platforms) is
-created, registered as a component and attached to the hub in one call with `ble_device_base.new_ble_device()`:
+created, registered as a component and attached to the hub in one call with
+`ble_device_base.new_ble_device_component()`:
 
 ```python
-var = await ble_device_base.new_ble_device(config)
+var = await ble_device_base.new_ble_device_component(config)
 ```
 
-Arguments after `config` go to the constructor.
+Arguments after `config` go to the constructor. This helper and `ble_client.new_ble_node_component()` below are
+available in ESPHome 2026.11.0 and later (esphome/esphome#21025).
 
 Helpers previously imported from `esp32_ble_tracker` live in the base: `bt_uuid` (plus the
 `BT_UUID16_FORMAT` / `BT_UUID32_FORMAT` / `BT_UUID128_FORMAT` length templates), `as_hex`,

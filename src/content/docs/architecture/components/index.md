@@ -187,7 +187,8 @@ and/or `update` methods are called correctly.
 
 For a component on a bus, these two calls and the bus registration are replaced by one helper:
 `i2c.new_i2c_component()`, `uart.new_uart_component()`, `spi.new_spi_component()`,
-`modbus.new_modbus_client_component()`, `ble_device_base.new_ble_device()` or `ble_client.new_ble_node_component()`.
+`modbus.new_modbus_client_component()`, `ble_device_base.new_ble_device_component()` or
+`ble_client.new_ble_node_component()`.
 Each takes `config` and passes any further arguments to the constructor, for example
 `var = await i2c.new_i2c_component(config)`. The modbus and BLE helpers are available in ESPHome 2026.11.0 and later
 (esphome/esphome#21025).

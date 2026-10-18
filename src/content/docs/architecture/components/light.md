@@ -191,6 +191,25 @@ hardware expects:
 Pick the accessor matching the `ColorMode`(s) you declared, regardless of what the user's automations set - a light in
 `COLOR_TEMPERATURE` mode should call `current_values_as_ct()`, and so on.
 
+### Addressable light drivers
+
+A driver that derives from `light::AddressableLight` writes its pixel buffer to the hardware in `write_state()` and
+must call `this->mark_shown_()` once per frame it sends, before or after the transfer. The light core uses that call
+for everything that is worked out per frame: the `power_supply` request, and with `power_estimation` the current
+estimate and the automatic current limit. A driver that never calls it gets none of those, so since 2026.11.0 the
+call is required. Every in-tree driver has it:
+
+```cpp
+void MyLedStrip::write_state(light::LightState *state) override {
+  this->send_buffer_();
+  this->mark_shown_();
+}
+```
+
+When the current limit changes, the core rescales the buffer and schedules another `write_state()`, so a driver
+that calls `mark_shown_()` after sending shows one frame over budget before the resend. A driver whose transfer
+reads the buffer asynchronously (DMA, an ISR) calls it before starting the transfer, after the previous one is done.
+
 ### Optional `Component` behaviour
 
 If your output needs its own hardware initialization (for example a status LED on a raw GPIO pin), you can also

@@ -270,8 +270,14 @@ compiling. Components that should work on every BLE platform must use the `ble_d
 directly and must not include esp32 headers.
 
 GATT client components (the `ble_client` family) remain esp32-only by component dependency
-(`DEPENDENCIES = ["esp32_ble_tracker"]`) — they sit outside the neutral layer entirely. A component on a BLE
-client is created with `var = await ble_client.new_ble_node_component(config)`, which replaces `cg.new_Pvariable()`,
-`cg.register_component()` and `ble_client.register_ble_node()`.
+(`DEPENDENCIES = ["esp32_ble_tracker"]`) — they sit outside the neutral layer entirely.
 Separately, `HubCapabilities::gatt` advertises whether the platform has a `bluetooth_connection`
 GATT backend (esp32 and rp2 today), which is what `bluetooth_proxy` active connections build on.
+
+A component on a BLE client is created, registered as a component and attached to the client in one call:
+
+```python
+var = await ble_client.new_ble_node_component(config)
+```
+
+This replaces `cg.new_Pvariable()`, `cg.register_component()` and `ble_client.register_ble_node()`.

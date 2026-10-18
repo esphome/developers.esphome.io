@@ -11,7 +11,8 @@ resolver.
 The listener owns the listen socket and, when the config passes a list, an
 [IPv4 allow list](/architecture/components/ipv4_allow/).
 It accepts one peer at a time and adopts the socket into the caller's `TcpClientLink`. A second connection waits
-in the stack until the first one drops. The listen backlog is 1.
+in the stack until the first one drops. The listen backlog is 1 unless `set_backlog()` sets another before the first
+poll.
 
 `uart_tcp` is the first caller; `tcp_uart`'s server role (esphome#20026) follows. A server role calls
 `require_tcp_listener()` and, for a non-empty `allowed_ips`, `add_ipv4_allow`. An empty or omitted list does
@@ -108,3 +109,29 @@ Call the listener's `dump_config()` from the component's own `dump_config()`; it
 allowed network. `EAGAIN`, `EWOULDBLOCK`, `ECONNABORTED` and `EINTR` from
 `accept()` are ignored. Any other accept error closes the listen socket; `poll()` reopens it after the
 link's reconnect interval.
+
+## Several Links
+
+A server with several connections on one port keeps one `TcpClientLink` per connection and calls the two steps of
+`poll()` itself. `poll_listen(clock)` opens the listen socket on the port and reconnect interval of `clock`, one of
+the links, and returns true when a connection waits. `accept(clock)` returns the accepted socket, or `nullptr` when
+none was waiting, the allow list rejected the peer or the accept failed. An accept error closes the listen socket as
+above, and `poll_listen()` reopens it after `clock`'s reconnect interval. The caller picks the link that adopts the
+socket.
+
+```cpp
+if (this->listener_.poll_listen(this->links_[0])) {
+  auto sock = this->listener_.accept(this->links_[0]);
+  if (sock != nullptr) {
+    // A link that is not connected; close an old connection first when all are in use.
+    this->free_link_().adopt(std::move(sock));
+  }
+}
+```
+
+Pass the config key that holds the number of connections to `consume_role_sockets`, so a server counts one stream
+socket per connection:
+
+```python
+socket.consume_role_sockets("my_component", CONF_MAX_CONNECTIONS)
+```

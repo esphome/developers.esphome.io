@@ -15,15 +15,17 @@ set the `USB_HOST_FIFO_*` defines or the FIFO bias options yourself; `usb_host` 
 components:
 
 - It keeps the largest request in each direction.
-- Control and bulk keep 64 bytes, and each direction keeps at least the default 128 bytes.
+- If the requests fit the split ESP-IDF already uses (the default, or the `CONFIG_USB_HOST_HW_BUFFER_BIAS_*` option
+  set in `sdkconfig_options`), it keeps that split.
+- Otherwise it sizes a custom split: control and bulk keep 64 bytes, and each direction keeps at least 128 bytes.
 - The requested directions share the rest, because a device can declare a larger max packet size than requested.
 - Requests that don't fit fail validation, and sizing the split needs ESP-IDF 5.5 or later.
 
 Other variants keep ESP-IDF's default split. The ESP32-P4's high-speed controller already leaves 512 bytes for
 periodic OUT.
 
-Call the request from `CONFIG_SCHEMA` validation, so it is recorded before `usb_host` checks the requests in its final
-validation:
+Call the request from `CONFIG_SCHEMA` validation, so it is recorded before `usb_host` reconciles the requests in its
+final validation:
 
 ```python
 from esphome.components import usb_host

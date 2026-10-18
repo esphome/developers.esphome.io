@@ -70,6 +70,15 @@ async def to_code(config: ConfigType) -> None:
   `ble_device_base.rename_legacy_hub_id("<component>")` to their `CONFIG_SCHEMA`: it warns on and
   auto-migrates an explicit legacy `esp32_ble_id:` until its removal in 2027.2.0.
 
+A listener that is a plain component rather than an entity (for example a hub whose sensors are platforms) is
+created, registered as a component and attached to the hub in one call with `ble_device_base.new_ble_device()`:
+
+```python
+var = await ble_device_base.new_ble_device(config)
+```
+
+Arguments after `config` go to the constructor.
+
 Helpers previously imported from `esp32_ble_tracker` live in the base: `bt_uuid` (plus the
 `BT_UUID16_FORMAT` / `BT_UUID32_FORMAT` / `BT_UUID128_FORMAT` length templates), `as_hex`,
 `as_hex_array` and `as_reversed_hex_array`. The historical lowercase constant names remain
@@ -261,6 +270,8 @@ compiling. Components that should work on every BLE platform must use the `ble_d
 directly and must not include esp32 headers.
 
 GATT client components (the `ble_client` family) remain esp32-only by component dependency
-(`DEPENDENCIES = ["esp32_ble_tracker"]`) — they sit outside the neutral layer entirely.
+(`DEPENDENCIES = ["esp32_ble_tracker"]`) — they sit outside the neutral layer entirely. A component on a BLE
+client is created with `var = await ble_client.new_ble_node_component(config)`, which replaces `cg.new_Pvariable()`,
+`cg.register_component()` and `ble_client.register_ble_node()`.
 Separately, `HubCapabilities::gatt` advertises whether the platform has a `bluetooth_connection`
 GATT backend (esp32 and rp2 today), which is what `bluetooth_proxy` active connections build on.

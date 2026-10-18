@@ -185,6 +185,15 @@ await cg.register_component(var, config)
 This line generates `App.register_component(var)` in C++ which registers the component so that its `setup`, `loop`
 and/or `update` methods are called correctly.
 
+A component on a bus is created, registered and attached to the bus with one helper instead:
+`i2c.new_i2c_component()`, `uart.new_uart_component()`, `spi.new_spi_component()`,
+`modbus.new_modbus_client_component()`, `ble_device_base.new_ble_device()` and `ble_client.new_ble_node_component()`.
+Each takes `config` and passes any further arguments to the constructor:
+
+```python
+var = await modbus.new_modbus_client_component(config)
+```
+
 Assuming the user has `foo: true` in their YAML configuration, this line:
 
 ```python

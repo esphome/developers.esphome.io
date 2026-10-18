@@ -93,6 +93,18 @@ void Tuya::loop() {
   current block has already been taken from the UART and is lost. A function that returns `void` always continues.
 - Both return `false` only when a read from the UART fails; stopping early still returns `true`.
 
+A device that answers each command usually needs any old bytes dropped before the next command is sent, so a late
+reply is not read as the new one. `discard_available()` reads and drops everything waiting in the receive buffer:
+
+```cpp
+void MHZ19Component::send_command_(const uint8_t *command) {
+  this->discard_available();
+  this->write_array(command, MHZ19_REQUEST_LENGTH);
+}
+```
+
+It keeps reading while bytes arrive and stops if a read fails.
+
 ## UARTs Without Line Timing
 
 On a serial line, bytes arrive at the pace of the baud rate, so a reader can find the end of a frame from a quiet gap,

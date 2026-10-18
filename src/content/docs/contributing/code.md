@@ -6,6 +6,11 @@ title: "Contributing to ESPHome"
 
 This is a guide to contributing to the ESPHome codebase.
 
+## Use of AI for contributions
+
+The [Open Home Foundation AI policy](https://contributors.home-assistant.io/start/ai-policy/)
+applies to ESPHome. Please read this before contributing.
+
 ## Codebase standards
 
 ESPHome's maintainers work hard to maintain a high standard for its code. We try our best to adhere to the standards

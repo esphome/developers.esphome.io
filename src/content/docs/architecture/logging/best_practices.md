@@ -327,3 +327,26 @@ ESP_LOGI(TAG,
          "  Gateway: %s",
          ip.c_str(), subnet.c_str(), gateway.c_str());
 ```
+
+### 4. Log Raw Bytes With the `_HEX` Macros
+
+To log a frame or a buffer as hex, such as `7E:FF:06:0F`, use `ESP_LOGD_HEX`, `ESP_LOGV_HEX` or `ESP_LOGVV_HEX` from
+`esphome/core/log.h` (they also need `esphome/core/helpers.h`). They size a buffer on the stack, format the bytes into
+it and log them, and they compile to nothing when that log level is not built in, so there is no `#if` to write:
+
+```cpp
+// Before
+#if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
+char hex[format_hex_pretty_size(MAX_STORED_FRAME)];
+ESP_LOGV(TAG, "RX decoded type=%02X flags=%02X: %s", static_cast<uint8_t>(type), frame[FRAME_FLAGS_OFFSET],
+         format_hex_pretty_to(hex, frame, this->parser_.stored_size()));
+#endif
+
+// After
+ESP_LOGV_HEX(TAG, frame, this->parser_.stored_size(), MAX_STORED_FRAME, "RX decoded type=%02X flags=%02X: %s",
+             static_cast<uint8_t>(type), frame[FRAME_FLAGS_OFFSET]);
+```
+
+The arguments are the tag, the data, its length, the most bytes to show, and the format. The hex text is passed as the
+last `%s`, after any other arguments. `max_bytes` must be a constant, because it sizes the stack buffer (3 bytes per
+data byte); data longer than that is cut off. Only these three levels have a `_HEX` form.

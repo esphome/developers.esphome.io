@@ -280,6 +280,13 @@ Choose containers carefully on embedded systems:
 Note: Avoiding heap allocation after `setup()` is always required regardless of component type. The prioritization above
 is about the effort spent on container optimization (e.g., migrating from `std::vector` to `StaticVector`).
 
+#### Constant data in flash on the ESP8266
+
+On the ESP8266, `const` tables and string literals live in RAM unless they are marked `PROGMEM`; the other platforms
+keep them in flash either way. Mark constant arrays `PROGMEM` and read them with `progmem_memcpy()` or
+`progmem_read_byte()` from `esphome/core/hal.h`, which are a plain `memcpy` and dereference elsewhere, so no `#ifdef`
+is needed.
+
 #### String tables in flash
 
 A fixed set of strings looked up by index, such as mode or state names, goes in a `PROGMEM_STRING_TABLE`. It packs
@@ -307,6 +314,23 @@ char message[AlarmMessages::MAX_LENGTH + 1];
 ESPHOME_strncpy_P(message, reinterpret_cast<const char *>(AlarmMessages::get_progmem_str(code, AlarmMessages::LAST_INDEX)),
                   sizeof(message));
 ```
+
+A name that a device or Home Assistant sends arrives in RAM and is matched against the table with
+`progmem_string_table_find()`, which returns the index of the matching string or `-1`:
+
+```cpp
+PROGMEM_STRING_TABLE(ColorModeNames, "onoff", "brightness", "white", "color_temp");
+
+// value is what Home Assistant or the device sent, in RAM
+const int16_t index = progmem_string_table_find<ColorModeNames>(value.c_str(), value.size());
+if (index < 0) {
+  ESP_LOGW(TAG, "Unknown color mode '%s'", value.c_str());
+  return;
+}
+```
+
+The lookup takes a pointer and a length rather than a `StringRef`, because `string_ref.h` includes `progmem.h`. It
+walks the blob once whatever the table size, so it suits a name that arrives now and then, not a hot path.
 
 ### Saved settings on the ESP8266
 
@@ -337,6 +361,54 @@ single value cannot span, and the flash store holds 128 words with `restore_from
 fails when the reserved values cannot fit in any order. It only warns once reservations spill past the first RTC
 region, because the fit then depends on setup order, and saved values that do not reserve, such as a switch's
 restore state, also use that space and are not counted.
+
+### Helpers for raw device data
+
+`esphome/core/helpers.h` has small helpers for the byte work that device protocols need. Use them instead of writing
+the same bit and byte handling again in each component.
+
+#### Checksums
+
+Many serial and I2C devices end a frame with a simple checksum. These helpers cover the common kinds; each takes a
+pointer, a length and an optional starting value:
+
+| Helper | Result |
+| ------ | ------ |
+| `sum_bytes(data, len, sum = 0)` | Sum of the bytes, kept to 8 bits |
+| `sum16_bytes(data, len, sum = 0)` | Sum of the bytes, kept to 16 bits |
+| `xor_bytes(data, len, init = 0)` | XOR of the bytes |
+| `crc8()`, `crc16()`, `crc16be()` | CRCs with a choice of polynomial and bit order |
+
+```cpp
+// Before
+uint8_t checksum = 0;
+for (uint8_t i = 0; i < 5; i++)
+  checksum ^= this->buffer_[i];
+
+// After
+const uint8_t checksum = xor_bytes(this->buffer_, 5);
+```
+
+Other checksums are built from these. An inverted XOR is `static_cast<uint8_t>(~xor_bytes(data, len))`, and
+`dfplayer`'s negated 16-bit sum is `static_cast<uint16_t>(-sum16_bytes(buffer + 1, 6))`. Keep the cast: `~` and `-`
+widen the result to `int`, so comparing it to a received byte without the cast always fails. Pass the starting value
+to include bytes that are not next to the data, such as a header sent separately.
+
+#### Signed values of unusual widths
+
+Sensors often report a signed value in a width that is not a C++ type, such as 12 or 24 bits. `sign_extend<BITS>()`
+turns the low `BITS` bits of a `uint32_t` into an `int32_t`; any higher bits are ignored:
+
+```cpp
+// Before
+int32_t raw = (int32_t) (raw_energy << 8) >> 8; /* Sign-extend */
+
+// After
+int32_t raw = sign_extend<24>(raw_energy);
+```
+
+`sign_extend<24>(0xFFFFFE)` is `-2`. `BITS` can be from 1 to 32, which is checked when the code compiles. It is
+`constexpr`, so it also works in constants.
 
 ### Gating optional features behind conditional compilation
 

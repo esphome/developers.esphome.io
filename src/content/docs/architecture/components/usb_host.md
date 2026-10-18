@@ -20,7 +20,8 @@ components:
 - Otherwise it sizes a custom split: control and bulk keep 64 bytes, and each direction keeps at least 128 bytes.
 - The requested directions share the rest, because a device can declare a larger max packet size than requested.
 - Requests that don't fit fail validation, and a custom split needs ESP-IDF 5.3.4, 5.4.3, 5.5 or later.
-- If a `CONFIG_USB_HOST_HW_BUFFER_BIAS_*` option is set, the custom split keeps that bias's shares.
+- If a `CONFIG_USB_HOST_HW_BUFFER_BIAS_*` option is set and the requests don't fit it, validation fails and names
+  the option to remove.
 
 Other variants keep ESP-IDF's default split. The ESP32-P4's high-speed controller already leaves 512 bytes for
 periodic OUT.

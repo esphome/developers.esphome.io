@@ -60,7 +60,6 @@ export default defineConfig({
             "contributing/forks-and-pull-requests",
             "contributing/development-environment",
             "contributing/submitting-your-work",
-            "contributing/using-ai",
             {
               label: "Contributing",
               items: ["contributing/code", "contributing/docs", "contributing/translations"],

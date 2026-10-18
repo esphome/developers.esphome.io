@@ -42,11 +42,11 @@ In particular, note that the schema includes `cv.Required(CONF_PIN): pins.gpio_o
 Finally, in the `to_code` function, we have:
 
 ```python
-pin = await gpio_pin_expression(config[CONF_PIN])
-cg.add(var.set_output_pin(pin))
+await cg.add_pin(var.set_output_pin, config[CONF_PIN])
 ```
 
-This configures the component/platform to use the pin as specified in the YAML configuration.
+This builds the pin as specified in the YAML configuration with `cg.gpio_pin_expression()` and passes it to the
+setter. For an optional pin, pass `config.get(CONF_PIN)`; nothing is generated when it is not set.
 
 ## C++
 

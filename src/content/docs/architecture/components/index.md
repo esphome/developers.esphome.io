@@ -220,6 +220,10 @@ Both do nothing when given `None`, so `config.get()` handles an optional key wit
 created (or `None`) for the rare case where it is used again. For a class that derives from `Parented<T>`, use
 `await cg.register_parented(var, config[CONF_MY_HUB_ID])` instead.
 
+These helpers are available in ESPHome 2026.11.0 and later (esphome/esphome#21018). An external component that
+supports earlier releases builds the value with `cg.gpio_pin_expression()` or `cg.get_variable()` and calls the
+setter with `cg.add()`, as in the `bar` example above.
+
 ### Further information
 
 - `ALIASES`: A list of legacy names that should transparently route to this component's canonical name. This allows a

@@ -103,7 +103,9 @@ void MyDevice::send_command_(const uint8_t *command, size_t len) {
 }
 ```
 
-It keeps reading while bytes arrive and stops if a read fails.
+Unlike `read_available()`, it keeps reading while bytes arrive, so call it before a command rather than on a device
+that sends without pause. It stops if a read fails. It is available in ESPHome 2026.11.0 and later
+(esphome/esphome#21029).
 
 ## UARTs Without Line Timing
 

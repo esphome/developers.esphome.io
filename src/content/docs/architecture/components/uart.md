@@ -93,6 +93,20 @@ void Tuya::loop() {
   current block has already been taken from the UART and is lost. A function that returns `void` always continues.
 - Both return `false` only when a read from the UART fails; stopping early still returns `true`.
 
+A device that answers each command usually needs any old bytes dropped before the next command is sent, so a late
+reply is not read as the new one. `discard_available()` reads and drops everything waiting in the receive buffer:
+
+```cpp
+void MyDevice::send_command_(const uint8_t *command, size_t len) {
+  this->discard_available();
+  this->write_array(command, len);
+}
+```
+
+Unlike `read_available()`, it keeps reading while bytes arrive, so call it before a command rather than on a device
+that sends without pause. It stops if a read fails. It is available in ESPHome 2026.11.0 and later
+(esphome/esphome#21029).
+
 ## UARTs Without Line Timing
 
 On a serial line, bytes arrive at the pace of the baud rate, so a reader can find the end of a frame from a quiet gap,

@@ -488,8 +488,9 @@ often. `true` means flash (NVS on ESP32), which survives a power loss but wears 
 
 Entities pass the same choice as the second argument of `make_entity_preference<T>(version, in_flash)`. It derives the
 same key as `make_entity_preference<T>(version)`, which always uses the platform default backend, so adding a
-`storage:` option to an existing entity doesn't orphan values saved under the default. Switching to the other backend
-starts from an empty value, like a first boot:
+`storage:` option to an existing entity keeps the values saved under the default for as long as the user leaves that
+backend selected. The key is all that is shared: a value saved in one backend is never read from the other, so
+switching backends starts from an empty value, like a first boot:
 
 ```cpp
 this->rtc_ = this->make_entity_preference<bool>(0, in_flash);

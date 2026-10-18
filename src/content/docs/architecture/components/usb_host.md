@@ -4,10 +4,10 @@ title: "USB host"
 
 ## Periodic FIFO space
 
-On the ESP32-S2 and ESP32-S3, the full-speed USB controller has one FIFO of 1024 bytes that it shares between
+On the ESP32-S2 and ESP32-S3, the full-speed USB controller has 800 usable bytes of FIFO that it shares between
 received packets, control and bulk OUT packets, and periodic (interrupt and isochronous) OUT packets. ESP-IDF rejects
-an endpoint whose max packet size doesn't fit its share, and the default split leaves only 128 bytes for each of
-received packets and periodic OUT packets. That is less than one packet of 48 kHz 16-bit stereo audio.
+an endpoint whose max packet size doesn't fit its share, and the default split leaves only 128 bytes for periodic OUT
+packets, less than one packet of 48 kHz 16-bit stereo audio.
 
 A component whose interrupt or isochronous endpoints use larger packets asks `usb_host` for space with
 `usb_host.request_periodic_fifo(in_bytes=..., out_bytes=...)`, passing the largest packet in each direction. Never

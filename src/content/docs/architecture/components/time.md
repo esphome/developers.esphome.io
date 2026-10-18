@@ -111,6 +111,45 @@ Not every platform needs to override `update()` at all: some (like `sntp`, which
 own SNTP client) only need `setup()` to kick off the sync mechanism, and call `synchronize_epoch_()`/rely on the
 system clock being set for them elsewhere.
 
+### Clock chips that store the time in BCD
+
+Most clock chips keep each field of the time as packed BCD: two decimal digits in one byte, the tens in the high four
+bits, so 59 seconds is stored as `0x59`. Convert single bytes with `bcd_to_uint8()` and `uint8_to_bcd()` from
+`esphome/core/helpers.h` rather than writing your own:
+
+```cpp
+bcd_to_uint8(0x59);  // 59
+uint8_to_bcd(59);    // 0x59, for values from 0 to 99
+```
+
+Many Epson chips, such as the RX8025T, RX8111 and RX8130, use the same 7-byte layout: second, minute, hour, a weekday
+with one bit set per day, day of the month, month and the year since 2000. For that layout,
+`time::decode_bcd_calendar()` and `time::encode_bcd_calendar()` from `real_time_clock.h` convert the whole block at
+once. `rx8025t` reads and writes its clock like this:
+
+```cpp
+uint8_t date[7];
+if (!this->read_bytes(RX8025T_REG_SEC, date, sizeof(date)))
+  return;
+ESPTime rtc_time = time::decode_bcd_calendar(date);
+if (!rtc_time.is_valid(/*check_day_of_week=*/true, /*check_day_of_year=*/false))
+  return;
+this->synchronize_epoch_(rtc_time.timestamp);
+```
+
+```cpp
+auto now = this->utcnow();
+if (!now.is_valid())
+  return;
+uint8_t buff[7];
+time::encode_bcd_calendar(now, buff);
+this->write_bytes(RX8025T_REG_SEC, buff, sizeof(buff));
+```
+
+Decoding drops the bits each byte does not use for the value, such as a chip's flag bits, and fills in `timestamp`
+as UTC. It does not work out the day of the year, so check the result with `check_day_of_year=false` as shown. Only
+encode a valid time with a year from 2000 to 2099.
+
 ### Useful members
 
 - `now()`: the current time in the configured timezone, as an `ESPTime` (year/month/day/hour/minute/second plus

@@ -49,6 +49,24 @@ await i2c.register_i2c_device(var, config)
 
 Since this is an I2C device, we must register it as such so it is handled appropriately by ESPHome.
 
+Most I2C components create the object, register it as a component and register it on the bus, in that order.
+`i2c.new_i2c_component()` does the three steps in one call and returns the new object:
+
+```python
+# Before
+var = cg.new_Pvariable(config[CONF_ID])
+await cg.register_component(var, config)
+await i2c.register_i2c_device(var, config)
+
+# After
+var = await i2c.new_i2c_component(config)
+```
+
+Any further arguments go to the constructor, for example `await i2c.new_i2c_component(config, interrupt_pin)`.
+[`uart.new_uart_component()`](/architecture/components/uart#python) and
+[`spi.new_spi_component()`](/architecture/components/spi#python) do the same for the other buses. A component that is
+created another way, such as a sensor created with `sensor.new_sensor()`, still calls `register_i2c_device()` itself.
+
 ## C++
 
 The C++ class for this example component is quite simple.
@@ -99,6 +117,30 @@ if (!this->check_chip_id(this, APDS9306_PART_ID, 0xB1, 0xFD))
 
 The ID is accepted when `(id & mask) == (expected & mask)`. Keep your own code when the chip needs more than one
 register read to identify, or when a wrong ID should only warn.
+
+## Changing some bits of a register
+
+Many chips pack several settings into one register byte. To change only some of the bits, read the register, replace
+those bits and write it back. `update_register()` on `I2CDevice` does all three steps:
+
+```cpp
+// Before
+uint8_t data;
+this->read_byte(address, &data);  // a failed read leaves data unset, and it is written anyway
+data |= (1 << bit_position);
+return this->write_byte(address, data);
+
+// After
+return this->update_register(address, 1 << bit_position, 1 << bit_position);
+
+// Clearing the same bit
+return this->update_register(address, 1 << bit_position, 0);
+```
+
+`update_register(reg, mask, value)` keeps the bits outside `mask` and takes the bits inside `mask` from `value`; bits
+of `value` outside `mask` are ignored, so pass `0` as the value to clear bits. It returns `false` when the read or the
+write fails. After a failed read it writes nothing, so a bus error never leads to a wrong value being written. The
+write happens even when the value does not change. The old and new values are logged at the `VERBOSE` level.
 
 ## Writing a list of registers
 

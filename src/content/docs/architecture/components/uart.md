@@ -49,6 +49,22 @@ await uart.register_uart_device(var, config)
 
 Since this is a serial device which uses a UART, we must register it as such so it is handled appropriately by ESPHome.
 
+When the component is created with `cg.new_Pvariable()`, `uart.new_uart_component()` creates it, registers it as a
+component and registers it on the UART in one call:
+
+```python
+# Before
+var = cg.new_Pvariable(config[CONF_ID])
+await cg.register_component(var, config)
+await uart.register_uart_device(var, config)
+
+# After
+var = await uart.new_uart_component(config)
+```
+
+Arguments after `config` go to the constructor, for example `await uart.new_uart_component(config, config[CONF_MODE])`.
+[I2C](/architecture/components/i2c#python) and [SPI](/architecture/components/spi#python) have the same helper.
+
 ## C++
 
 The C++ class for this example component is quite simple.
@@ -63,6 +79,49 @@ As mentioned in the [codebase standards](/contributing/code/#c), all components/
 
 Finally, the component implements the usual set of methods [as described here](/architecture/components/index#common-methods). This is all
 that's required for our minimal UART component!
+
+## Reading what has arrived
+
+A component that parses a byte stream usually reads everything the UART has received on each pass of `loop()`.
+Reading in blocks costs less than one call per byte. `read_available()` on `UARTDevice` reads the bytes available
+now through a buffer on the stack and calls a function for each byte. It replaces the `available()` and
+`read_array()` batching loop that many components used to carry:
+
+```cpp
+void Tuya::loop() {
+  this->read_available([this](uint8_t b) { this->handle_char_(b); });
+  process_command_queue_();
+}
+```
+
+`read_available_chunks()` does the same but calls the function once per block, as
+`(const uint8_t *data, size_t len)`, for code that copies or scans whole blocks. Details:
+
+- The buffer is 64 bytes by default. Both helpers take another size as the template argument.
+- Only the bytes that were available when the call started are read, so a fast sender cannot keep `loop()` busy.
+  To read a set number of bytes instead, pass it after the function; it must not be more than `available()`:
+
+  ```cpp
+  this->read_available_chunks<128>([this](const uint8_t *data, size_t len) { this->parse_(data, len); }, count);
+  ```
+
+- If the function returns `bool`, returning `false` stops the reading. With `read_available()`, the rest of the
+  current block has already been taken from the UART and is lost. A function that returns `void` always continues.
+- Both return `false` only when a read from the UART fails; stopping early still returns `true`.
+
+A device that answers each command usually needs any old bytes dropped before the next command is sent, so a late
+reply is not read as the new one. `discard_available()` reads and drops everything waiting in the receive buffer:
+
+```cpp
+void MyDevice::send_command_(const uint8_t *command, size_t len) {
+  this->discard_available();
+  this->write_array(command, len);
+}
+```
+
+Unlike `read_available()`, it keeps reading while bytes arrive, so call it before a command rather than on a device
+that sends without pause. It stops if a read fails. It is available in ESPHome 2026.11.0 and later
+(esphome/esphome#21029).
 
 ## UARTs Without Line Timing
 

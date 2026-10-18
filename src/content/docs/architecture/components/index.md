@@ -185,6 +185,14 @@ await cg.register_component(var, config)
 This line generates `App.register_component(var)` in C++ which registers the component so that its `setup`, `loop`
 and/or `update` methods are called correctly.
 
+For a component on a bus, these two calls and the bus registration are replaced by one helper:
+`i2c.new_i2c_component()`, `uart.new_uart_component()`, `spi.new_spi_component()`,
+`modbus.new_modbus_client_component()`, `ble_device_base.new_ble_device_component()` or
+`ble_client.new_ble_node_component()`.
+Each takes `config` and passes any further arguments to the constructor, for example
+`var = await i2c.new_i2c_component(config)`. The modbus and BLE helpers are available in ESPHome 2026.11.0 and later
+(esphome/esphome#21025).
+
 Assuming the user has `foo: true` in their YAML configuration, this line:
 
 ```python
@@ -206,6 +214,23 @@ if bar := config.get(CONF_BAR):
 
 If the user has set `bar` in the configuration, this line will generate the C++ code to call `set_bar` on the object.
 If the config value is not set, then we do not call the setter function.
+
+Pins and references to other components have helpers that build the value and pass it to the setter in one call.
+`cg.add_pin()` builds the pin expression; `cg.add_variable()` looks up the component that an ID points to:
+
+```python
+await cg.add_pin(var.set_cs_pin, config[CONF_CS_PIN])
+await cg.add_pin(var.set_reset_pin, config.get(CONF_RESET_PIN))
+await cg.add_variable(var.set_time, config.get(CONF_TIME_ID))
+```
+
+Both do nothing when given `None`, so `config.get()` handles an optional key without an `if`. Both return what they
+created (or `None`) for the rare case where it is used again. For a class that derives from `Parented<T>`, use
+`await cg.register_parented(var, config[CONF_MY_HUB_ID])` instead.
+
+These helpers are available in ESPHome 2026.11.0 and later (esphome/esphome#21018). An external component that
+supports earlier releases builds the value with `cg.gpio_pin_expression()` or `cg.get_variable()` and calls the
+setter with `cg.add()`, as in the `bar` example above.
 
 ### Further information
 
@@ -576,7 +601,7 @@ state:
 
 - `status_set_warning()` / `status_set_error()` set the flag until the component clears it with
   `status_clear_warning()` / `status_clear_error()`. Pass a `LOG_STR("...")` message to log why; without one the log
-  says "unspecified".
+  says "unspecified". `status_comm_result()` (below) sets or clears the warning from a read or write result.
 - `status_momentary_warning()` / `status_momentary_error()` set the flag and clear it again after a timeout (5000 ms by
   default). Use them for one-off failures, such as a single failed read. A new call restarts the timeout.
 - `mark_failed()` marks the component as failed when it cannot work at all, typically from `setup()`.
@@ -591,6 +616,29 @@ Before ESPHome 2026.11.0 the momentary calls required a name as their first argu
 `status_momentary_warning("read", 1000)`. The named form still compiles but is deprecated, and will be removed in
 2027.5.0: the name was only used to key the timer, it is kept as a string (RAM on ESP8266), and it can clash with the
 component's own `set_timeout()` names. Drop the name to migrate.
+
+A read or write that runs again on every update sets the warning when it fails and clears it when it works again.
+`status_comm_result(ok)` does both and returns `ok`, so the failure check stays one line:
+
+```cpp
+// Before
+if (!this->read_bytes(REG_RED_DATA_LSB, buffer, sizeof(buffer))) {
+  this->status_set_warning(LOG_STR(ESP_LOG_MSG_COMM_FAIL));
+  return;
+}
+this->status_clear_warning();
+
+// After
+if (!this->status_comm_result(this->read_bytes(REG_RED_DATA_LSB, buffer, sizeof(buffer))))
+  return;
+```
+
+Without a message the warning says "Communication failed" (`ESP_LOG_MSG_COMM_FAIL`). Pass a `LOG_STR("...")` as the
+second argument for another text, for example
+`this->status_comm_result(ok, LOG_STR("Failed to read one or more registers"))`. Use it for failures after `setup()`;
+a device that cannot be set up at all still calls `mark_failed()`. A component has one warning flag, so a success
+clears a warning set by any other check too; do not mix it with other `status_set_warning()` conditions in the same
+update.
 
 ### Component-specific methods
 

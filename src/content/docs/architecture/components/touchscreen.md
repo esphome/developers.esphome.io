@@ -69,9 +69,7 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await touchscreen.register_touchscreen(var, config)
 
-    if interrupt_pin := config.get(CONF_INTERRUPT_PIN):
-        pin = await cg.gpio_pin_expression(interrupt_pin)
-        cg.add(var.set_interrupt_pin(pin))
+    await cg.add_pin(var.set_interrupt_pin, config.get(CONF_INTERRUPT_PIN))
 ```
 
 ## C++

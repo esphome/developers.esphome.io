@@ -96,8 +96,7 @@ registers the `LightState` that wraps it:
 ```python
 async def to_code(config):
     var = await light.new_light(config)
-    red = await cg.get_variable(config[CONF_RED])
-    cg.add(var.set_red(red))
+    await cg.add_variable(var.set_red, config[CONF_RED])
     ...
 ```
 

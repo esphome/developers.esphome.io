@@ -207,6 +207,23 @@ if bar := config.get(CONF_BAR):
 If the user has set `bar` in the configuration, this line will generate the C++ code to call `set_bar` on the object.
 If the config value is not set, then we do not call the setter function.
 
+Pins and references to other components have helpers that build the value and pass it to the setter in one call.
+`cg.add_pin()` builds the pin expression; `cg.add_variable()` looks up the component that an ID points to:
+
+```python
+await cg.add_pin(var.set_cs_pin, config[CONF_CS_PIN])
+await cg.add_pin(var.set_reset_pin, config.get(CONF_RESET_PIN))
+await cg.add_variable(var.set_time, config.get(CONF_TIME_ID))
+```
+
+Both do nothing when given `None`, so `config.get()` handles an optional key without an `if`. Both return what they
+created (or `None`) for the rare case where it is used again. For a class that derives from `Parented<T>`, use
+`await cg.register_parented(var, config[CONF_MY_HUB_ID])` instead.
+
+These helpers are available in ESPHome 2026.11.0 and later (esphome/esphome#21018). An external component that
+supports earlier releases builds the value with `cg.gpio_pin_expression()` or `cg.get_variable()` and calls the
+setter with `cg.add()`, as in the `bar` example above.
+
 ### Further information
 
 - `ALIASES`: A list of legacy names that should transparently route to this component's canonical name. This allows a

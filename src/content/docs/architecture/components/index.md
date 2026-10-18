@@ -601,7 +601,7 @@ state:
 
 - `status_set_warning()` / `status_set_error()` set the flag until the component clears it with
   `status_clear_warning()` / `status_clear_error()`. Pass a `LOG_STR("...")` message to log why; without one the log
-  says "unspecified".
+  says "unspecified". `status_comm_result()` (below) sets or clears the warning from a read or write result.
 - `status_momentary_warning()` / `status_momentary_error()` set the flag and clear it again after a timeout (5000 ms by
   default). Use them for one-off failures, such as a single failed read. A new call restarts the timeout.
 - `mark_failed()` marks the component as failed when it cannot work at all, typically from `setup()`.
@@ -616,6 +616,29 @@ Before ESPHome 2026.11.0 the momentary calls required a name as their first argu
 `status_momentary_warning("read", 1000)`. The named form still compiles but is deprecated, and will be removed in
 2027.5.0: the name was only used to key the timer, it is kept as a string (RAM on ESP8266), and it can clash with the
 component's own `set_timeout()` names. Drop the name to migrate.
+
+A read or write that runs again on every update sets the warning when it fails and clears it when it works again.
+`status_comm_result(ok)` does both and returns `ok`, so the failure check stays one line:
+
+```cpp
+// Before
+if (!this->read_bytes(REG_RED_DATA_LSB, buffer, sizeof(buffer))) {
+  this->status_set_warning(LOG_STR(ESP_LOG_MSG_COMM_FAIL));
+  return;
+}
+this->status_clear_warning();
+
+// After
+if (!this->status_comm_result(this->read_bytes(REG_RED_DATA_LSB, buffer, sizeof(buffer))))
+  return;
+```
+
+Without a message the warning says "Communication failed" (`ESP_LOG_MSG_COMM_FAIL`). Pass a `LOG_STR("...")` as the
+second argument for another text, for example
+`this->status_comm_result(ok, LOG_STR("Failed to read one or more registers"))`. Use it for failures after `setup()`;
+a device that cannot be set up at all still calls `mark_failed()`. A component has one warning flag, so a success
+clears a warning set by any other check too; do not mix it with other `status_set_warning()` conditions in the same
+update.
 
 ### Component-specific methods
 

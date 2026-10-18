@@ -97,9 +97,9 @@ A device that answers each command usually needs any old bytes dropped before th
 reply is not read as the new one. `discard_available()` reads and drops everything waiting in the receive buffer:
 
 ```cpp
-void MHZ19Component::send_command_(const uint8_t *command) {
+void MyDevice::send_command_(const uint8_t *command, size_t len) {
   this->discard_available();
-  this->write_array(command, MHZ19_REQUEST_LENGTH);
+  this->write_array(command, len);
 }
 ```
 

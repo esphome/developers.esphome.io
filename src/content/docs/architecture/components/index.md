@@ -123,6 +123,45 @@ a boolean value for the key `foo`. The user also may or may not (hence `Optional
 generates a unique ID (C++ variable name used in the generated code) for this component but also allows the user to
 specify their own `id` in their configuration in the event that they wish to refer to it in their automations.
 
+An option with a fixed set of choices that maps to a C++ enum is validated with `cv.enum()`, which takes a dict from
+each choice to its enumerator. Build that dict with `options()` on the enum instead of writing each line out:
+
+```python
+DimMethod = ac_dimmer_ns.enum("DimMethod")
+
+# Written out by hand
+DIM_METHODS = {
+    "LEADING_PULSE": DimMethod.DIM_METHOD_LEADING_PULSE,
+    "LEADING": DimMethod.DIM_METHOD_LEADING,
+    "TRAILING": DimMethod.DIM_METHOD_TRAILING,
+}
+
+# The same dict built by options()
+DIM_METHODS = DimMethod.options(
+    "LEADING_PULSE", "LEADING", "TRAILING", prefix="DIM_METHOD_"
+)
+
+CONFIG_SCHEMA = cv.Schema(
+    {
+        cv.Optional(CONF_METHOD, default="leading pulse"): cv.enum(
+            DIM_METHODS, upper=True, space="_"
+        ),
+    }
+)
+```
+
+Each choice maps to `prefix` plus the choice in upper case, with every character that is not a letter or a digit
+turned into `_`. `prefix` is optional and defaults to empty: `adc`'s `sampling_mode.options("avg", "min", "max")` maps
+`"avg"` to `SamplingMode::AVG`, and is used with `cv.enum(SAMPLING_MODES, lower=True)`.
+
+`options()` returns a plain dict. When a choice does not follow the rule, add it to that dict, or write the whole dict
+out by hand:
+
+```python
+MODES = MyEnum.options("A", "B", prefix="MODE_")
+MODES["LEGACY"] = MyEnum.MODE_OLD_NAME
+```
+
 #### Code generation
 
 The `to_code` method is called after the entire configuration has been validated. It is given the parsed `config`
@@ -146,6 +185,14 @@ await cg.register_component(var, config)
 This line generates `App.register_component(var)` in C++ which registers the component so that its `setup`, `loop`
 and/or `update` methods are called correctly.
 
+For a component on a bus, these two calls and the bus registration are replaced by one helper:
+`i2c.new_i2c_component()`, `uart.new_uart_component()`, `spi.new_spi_component()`,
+`modbus.new_modbus_client_component()`, `ble_device_base.new_ble_device_component()` or
+`ble_client.new_ble_node_component()`.
+Each takes `config` and passes any further arguments to the constructor, for example
+`var = await i2c.new_i2c_component(config)`. The modbus and BLE helpers are available in ESPHome 2026.11.0 and later
+(esphome/esphome#21025).
+
 Assuming the user has `foo: true` in their YAML configuration, this line:
 
 ```python
@@ -167,6 +214,23 @@ if bar := config.get(CONF_BAR):
 
 If the user has set `bar` in the configuration, this line will generate the C++ code to call `set_bar` on the object.
 If the config value is not set, then we do not call the setter function.
+
+Pins and references to other components have helpers that build the value and pass it to the setter in one call.
+`cg.add_pin()` builds the pin expression; `cg.add_variable()` looks up the component that an ID points to:
+
+```python
+await cg.add_pin(var.set_cs_pin, config[CONF_CS_PIN])
+await cg.add_pin(var.set_reset_pin, config.get(CONF_RESET_PIN))
+await cg.add_variable(var.set_time, config.get(CONF_TIME_ID))
+```
+
+Both do nothing when given `None`, so `config.get()` handles an optional key without an `if`. Both return what they
+created (or `None`) for the rare case where it is used again. For a class that derives from `Parented<T>`, use
+`await cg.register_parented(var, config[CONF_MY_HUB_ID])` instead.
+
+These helpers are available in ESPHome 2026.11.0 and later (esphome/esphome#21018). An external component that
+supports earlier releases builds the value with `cg.gpio_pin_expression()` or `cg.get_variable()` and calls the
+setter with `cg.add()`, as in the `bar` example above.
 
 ### Further information
 
@@ -238,6 +302,40 @@ any other components and potentially fail the validation stage if an important d
 
 For example, many components that rely on `uart` can use the `FINAL_VALIDATE_SCHEMA` to ensure that the `tx_pin` and/or
 `rx_pin` are configured.
+
+A platform often needs a setting of the hub it belongs to, for example a sensor that only works when the hub has a
+certain option set. `fv.get_declaring_config(id)` returns the config block that declares an ID, so the hub's options
+are one call away:
+
+```python
+import esphome.final_validate as fv
+
+
+def _final_validate(config: ConfigType) -> None:
+    if config[CONF_TYPE] not in _MAGNETIC_FIELDS:
+        return
+    bmi270_config = fv.get_declaring_config(config[CONF_BMI270_ID])
+    if bmi270_config.get(CONF_AUX_DEVICE) != "BMM150":
+        raise cv.Invalid(
+            "This sensor requires the parent bmi270's 'aux_device' to be set to 'BMM150'",
+            path=[CONF_TYPE],
+        )
+
+
+FINAL_VALIDATE_SCHEMA = _final_validate
+```
+
+This replaces looking the path up by hand:
+
+```python
+full_config = fv.full_config.get()
+bmi270_path = full_config.get_path_for_id(config[CONF_BMI270_ID])[:-1]
+bmi270_config = full_config.get_config_for_path(bmi270_path)
+```
+
+It reads the full configuration being validated. Outside final validation, such as in `to_code`, pass the config as
+the second argument: `fv.get_declaring_config(config[CONF_BMI270_ID], CORE.config)`. It raises `KeyError` for an ID
+that nothing declares.
 
 ### Platform components
 
@@ -611,7 +709,7 @@ state:
 
 - `status_set_warning()` / `status_set_error()` set the flag until the component clears it with
   `status_clear_warning()` / `status_clear_error()`. Pass a `LOG_STR("...")` message to log why; without one the log
-  says "unspecified".
+  says "unspecified". `status_comm_result()` (below) sets or clears the warning from a read or write result.
 - `status_momentary_warning()` / `status_momentary_error()` set the flag and clear it again after a timeout (5000 ms by
   default). Use them for one-off failures, such as a single failed read. A new call restarts the timeout.
 - `mark_failed()` marks the component as failed when it cannot work at all, typically from `setup()`.
@@ -626,6 +724,29 @@ Before ESPHome 2026.11.0 the momentary calls required a name as their first argu
 `status_momentary_warning("read", 1000)`. The named form still compiles but is deprecated, and will be removed in
 2027.5.0: the name was only used to key the timer, it is kept as a string (RAM on ESP8266), and it can clash with the
 component's own `set_timeout()` names. Drop the name to migrate.
+
+A read or write that runs again on every update sets the warning when it fails and clears it when it works again.
+`status_comm_result(ok)` does both and returns `ok`, so the failure check stays one line:
+
+```cpp
+// Before
+if (!this->read_bytes(REG_RED_DATA_LSB, buffer, sizeof(buffer))) {
+  this->status_set_warning(LOG_STR(ESP_LOG_MSG_COMM_FAIL));
+  return;
+}
+this->status_clear_warning();
+
+// After
+if (!this->status_comm_result(this->read_bytes(REG_RED_DATA_LSB, buffer, sizeof(buffer))))
+  return;
+```
+
+Without a message the warning says "Communication failed" (`ESP_LOG_MSG_COMM_FAIL`). Pass a `LOG_STR("...")` as the
+second argument for another text, for example
+`this->status_comm_result(ok, LOG_STR("Failed to read one or more registers"))`. Use it for failures after `setup()`;
+a device that cannot be set up at all still calls `mark_failed()`. A component has one warning flag, so a success
+clears a warning set by any other check too; do not mix it with other `status_set_warning()` conditions in the same
+update.
 
 ### Component-specific methods
 

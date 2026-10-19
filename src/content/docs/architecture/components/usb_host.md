@@ -14,12 +14,15 @@ A component whose interrupt or isochronous endpoints use larger packets asks `us
 set the `USB_HOST_FIFO_*` defines or the FIFO bias options yourself; `usb_host` combines the requests from all
 components:
 
-- It keeps the largest request in each direction.
+- It keeps the largest request in each direction: `in_bytes` sizes the FIFO for received packets, `out_bytes` the
+  one for periodic OUT packets.
 - If the requests fit the split ESP-IDF already uses (the default, or the `CONFIG_USB_HOST_HW_BUFFER_BIAS_*` option
   set in `sdkconfig_options`), it keeps that split.
 - Otherwise it sizes a custom split: control and bulk keep 64 bytes, and each direction keeps at least 128 bytes.
-- The requested directions share the rest, because a device can declare a larger max packet size than requested.
-- Requests that don't fit fail validation, and a custom split needs ESP-IDF 5.5 or later.
+- The leftover space goes to the requested directions, split evenly when both are requested, because a device can
+  declare a larger max packet size than requested.
+- Requests that don't fit in the 800 bytes fail validation. A custom split needs ESP-IDF 5.5 or later, so on an
+  older release requests that need one fail validation too.
 - If a `CONFIG_USB_HOST_HW_BUFFER_BIAS_*` option is set and the requests don't fit it, validation fails and names
   the option to remove.
 
@@ -30,7 +33,10 @@ Call the request from `CONFIG_SCHEMA` validation, so it is recorded before `usb_
 final validation:
 
 ```python
+import esphome.config_validation as cv
 from esphome.components import usb_host
+
+DEPENDENCIES = ["usb_host"]
 
 
 def _request_fifo(config):

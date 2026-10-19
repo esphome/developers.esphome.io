@@ -303,6 +303,10 @@ class LD2412Component final : public Component, public uart::UARTDevice {
 this->detection_distance_sensor_.publish_state_if_not_dup(new_detect_distance);
 ```
 
+The repeats are skipped before the user's filters run, so filters only see changes. Keep `SUB_SENSOR` when a filter
+needs every sample: after a `throttle` drops a change, the following equal values never reach it and the state stays
+stale, and a `timeout` filter reports the sensor as unknown even while equal frames keep arriving.
+
 The member `name##_sensor_` is a `sensor::SensorWithDedup<type>`, and the setter is the same `set_##name##_sensor()`,
 so the Python side does not change. Choose `type` as the type of the raw reading, so the comparison is exact and the
 stored value is small. `publish_state_unknown()` publishes `NAN`; calling it again before a real value arrives does

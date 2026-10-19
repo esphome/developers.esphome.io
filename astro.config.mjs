@@ -57,6 +57,7 @@ export default defineConfig({
         {
           label: "Contributing",
           items: [
+            "contributing/forks-and-pull-requests",
             "contributing/development-environment",
             "contributing/submitting-your-work",
             {

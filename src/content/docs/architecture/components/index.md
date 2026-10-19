@@ -190,9 +190,9 @@ If the config value is not set, then we do not call the setter function.
   Only meaningful for a component loaded via [`external_components:`](https://esphome.io/components/external_components/),
   since built-in components already link to esphome.io automatically. The source-level
   [`doc_url`](https://esphome.io/components/external_components/#documentation-links) key in the user's
-  `external_components:` entry gives every component from that source a link built from its base URL
-  (`<doc_url>/components/<name>/`). `DOC_URL` takes priority over it and points this component's errors at an exact
-  page.
+  `external_components:` entry sets the documentation link for every component from that source. `DOC_URL` takes
+  priority over it and points this component's errors at a different page, which is useful when one source provides
+  several components.
 - `DOMAIN`: Required. The component's name as a plain string, equal to its folder name (e.g. `DOMAIN = "uart"`).
   Keep it in alphabetical order with the other metadata constants such as `CODEOWNERS` and `DEPENDENCIES`. The
   `lint_component_domain` check in `script/ci-custom.py` fails if a component's top-level `__init__.py` does not define it with the right

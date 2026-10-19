@@ -213,7 +213,8 @@ Two further optional overrides exist for advanced cases:
 - `LightTraits::set_min_mireds()` / `set_max_mireds()`: the color-temperature range, required when supporting
   `COLOR_TEMPERATURE`.
 - `create_default_transition()`: override to provide a custom `LightTransformer` for transitions; the default uses a
-  smooth (gamma-aware) transition.
+  smooth (gamma-aware) transition. A flash sets the transformer up twice, for the fade to the flash color and later for
+  the fade back, so its `start()` must reset every member `apply()` reads rather than rely on constructor defaults.
 - `state->get_effect_name()`: the name of the currently active effect, or `"None"`.
 
 ### Mirroring a light that lives elsewhere

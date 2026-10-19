@@ -481,6 +481,72 @@ Both patterns are worked through in full, with real in-tree examples, in
 [Exposing multiple sensors from one component](/architecture/components/sensor#exposing-multiple-sensors-from-one-component).
 The entity-type pages in the navigation tree each describe the equivalent for their own type.
 
+#### Entities that only call the hub
+
+Many child entities do nothing but call one method of their hub: a button that runs `hub->restart()`, or a switch that
+publishes its new state and runs `hub->set_bluetooth(state)`. These need no C++ class of their own. Declare the entity
+with its domain's `Apply` class and pass `apply=` to the `sub_*` call; code generation then writes a small function
+with that call, and the entity runs it when it is pressed or changed:
+
+```python
+CONFIG_SCHEMA = {
+    cv.GenerateID(CONF_LD2410_ID): cv.use_id(LD2410Component),
+    cv.Optional(CONF_BLUETOOTH): switch.switch_schema(
+        switch.ApplySwitch,
+        device_class=DEVICE_CLASS_SWITCH,
+        entity_category=ENTITY_CATEGORY_CONFIG,
+        icon=ICON_BLUETOOTH,
+    ),
+}
+
+
+async def to_code(config: ConfigType) -> None:
+    hub = await cg.get_variable(config[CONF_LD2410_ID])
+    switches = switch.sub_switches(config, parent=hub)
+    await switches(
+        CONF_BLUETOOTH,
+        hub.set_bluetooth_switch,
+        apply="set_bluetooth(state)",
+        publish="before",
+    )
+```
+
+`apply` is the C++ call on the hub, written without the hub in front of it. It can use the names in the table:
+
+| Domain | Class | Names in `apply` | What `publish` publishes |
+| ------ | ----- | ---------------- | ------------------------ |
+| `button` | `button.ApplyButton` | `entity` | (not available) |
+| `switch` | `switch.ApplySwitch` | `entity`, `state` | `state` |
+| `number` | `number.ApplyNumber` | `entity`, `value` | `value` |
+| `select` | `select.ApplySelect` | `entity`, `index`, `option` (the selected option's text) | `index` |
+
+`publish="before"` or `publish="after"` publishes the new state before or after the call. Leave it out when the hub
+publishes the state itself, for example once the device confirms the change. Code generation stops with an error
+when the `Apply` class has no `apply=`, when `apply=` is used with another class or without `parent=`, and when
+`publish=` is used without `apply=` or on a button. The setter can be `None` when the hub keeps no pointer to the
+entity. For a platform whose whole config is one entity, call
+`.create(config, setter, apply=..., publish=...)` on the `sub_*` result instead.
+
+This removes a class, a header and a source file per entity, and the entity stores no hub pointer. Entities whose
+`apply` and `publish` are the same share one generated function, and so one class. To get that for a group of similar
+entities, pass `entity` to the hub and let the hub find out which one changed, as `ld2410` does for its 18 gate
+threshold numbers with `apply="set_gate_threshold(entity)"`:
+
+```cpp
+void LD2410Component::set_gate_threshold(number::Number *n) {
+  // Found by pointer: up to 18 compares per write beat storing the gate in each number
+  uint8_t gate = 0;
+  while (gate < TOTAL_GATES && this->gate_move_threshold_numbers_[gate] != n &&
+         this->gate_still_threshold_numbers_[gate] != n)
+    gate++;
+  if (gate == TOTAL_GATES)
+    return;
+  ...
+}
+```
+
+Keep a C++ class when the entity has state or logic of its own beyond that one call.
+
 ## C++ component structure
 
 Given the example Python code above, let's consider the following C++ code:

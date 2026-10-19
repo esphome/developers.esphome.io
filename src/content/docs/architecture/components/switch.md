@@ -222,6 +222,9 @@ await switches(CONF_ENGINEERING_MODE, hub.set_engineering_mode_switch)
 await switches(CONF_BLUETOOTH, hub.set_bluetooth_switch)
 ```
 
+A switch that only passes its new state to the hub needs no class of its own: declare it with `switch.ApplySwitch` and pass
+`apply=` to the call. See [Entities that only call the hub](/architecture/components/index#entities-that-only-call-the-hub).
+
 ### Choosing between them
 
 Neither pattern is the "modern" one and neither is deprecated. They express different relationships between a device

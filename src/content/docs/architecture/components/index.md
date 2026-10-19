@@ -43,6 +43,8 @@ import esphome.codegen as cg
 
 from esphome.const import CONF_ID
 
+DOMAIN = "example_component"
+
 CONF_FOO = "foo"
 CONF_BAR = "bar"
 CONF_BAZ = "baz"
@@ -83,6 +85,14 @@ configuration. Components may contain their own validations as well and this is 
 that contains all the code generation method that are used to generate the C++ code that is placed into `main.cpp`.
 
 ```python
+DOMAIN = "example_component"
+```
+
+Every component defines `DOMAIN` as a plain string equal to its folder name. Refer to the component by name through
+this constant rather than repeating the string. CI fails if a component's `__init__.py` does not define it. See
+[`DOMAIN`](#domain) below.
+
+```python
 example_component_ns = cg.esphome_ns.namespace("example_component")
 ```
 
@@ -113,6 +123,45 @@ a boolean value for the key `foo`. The user also may or may not (hence `Optional
 generates a unique ID (C++ variable name used in the generated code) for this component but also allows the user to
 specify their own `id` in their configuration in the event that they wish to refer to it in their automations.
 
+An option with a fixed set of choices that maps to a C++ enum is validated with `cv.enum()`, which takes a dict from
+each choice to its enumerator. Build that dict with `options()` on the enum instead of writing each line out:
+
+```python
+DimMethod = ac_dimmer_ns.enum("DimMethod")
+
+# Written out by hand
+DIM_METHODS = {
+    "LEADING_PULSE": DimMethod.DIM_METHOD_LEADING_PULSE,
+    "LEADING": DimMethod.DIM_METHOD_LEADING,
+    "TRAILING": DimMethod.DIM_METHOD_TRAILING,
+}
+
+# The same dict built by options()
+DIM_METHODS = DimMethod.options(
+    "LEADING_PULSE", "LEADING", "TRAILING", prefix="DIM_METHOD_"
+)
+
+CONFIG_SCHEMA = cv.Schema(
+    {
+        cv.Optional(CONF_METHOD, default="leading pulse"): cv.enum(
+            DIM_METHODS, upper=True, space="_"
+        ),
+    }
+)
+```
+
+Each choice maps to `prefix` plus the choice in upper case, with every character that is not a letter or a digit
+turned into `_`. `prefix` is optional and defaults to empty: `adc`'s `sampling_mode.options("avg", "min", "max")` maps
+`"avg"` to `SamplingMode::AVG`, and is used with `cv.enum(SAMPLING_MODES, lower=True)`.
+
+`options()` returns a plain dict. When a choice does not follow the rule, add it to that dict, or write the whole dict
+out by hand:
+
+```python
+MODES = MyEnum.options("A", "B", prefix="MODE_")
+MODES["LEGACY"] = MyEnum.MODE_OLD_NAME
+```
+
 #### Code generation
 
 The `to_code` method is called after the entire configuration has been validated. It is given the parsed `config`
@@ -136,6 +185,14 @@ await cg.register_component(var, config)
 This line generates `App.register_component(var)` in C++ which registers the component so that its `setup`, `loop`
 and/or `update` methods are called correctly.
 
+For a component on a bus, these two calls and the bus registration are replaced by one helper:
+`i2c.new_i2c_component()`, `uart.new_uart_component()`, `spi.new_spi_component()`,
+`modbus.new_modbus_client_component()`, `ble_device_base.new_ble_device_component()` or
+`ble_client.new_ble_node_component()`.
+Each takes `config` and passes any further arguments to the constructor, for example
+`var = await i2c.new_i2c_component(config)`. The modbus and BLE helpers are available in ESPHome 2026.11.0 and later
+(esphome/esphome#21025).
+
 Assuming the user has `foo: true` in their YAML configuration, this line:
 
 ```python
@@ -158,6 +215,23 @@ if bar := config.get(CONF_BAR):
 If the user has set `bar` in the configuration, this line will generate the C++ code to call `set_bar` on the object.
 If the config value is not set, then we do not call the setter function.
 
+Pins and references to other components have helpers that build the value and pass it to the setter in one call.
+`cg.add_pin()` builds the pin expression; `cg.add_variable()` looks up the component that an ID points to:
+
+```python
+await cg.add_pin(var.set_cs_pin, config[CONF_CS_PIN])
+await cg.add_pin(var.set_reset_pin, config.get(CONF_RESET_PIN))
+await cg.add_variable(var.set_time, config.get(CONF_TIME_ID))
+```
+
+Both do nothing when given `None`, so `config.get()` handles an optional key without an `if`. Both return what they
+created (or `None`) for the rare case where it is used again. For a class that derives from `Parented<T>`, use
+`await cg.register_parented(var, config[CONF_MY_HUB_ID])` instead.
+
+These helpers are available in ESPHome 2026.11.0 and later (esphome/esphome#21018). An external component that
+supports earlier releases builds the value with `cg.gpio_pin_expression()` or `cg.get_variable()` and calls the
+setter with `cg.add()`, as in the `bar` example above.
+
 ### Further information
 
 - `ALIASES`: A list of legacy names that should transparently route to this component's canonical name. This allows a
@@ -170,12 +244,16 @@ If the config value is not set, then we do not call the setter function.
   an alias from `ALIASES` is used, telling users when the legacy name will stop working.
 - `AUTO_LOAD`: A list of components that will be automatically loaded if they are not already specified in the
   configuration. This can be a method that can be run with access to the `CORE` information like the target platform.
-- `CONFLICTS_WITH`: A list of components which conflict with this component. If the user has one of them in their
-  config, a validation error will be generated.
 - `CODEOWNERS`: A list of GitHub usernames that are responsible for this component. `script/build_codeowners.py` will
   update the `CODEOWNERS` file.
+- `CONFLICTS_WITH`: A list of components which conflict with this component. If the user has one of them in their
+  config, a validation error will be generated.
 - `DEPENDENCIES`: A list of components that this component depends on. If these components are not present in the
    configuration, or loaded by another component, validation will fail and the user will be shown an error.
+- `DOMAIN`: Required. The component's name as a plain string, equal to its folder name (e.g. `DOMAIN = "uart"`).
+  Keep it in alphabetical order with the other metadata constants such as `CODEOWNERS` and `DEPENDENCIES`. The
+  `lint_component_domain` check in `script/ci-custom.py` fails if a component's top-level `__init__.py` does not define it with the right
+  value. Platform modules such as `<name>/sensor/__init__.py` are not checked. See [`DOMAIN`](#domain).
 - `MULTI_CONF`: If set to `True`, the user can use this component multiple times in their configuration. If set to a
   number, the user can use this component that number of times.
 - `MULTI_CONF_NO_DEFAULT`: This is a special flag that allows the component to be auto-loaded without an instance of
@@ -185,6 +263,37 @@ If the config value is not set, then we do not call the setter function.
 - `PREFETCH_FILES`: A generator that lets a component's remote files be downloaded in one parallel batch before schema
   validation instead of one at a time during it. See [Remote file prefetching](#remote-file-prefetching).
 
+### `DOMAIN`
+
+Use `DOMAIN` wherever code needs the component's name, instead of repeating the string literal. Inside the component:
+
+```python
+from esphome.core import CORE
+
+AUTO_LOAD = ["socket"]
+CODEOWNERS = ["@example"]
+DEPENDENCIES = ["i2c"]
+DOMAIN = "example_component"
+MULTI_CONF = True
+
+
+def _get_data() -> dict:
+    # Per-build state for this component, keyed by its name
+    return CORE.data.setdefault(DOMAIN, {})
+```
+
+From another component, import it under a clear alias:
+
+```python
+from esphome.components.psram import DOMAIN as PSRAM_DOMAIN
+from esphome.core import CORE
+
+if PSRAM_DOMAIN in CORE.loaded_integrations:
+    ...
+```
+
+The imported constant also works with other name-based helpers, such as `cv.requires_component(PSRAM_DOMAIN)`.
+
 ### Final validation
 
 ESPHome has a mechanism to run a final validation step after all of the configuration is initially deemed to be
@@ -193,6 +302,113 @@ any other components and potentially fail the validation stage if an important d
 
 For example, many components that rely on `uart` can use the `FINAL_VALIDATE_SCHEMA` to ensure that the `tx_pin` and/or
 `rx_pin` are configured.
+
+### Platform components
+
+Some components are **platform components**: instead of a single configuration block, the top-level YAML key holds a
+list of entries, each selecting a *platform* that provides its own `CONFIG_SCHEMA`/`to_code`. `sensor`, `switch` and
+`image` are all platform components:
+
+```yaml
+image:
+  - platform: file
+    file: "image.png"
+    id: my_image
+```
+
+A component opts into this by setting `IS_PLATFORM_COMPONENT = True` in its `__init__.py`. Each platform then lives
+in its own component package, in a module named after the platform component's domain --
+`esphome/components/<platform>/<domain>.py` -- exposing its own `CONFIG_SCHEMA` and `to_code` exactly like a regular
+component. For example, `platform: file` under `image:` resolves to `esphome/components/file/image.py`.
+
+Two optional hooks on the platform component's own `__init__.py` module let it reshape the raw domain config -- the
+list of `platform:`-tagged entries -- *before* any individual entry's `CONFIG_SCHEMA` runs or its IDs are registered:
+
+#### `LEGACY_CONFIG_MIGRATE`
+
+A removable deprecation shim: rewrites a pre-platform-component config shape (for example, a bare list or a
+monolithic dict your component used to accept before it became a platform component) into the normalized
+`platform:`-tagged list, logging a one-time deprecation warning. Delete it, along with any code that only exists to
+understand the old shape, once its removal version has passed.
+
+```python
+def migrate_legacy_config(config: object) -> list[dict] | None:
+    if _is_already_platform_tagged(config):
+        return None  # Nothing to do.
+    _LOGGER.warning("... deprecated ...")
+    return [{"platform": "file", **entry} for entry in _flatten(config)]
+
+
+LEGACY_CONFIG_MIGRATE = migrate_legacy_config
+```
+
+#### `EXPAND_PLATFORM_CONFIG`
+
+A permanent (non-deprecated) counterpart: lets any platform entry -- for any platform the component provides --
+expand into multiple entries. `image` uses this so a single entry can provide `defaults:` (options merged into
+every image) plus `files:` (a list of per-image overrides), instead of repeating shared options on every entry. It
+only has to be implemented once, in the base `image` component, and every platform it provides (`file`, `animation`,
+`online_image`) gets the feature for free.
+
+```yaml
+image:
+  - platform: file
+    defaults:
+      type: RGB565
+      resize: 64x64
+    files:
+      - file: a.png
+        id: img_a
+      - file: b.png
+        id: img_b
+```
+
+This expands to two `platform: file` entries, each with `type` and `resize` merged in; keys on a `files:` item
+override the defaults. A simplified version of the hook, showing how malformed input is rejected:
+
+```python
+def _expand_entry(index: int, entry: dict) -> list[dict]:
+    if "files" not in entry:
+        if "defaults" in entry:
+            raise cv.Invalid("'defaults' may only be used together with 'files'", path=[index])
+        return [entry]
+    if extra := set(entry) - {"platform", "defaults", "files"}:
+        raise cv.Invalid(f"'files' cannot be combined with {', '.join(sorted(extra))}", path=[index])
+    files = entry["files"]
+    if not isinstance(files, list) or not files:
+        raise cv.Invalid("'files' must be a non-empty list", path=[index])
+    defaults = entry.get("defaults") or {}
+    if not isinstance(defaults, dict):
+        raise cv.Invalid("'defaults' must be a mapping", path=[index])
+    if not all(isinstance(file_entry, dict) for file_entry in files):
+        raise cv.Invalid("each entry in 'files' must be a mapping", path=[index])
+    return [{"platform": entry["platform"], **defaults, **file_entry} for file_entry in files]
+
+
+def expand_platform_config(config: list[dict]) -> list[dict]:
+    result = []
+    for index, entry in enumerate(config):
+        result.extend(_expand_entry(index, entry))
+    return result
+
+
+EXPAND_PLATFORM_CONFIG = expand_platform_config
+```
+
+Contract:
+
+- Do only structural dict manipulation here -- leave semantic validation (for example, "is this key valid for this
+  platform") to each platform's own `CONFIG_SCHEMA`, which still runs on every entry the hook returns.
+- To reject malformed input, raise `cv.Invalid`, optionally with `path=[index]` where `index` is the offending
+  entry's position in the *input* list, so the error is anchored to that entry rather than to the whole domain. Do
+  not raise other exception types for user-facing errors -- they will surface as an unhandled traceback rather than
+  a config error.
+- The return value must always be a `list`. Returning anything else is treated as a bug in the component, not a
+  user configuration error.
+- It runs once per domain, after `LEGACY_CONFIG_MIGRATE` (if defined) and after the domain's raw config has been
+  normalized into a list, but before any entry's `CONFIG_SCHEMA`, `FINAL_VALIDATE_SCHEMA`, or ID registration.
+
+See `esphome/components/image/__init__.py` for the full implementation this is based on.
 
 ### Remote file prefetching
 
@@ -308,7 +524,7 @@ This represents the minimum required code to implement a component in ESPHome:
 
   namespace esphome::example_component {
 
-  static const char *TAG = "example_component.component";
+  ESPHOME_LOG_TAG(TAG, "example_component.component");
 
   void ExampleComponent::setup() {
     // Code here should perform all component initialization,
@@ -377,6 +593,52 @@ In addition, for `PollingComponent`:
 
 > [!WARNING]
 > Code in these methods (and elsewhere) [must not block](/contributing/code/#c).
+
+### Reporting warnings and errors
+
+A component reports trouble through its status flags, which drive the status LED and the device's warning and error
+state:
+
+- `status_set_warning()` / `status_set_error()` set the flag until the component clears it with
+  `status_clear_warning()` / `status_clear_error()`. Pass a `LOG_STR("...")` message to log why; without one the log
+  says "unspecified". `status_comm_result()` (below) sets or clears the warning from a read or write result.
+- `status_momentary_warning()` / `status_momentary_error()` set the flag and clear it again after a timeout (5000 ms by
+  default). Use them for one-off failures, such as a single failed read. A new call restarts the timeout.
+- `mark_failed()` marks the component as failed when it cannot work at all, typically from `setup()`.
+
+```cpp
+this->status_momentary_warning();                          // cleared after 5000 ms
+this->status_momentary_warning(1000);                      // cleared after 1000 ms
+this->status_momentary_error(LOG_STR("Read failed"), 500);  // logs the reason
+```
+
+Before ESPHome 2026.11.0 the momentary calls required a name as their first argument, for example
+`status_momentary_warning("read", 1000)`. The named form still compiles but is deprecated, and will be removed in
+2027.5.0: the name was only used to key the timer, it is kept as a string (RAM on ESP8266), and it can clash with the
+component's own `set_timeout()` names. Drop the name to migrate.
+
+A read or write that runs again on every update sets the warning when it fails and clears it when it works again.
+`status_comm_result(ok)` does both and returns `ok`, so the failure check stays one line:
+
+```cpp
+// Before
+if (!this->read_bytes(REG_RED_DATA_LSB, buffer, sizeof(buffer))) {
+  this->status_set_warning(LOG_STR(ESP_LOG_MSG_COMM_FAIL));
+  return;
+}
+this->status_clear_warning();
+
+// After
+if (!this->status_comm_result(this->read_bytes(REG_RED_DATA_LSB, buffer, sizeof(buffer))))
+  return;
+```
+
+Without a message the warning says "Communication failed" (`ESP_LOG_MSG_COMM_FAIL`). Pass a `LOG_STR("...")` as the
+second argument for another text, for example
+`this->status_comm_result(ok, LOG_STR("Failed to read one or more registers"))`. Use it for failures after `setup()`;
+a device that cannot be set up at all still calls `mark_failed()`. A component has one warning flag, so a success
+clears a warning set by any other check too; do not mix it with other `status_set_warning()` conditions in the same
+update.
 
 ### Component-specific methods
 

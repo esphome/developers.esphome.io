@@ -120,3 +120,38 @@ to be reconfigured to match.
 
 For everything else, the component implements the usual set of methods
 [as described here](/architecture/components/index#common-methods).
+
+### Notifying the audio DAC when audio starts
+
+Some DACs and amplifiers with a built-in DSP (for example the TI TAS58xx family) only accept writes to their mixer, EQ
+or other DSP memory while the I2S clocks are running, and may lose that state again when the clocks stop. Writing that
+configuration in `setup()` is not reliable, so `audio_dac::AudioDac` provides an optional hook:
+
+```cpp
+virtual void on_audio_started() {}
+```
+
+If your speaker drives a linked `audio_dac`, call this hook from the main loop once your audio clocks are running and
+stable - for example, when the state changes to `STATE_RUNNING` after the I2S channel has been enabled. Call it every
+time playback starts, not only the first time. Guard the call with `USE_AUDIO_DAC` so builds without an audio DAC are
+unchanged:
+
+```cpp
+void MySpeaker::loop() {
+  // ...
+  if (this->clocks_just_started_()) {
+    this->state_ = speaker::STATE_RUNNING;
+#ifdef USE_AUDIO_DAC
+    if (this->audio_dac_ != nullptr) {
+      this->audio_dac_->on_audio_started();
+    }
+#endif  // USE_AUDIO_DAC
+  }
+}
+```
+
+Do not call it from a FreeRTOS task. The DAC may run I2C transactions or change component state in this hook, and
+those are only safe on the main loop. The `i2s_audio` speaker already calls it this way.
+
+If you are writing an `audio_dac` component, override `on_audio_started()` to write any configuration that needs a
+running clock. The default does nothing, so existing DACs need no changes.

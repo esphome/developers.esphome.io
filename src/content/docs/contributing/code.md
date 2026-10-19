@@ -6,6 +6,11 @@ title: "Contributing to ESPHome"
 
 This is a guide to contributing to the ESPHome codebase.
 
+## Use of AI for contributions
+
+The [Open Home Foundation AI policy](https://contributors.home-assistant.io/start/ai-policy/)
+applies to ESPHome. Please read this before contributing.
+
 ## Codebase standards
 
 ESPHome's maintainers work hard to maintain a high standard for its code. We try our best to adhere to the standards
@@ -280,6 +285,136 @@ Choose containers carefully on embedded systems:
 Note: Avoiding heap allocation after `setup()` is always required regardless of component type. The prioritization above
 is about the effort spent on container optimization (e.g., migrating from `std::vector` to `StaticVector`).
 
+#### Constant data in flash on the ESP8266
+
+On the ESP8266, `const` tables and string literals live in RAM unless they are marked `PROGMEM`; the other platforms
+keep them in flash either way. Mark constant arrays `PROGMEM` and read them with `progmem_memcpy()` or
+`progmem_read_byte()` from `esphome/core/hal.h`, which are a plain `memcpy` and dereference elsewhere, so no `#ifdef`
+is needed.
+
+#### String tables in flash
+
+A fixed set of strings looked up by index, such as mode or state names, goes in a `PROGMEM_STRING_TABLE`. It packs
+the strings into one blob, in flash on ESP8266 and in `.rodata` elsewhere, so nothing is copied to RAM and no pointer
+table is kept:
+
+```cpp
+#include "esphome/core/progmem.h"
+
+PROGMEM_STRING_TABLE(FanModeStrings, "AUTO", "LOW", "MEDIUM", "HIGH", "UNKNOWN");
+
+// An index past the end returns the fallback, so the last entry is the usual "unknown" text
+ESP_LOGD(TAG, "Fan mode: %s", LOG_STR_ARG(FanModeStrings::get_log_str(mode, FanModeStrings::LAST_INDEX)));
+```
+
+`get_log_str()` returns a `const LogString *` for logging and `get_progmem_str()` a `ProgmemStr` for code that reads flash
+strings, such as ArduinoJson. A table holds up to 255 strings. While the strings total 255 bytes or less, each entry
+has a one-byte offset; a larger table has no offset table and is walked at lookup time, which costs less flash than
+wider offsets for the rarely read message tables that get this big.
+`Name::MAX_LENGTH` is the longest string, which sizes a RAM copy on ESP8266 when the text goes to code that expects an
+ordinary `const char *` rather than a flash string:
+
+```cpp
+char message[AlarmMessages::MAX_LENGTH + 1];
+ESPHOME_strncpy_P(message, reinterpret_cast<const char *>(AlarmMessages::get_progmem_str(code, AlarmMessages::LAST_INDEX)),
+                  sizeof(message));
+```
+
+A name that a device or Home Assistant sends arrives in RAM and is matched against the table with
+`progmem_string_table_find()`, which returns the index of the matching string or `-1`:
+
+```cpp
+PROGMEM_STRING_TABLE(ColorModeNames, "onoff", "brightness", "white", "color_temp");
+
+// value is what Home Assistant or the device sent, in RAM
+const int16_t index = progmem_string_table_find<ColorModeNames>(value.c_str(), value.size());
+if (index < 0) {
+  ESP_LOGW(TAG, "Unknown color mode '%s'", value.c_str());
+  return;
+}
+```
+
+The lookup takes a pointer and a length rather than a `StringRef`, because `string_ref.h` includes `progmem.h`. It
+walks the blob once whatever the table size, so it suits a name that arrives now and then, not a hot path.
+
+### Saved settings on the ESP8266
+
+A component that saves large values, or one value per configured entity, reserves them from its `to_code` with
+`preferences.reserve_preferences()`: the count, the size of one value in bytes, and whether the value is saved to
+flash, the same flag the component passes to `make_preference()` (the `storage:` option described under
+[Persisting Component State](/architecture/components/advanced/#persisting-component-state)). Leave the flag out
+for a component that calls `make_preference()` without an `in_flash` argument, which follows `restore_from_flash`.
+On platforms with room to spare the call does nothing.
+
+```python
+from esphome import preferences
+
+ZONE_SAVED_BYTES = 94  # sizeof(Polygon), pinned by a static_assert in polygon.h
+
+
+async def to_code(config):
+    ...
+    preferences.reserve_preferences(
+        len(zones), ZONE_SAVED_BYTES, preferences.is_in_flash(config[CONF_STORAGE])
+    )
+```
+
+After all code generation the esp8266 component adds up every component's reservations, because the space is
+shared and no component can judge its own share. Each value takes its size rounded up to 4-byte words plus one
+checksum word, so a 94-byte value takes 25 words. RTC memory holds 110 words in two regions of 78 and 32 that a
+single value cannot span, and the flash store holds 128 words with `restore_from_flash` or 64 without. The build
+fails when the reserved values cannot fit in any order. It only warns once reservations spill past the first RTC
+region, because the fit then depends on setup order, and saved values that do not reserve, such as a switch's
+restore state, also use that space and are not counted.
+
+### Helpers for raw device data
+
+`esphome/core/helpers.h` has small helpers for the byte work that device protocols need. Use them instead of writing
+the same bit and byte handling again in each component.
+
+#### Checksums
+
+Many serial and I2C devices end a frame with a simple checksum. These helpers cover the common kinds; each takes a
+pointer, a length and an optional starting value:
+
+| Helper | Result |
+| ------ | ------ |
+| `sum_bytes(data, len, sum = 0)` | Sum of the bytes, kept to 8 bits |
+| `sum16_bytes(data, len, sum = 0)` | Sum of the bytes, kept to 16 bits |
+| `xor_bytes(data, len, init = 0)` | XOR of the bytes |
+| `crc8()`, `crc16()`, `crc16be()` | CRCs with a choice of polynomial and bit order |
+
+```cpp
+// Before
+uint8_t checksum = 0;
+for (uint8_t i = 0; i < 5; i++)
+  checksum ^= this->buffer_[i];
+
+// After
+const uint8_t checksum = xor_bytes(this->buffer_, 5);
+```
+
+Other checksums are built from these. An inverted XOR is `static_cast<uint8_t>(~xor_bytes(data, len))`, and
+`dfplayer`'s negated 16-bit sum is `static_cast<uint16_t>(-sum16_bytes(buffer + 1, 6))`. Keep the cast: `~` and `-`
+widen the result to `int`, so comparing it to a received byte without the cast always fails. Pass the starting value
+to include bytes that are not next to the data, such as a header sent separately.
+
+#### Signed values of unusual widths
+
+Sensors often report a signed value in a width that is not a C++ type, such as 12 or 24 bits. `sign_extend<BITS>()`
+turns the low `BITS` bits of a `uint32_t` into an `int32_t`; any higher bits are ignored:
+
+```cpp
+// Before
+int32_t raw = (int32_t) (raw_energy << 8) >> 8; /* Sign-extend */
+
+// After
+int32_t raw = sign_extend<24>(raw_energy);
+```
+
+`sign_extend<24>(0xFFFFFE)` is `-2`. `BITS` can be from 1 to 32, which is checked when the code compiles. It is
+`constexpr`, so it also works in constants.
+
 ### Gating optional features behind conditional compilation
 
 ESPHome runs on devices with very limited RAM and flash. Every byte added to a base class, core component, or widely
@@ -421,6 +556,9 @@ In general, we try to avoid use of external libraries.
   - Many constants used in components are already defined in `esphome/const.py`; no new constants
       should be added there unless used in core code.
   - Create a separate PR if/when you wish to move a constant into `esphome/components/const/__init__.py`.
+- Every component's `__init__.py` **must** define `DOMAIN = "<name>"`, where `<name>` is the component's folder name,
+  or CI checks will fail. Use `DOMAIN` (or `from esphome.components.<name> import DOMAIN as <NAME>_DOMAIN` from another
+  component) instead of repeating the component name as a string, for example `CORE.data[DOMAIN]`.
 - Using `AUTO_LOAD` to load main platform components (`sensor`, `binary_sensor`, `switch`, etc.) is not permitted.
 - Use Python's walrus operator for optional config gathering, except for boolean values. For example:
   `sensor_config := config.get(CONF_SENSOR)`
@@ -459,6 +597,9 @@ In general, we try to avoid use of external libraries.
   - For any [`Component`](https://esphome.io/api/classesphome_1_1_component) (which is nearly everything), the
       well-known `set_timeout` method is also available; this can be a handy alternative to implementing a state
       machine.
+  - ESPHome warns in the log when a component holds the loop for too long; see
+      [The Loop Blocking Warning](/architecture/components/advanced#the-loop-blocking-warning) for how the warning
+      works and the narrow case where `UnavoidableBlockingScope` may be used.
 
 #### Components/platforms and entities
 
@@ -840,6 +981,8 @@ Unlike C++, most Python code in ESPHome is **internal implementation** unless ex
 > import esphome.codegen as cg
 > import esphome.config_validation as cv
 > from esphome.const import CONF_ID
+>
+> DOMAIN = "my_component"
 >
 > # PUBLIC - documented configuration schema
 > CONF_CUSTOM_PARAM = "custom_param"

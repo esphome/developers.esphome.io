@@ -122,16 +122,16 @@ bcd_to_uint8(0x59);  // 59
 uint8_to_bcd(59);    // 0x59, for values from 0 to 99
 ```
 
-Most clock chips keep the whole calendar in seven consecutive bytes: second, minute, hour, the weekday and the day
-of the month, the month and the year since 2000. `time::decode_bcd_calendar<LAYOUT>()` and
+The whole calendar usually sits in seven consecutive bytes: second, minute, hour, the weekday and the day of the
+month, the month and the year since 2000. `time::decode_bcd_calendar<LAYOUT>()` and
 `time::encode_bcd_calendar<LAYOUT>()` from `real_time_clock.h` convert the whole block at once; the layout names the
 details that differ between chip families:
 
-| Layout               | Weekday byte              | Byte order        | Month bit 7   | Hour byte              | Chips                     |
-| -------------------- | ------------------------- | ----------------- | ------------- | ---------------------- | ------------------------- |
-| `EPSON_BCD_CALENDAR` | one bit per day, Sunday 0 | weekday, then day | ignored       | 24-hour                | RX8025T, RX8111, RX8130   |
-| `DS_BCD_CALENDAR`    | 1 to 7, Sunday 1          | weekday, then day | set from 2100 | 12-hour flag honoured  | DS1307, DS3231            |
-| `PCF_BCD_CALENDAR`   | 0 to 6, Sunday 0          | day, then weekday | ignored       | 24-hour                | PCF8563, PCF85063, BM8563 |
+| Layout               | Weekday byte              | Byte order        | Month bit 7                 | Hour byte             | Chips                     |
+| -------------------- | ------------------------- | ----------------- | --------------------------- | --------------------- | ------------------------- |
+| `EPSON_BCD_CALENDAR` | one bit per day, Sunday 0 | weekday, then day | ignored                     | 24-hour               | RX8025T, RX8111, RX8130   |
+| `DS_BCD_CALENDAR`    | 1 to 7, Sunday 1          | weekday, then day | set from 2100 (DS3231 only) | 12-hour flag honoured | DS1307, DS3231            |
+| `PCF_BCD_CALENDAR`   | 0 to 6, Sunday 0          | day, then weekday | ignored                     | 24-hour               | PCF8563, PCF85063, BM8563 |
 
 Pick the layout whose datasheet matches, or add one to `real_time_clock.h` when a chip differs; each layout compiles
 to one decode and one encode function shared by every driver that uses it. `rx8025t` reads and writes its clock like
@@ -158,8 +158,8 @@ this->write_bytes(RX8025T_REG_SEC, buff, sizeof(buff));
 
 Decoding drops the bits each byte does not use for the value, such as a chip's flag bits, and fills in `timestamp`
 as UTC. It does not work out the day of the year, so check the result with `check_day_of_year=false` as shown.
-Encoding always writes 24-hour mode. Only encode a valid time, with a year from 2000 to 2099 unless the layout has a
-century bit.
+Encoding always writes 24-hour mode. Only encode a valid time, with a year from 2000 to 2099, or up to 2199 when both
+the layout and the chip keep the century bit (DS3231).
 
 ### Useful members
 

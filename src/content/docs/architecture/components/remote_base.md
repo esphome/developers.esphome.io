@@ -49,8 +49,8 @@ if (!data.expect_bytes<BIT_TIMINGS>(state_frame, sizeof(state_frame)))
   return false;
 ```
 
-- Bits go least significant first; set `.msb_first = true` in the `BitTimings` for protocols that send the most
-  significant bit first.
+- Bits go least significant first; set `.bit_order = remote_base::BitOrder::BIT_ORDER_MSB_FIRST` in the `BitTimings`
+  for protocols that send the most significant bit first.
 - `expect_bytes` returns false at the first bit whose space matches neither length, leaving that item unread. Only
   whole bytes are written to `out`, so the buffer does not need to be zeroed first.
 - Frames with gaps or separators between groups of bytes use one call per group, with the separator items between.

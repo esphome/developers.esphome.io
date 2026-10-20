@@ -208,12 +208,12 @@ var->set_foo(true);
 ...in the generated `main.cpp` file.
 
 ```python
-if bar := config.get(CONF_BAR):
-    cg.add(var.set_bar(bar))
+cg.add_optional(var.set_bar, config.get(CONF_BAR))
 ```
 
 If the user has set `bar` in the configuration, this line will generate the C++ code to call `set_bar` on the object.
-If the config value is not set, then we do not call the setter function.
+If the config value is not set, then we do not call the setter function. Only `None` is skipped, so `0` and `false`
+are still set.
 
 Pins and references to other components have helpers that build the value and pass it to the setter in one call.
 `cg.add_pin()` builds the pin expression; `cg.add_variable()` looks up the component that an ID points to:
@@ -228,9 +228,17 @@ Both do nothing when given `None`, so `config.get()` handles an optional key wit
 created (or `None`) for the rare case where it is used again. For a class that derives from `Parented<T>`, use
 `await cg.register_parented(var, config[CONF_MY_HUB_ID])` instead.
 
-These helpers are available in ESPHome 2026.11.0 and later (esphome/esphome#21018). An external component that
-supports earlier releases builds the value with `cg.gpio_pin_expression()` or `cg.get_variable()` and calls the
-setter with `cg.add()`, as in the `bar` example above.
+`cg.add_pin()` and `cg.add_variable()` are available in ESPHome 2026.11.0 and later (esphome/esphome#21018). An
+external component that supports earlier releases builds the value with `cg.gpio_pin_expression()` or
+`cg.get_variable()` and calls the setter with `cg.add()`.
+
+`cg.add_optional()` is available in ESPHome 2026.11.0 and later (esphome/esphome#21180). For earlier releases, use an
+`if` block:
+
+```python
+if (bar := config.get(CONF_BAR)) is not None:
+    cg.add(var.set_bar(bar))
+```
 
 ### Further information
 

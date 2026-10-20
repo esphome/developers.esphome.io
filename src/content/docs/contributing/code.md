@@ -415,6 +415,27 @@ int32_t raw = sign_extend<24>(raw_energy);
 `sign_extend<24>(0xFFFFFE)` is `-2`. `BITS` can be from 1 to 32, which is checked when the code compiles. It is
 `constexpr`, so it also works in constants.
 
+#### Setting or clearing register bits
+
+`assign_bits(reg, mask, on)` sets the bits of `mask` in `reg` when `on` is true and clears them otherwise. It changes
+`reg` in place:
+
+```cpp
+// Before
+if (value) {
+  this->output_mask_ |= (1 << pin);
+} else {
+  this->output_mask_ &= ~(1 << pin);
+}
+
+// After
+assign_bits(this->output_mask_, 1 << pin, value);
+```
+
+The mask is converted to the register's type first. For a register wider than `int`, use an unsigned mask: a negative
+`int` mask such as `1 << 31` is sign-extended and clears the higher bits too. `assign_bits()` is available in ESPHome
+2026.11.0 and later (esphome/esphome#21184).
+
 ### Gating optional features behind conditional compilation
 
 ESPHome runs on devices with very limited RAM and flash. Every byte added to a base class, core component, or widely

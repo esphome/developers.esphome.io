@@ -212,7 +212,7 @@ cg.add_optional(var.set_bar, config.get(CONF_BAR))
 ```
 
 If the user has set `bar` in the configuration, this line will generate the C++ code to call `set_bar` on the object.
-If the config value is not set, then we do not call the setter function. Only `None` is skipped, so `0` and `false`
+If the config value is not set, then we do not call the setter function. Only `None` is skipped, so `0` and `False`
 are still set.
 
 Pins and references to other components have helpers that build the value and pass it to the setter in one call.

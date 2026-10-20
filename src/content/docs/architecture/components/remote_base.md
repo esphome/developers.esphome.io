@@ -36,16 +36,16 @@ bool MyClimate::on_receive(remote_base::RemoteReceiveData data) {
 ## Frame bytes
 
 Most IR frames send each byte as eight bits, each a fixed mark followed by a long space for 1 or a short space
-for 0. Describe the bit with a `remote_base::BitTimings` and send or read a byte array in one call, instead of writing
-the bit loop:
+for 0. Describe the bit with a `remote_base::BitTimings` and pass it as the template argument to send or read a byte
+array in one call, instead of writing the bit loop:
 
 ```cpp
 static constexpr remote_base::BitTimings BIT_TIMINGS{.bit_mark = 465, .one_space = 1750, .zero_space = 670};
 
-data->item_bytes_lsb(remote_state, sizeof(remote_state), BIT_TIMINGS);
+data->item_bytes_lsb<BIT_TIMINGS>(remote_state, sizeof(remote_state));
 
 uint8_t state_frame[STATE_FRAME_SIZE];
-if (!data.expect_bytes_lsb(state_frame, sizeof(state_frame), BIT_TIMINGS))
+if (!data.expect_bytes_lsb<BIT_TIMINGS>(state_frame, sizeof(state_frame)))
   return false;
 ```
 
@@ -53,6 +53,7 @@ if (!data.expect_bytes_lsb(state_frame, sizeof(state_frame), BIT_TIMINGS))
 - `expect_bytes_*` returns false at the first bit whose space matches neither length, leaving that item unread. Only
   whole bytes are written to `out`, so the buffer does not need to be zeroed first.
 - Frames with gaps or separators between groups of bytes use one call per group, with the separator items between.
-- Fill `BitTimings` with designated initializers so the two spaces cannot be swapped.
+- Fill `BitTimings` with designated initializers so the two spaces cannot be swapped. As a template argument it
+  keeps no timings object in RAM.
 
 These helpers were added in ESPHome 2026.11.0.

@@ -81,6 +81,7 @@ export default defineConfig({
                     "architecture/components/bluetooth",
                     "architecture/components/gpio",
                     "architecture/components/i2c",
+                    "architecture/components/remote_base",
                     "architecture/components/spi",
                     "architecture/components/uart",
                   ],

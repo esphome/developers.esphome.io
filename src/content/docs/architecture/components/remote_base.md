@@ -42,15 +42,16 @@ array in one call, instead of writing the bit loop:
 ```cpp
 static constexpr remote_base::BitTimings BIT_TIMINGS{.bit_mark = 465, .one_space = 1750, .zero_space = 670};
 
-data->item_bytes_lsb<BIT_TIMINGS>(remote_state, sizeof(remote_state));
+data->item_bytes<BIT_TIMINGS>(remote_state, sizeof(remote_state));
 
 uint8_t state_frame[STATE_FRAME_SIZE];
-if (!data.expect_bytes_lsb<BIT_TIMINGS>(state_frame, sizeof(state_frame)))
+if (!data.expect_bytes<BIT_TIMINGS>(state_frame, sizeof(state_frame)))
   return false;
 ```
 
-- `_lsb` sends and reads the least significant bit of each byte first; `_msb` the most significant bit first.
-- `expect_bytes_*` returns false at the first bit whose space matches neither length, leaving that item unread. Only
+- Bits go least significant first; set `.msb_first = true` in the `BitTimings` for protocols that send the most
+  significant bit first.
+- `expect_bytes` returns false at the first bit whose space matches neither length, leaving that item unread. Only
   whole bytes are written to `out`, so the buffer does not need to be zeroed first.
 - Frames with gaps or separators between groups of bytes use one call per group, with the separator items between.
 - Fill `BitTimings` with designated initializers so the two spaces cannot be swapped. As a template argument it

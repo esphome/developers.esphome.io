@@ -302,6 +302,39 @@ if PSRAM_DOMAIN in CORE.loaded_integrations:
 
 The imported constant also works with other name-based helpers, such as `cv.requires_component(PSRAM_DOMAIN)`.
 
+### Keys that depend on other keys
+
+When a key is only valid with a certain value of another key, or only together with another key, use
+`cv.only_when()` or `cv.key_requires()` after the schema in `cv.All()` instead of a hand-written validator. The schema
+dump lists these rules under the schema's `constraints`, so editors such as the device builder can show or hide the
+key; a custom function is invisible to them.
+
+```python
+CONFIG_SCHEMA = cv.All(
+    cv.Schema(
+        {
+            cv.Optional(CONF_TRANSPORT, default="tcp"): cv.one_of("tcp", "ws", "wss", lower=True),
+            cv.Optional(CONF_WS_PATH): cv.string,
+            cv.Optional(CONF_TIME_CONSTANT): cv.positive_time_period_milliseconds,
+            cv.Optional(CONF_TIME_WEIGHTING): cv.boolean,
+        }
+    ),
+    # 'ws_path' is only valid when 'transport' is 'ws' or 'wss'
+    cv.only_when(CONF_WS_PATH, CONF_TRANSPORT, ("ws", "wss")),
+    # 'time_weighting' requires 'time_constant'
+    cv.key_requires(CONF_TIME_WEIGHTING, CONF_TIME_CONSTANT),
+)
+```
+
+- `cv.only_when(keys, selector, values, negate=False)`: `keys` (one key or a list) are only allowed when `selector`
+  is one of `values`. With `negate=True` they are only allowed when it is none of them. The selector may be a string,
+  number or boolean option, and its default counts because the check runs after the schema.
+- `cv.key_requires(keys, *required, any_of=False)`: `keys` are only allowed when all of `required` are set, or at least
+  one of them with `any_of=True`.
+
+Each error points at the offending key. When most of the schema changes with one key's value, use
+`cv.typed_schema()` instead.
+
 ### Final validation
 
 ESPHome has a mechanism to run a final validation step after all of the configuration is initially deemed to be

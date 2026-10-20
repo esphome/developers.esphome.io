@@ -5,7 +5,9 @@ title: "Submitting your work"
 All contribution and collaboration is done through [GitHub](https://github.com).
 
 Once you have [set up your development environment](/contributing/development-environment), committed to and pushed your branch,
-it's time to create a [pull request (PR)](https://github.com/esphome/esphome/pulls).
+it's time to create a [pull request (PR)](https://github.com/esphome/esphome/pulls). The steps for opening one are in
+[Creating a pull request from a fork](/contributing/forks-and-pull-requests); this page covers what we expect from
+your PR and what happens after you open it.
 
 ## Before you submit a PR
 
@@ -16,8 +18,7 @@ Please be sure you've read through our contributing guides:
 
 ## Submitting a Pull Request
 
-After you have pushed your changes to GitHub, go to your repository fork and look for a "create pull request" button
-near the top of the page (or, alternatively, go to branches and create it from there). As you create the PR:
+When you [open the PR](/contributing/forks-and-pull-requests#open-the-pull-request):
 
 - Complete the Pull Request template:
   - Include a brief (but complete) summary of your changes.
@@ -216,7 +217,7 @@ of a) branch.
 
 The examples that follow in this section assume that you have:
 
-- already used `git remote` to add `upstream` as shown earlier, and
+- already used `git remote` to add `upstream` as shown in [clone the fork](/contributing/forks-and-pull-requests#clone-the-fork), and
 - your feature branch (the branch from which you created your PR) currently checked out
 
 ### Feature Branches

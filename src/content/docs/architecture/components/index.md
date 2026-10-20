@@ -185,6 +185,14 @@ await cg.register_component(var, config)
 This line generates `App.register_component(var)` in C++ which registers the component so that its `setup`, `loop`
 and/or `update` methods are called correctly.
 
+For a component on a bus, these two calls and the bus registration are replaced by one helper:
+`i2c.new_i2c_component()`, `uart.new_uart_component()`, `spi.new_spi_component()`,
+`modbus.new_modbus_client_component()`, `ble_device_base.new_ble_device_component()` or
+`ble_client.new_ble_node_component()`.
+Each takes `config` and passes any further arguments to the constructor, for example
+`var = await i2c.new_i2c_component(config)`. The modbus and BLE helpers are available in ESPHome 2026.11.0 and later
+(esphome/esphome#21025).
+
 Assuming the user has `foo: true` in their YAML configuration, this line:
 
 ```python
@@ -200,12 +208,37 @@ var->set_foo(true);
 ...in the generated `main.cpp` file.
 
 ```python
-if bar := config.get(CONF_BAR):
-    cg.add(var.set_bar(bar))
+cg.add_optional(var.set_bar, config.get(CONF_BAR))
 ```
 
 If the user has set `bar` in the configuration, this line will generate the C++ code to call `set_bar` on the object.
-If the config value is not set, then we do not call the setter function.
+If the config value is not set, then we do not call the setter function. Only `None` is skipped, so `0` and `False`
+are still set.
+
+Pins and references to other components have helpers that build the value and pass it to the setter in one call.
+`cg.add_pin()` builds the pin expression; `cg.add_variable()` looks up the component that an ID points to:
+
+```python
+await cg.add_pin(var.set_cs_pin, config[CONF_CS_PIN])
+await cg.add_pin(var.set_reset_pin, config.get(CONF_RESET_PIN))
+await cg.add_variable(var.set_time, config.get(CONF_TIME_ID))
+```
+
+Both do nothing when given `None`, so `config.get()` handles an optional key without an `if`. Both return what they
+created (or `None`) for the rare case where it is used again. For a class that derives from `Parented<T>`, use
+`await cg.register_parented(var, config[CONF_MY_HUB_ID])` instead.
+
+`cg.add_pin()` and `cg.add_variable()` are available in ESPHome 2026.11.0 and later (esphome/esphome#21018). An
+external component that supports earlier releases builds the value with `cg.gpio_pin_expression()` or
+`cg.get_variable()` and calls the setter with `cg.add()`.
+
+`cg.add_optional()` is available in ESPHome 2026.11.0 and later (esphome/esphome#21180). For earlier releases, use an
+`if` block:
+
+```python
+if (bar := config.get(CONF_BAR)) is not None:
+    cg.add(var.set_bar(bar))
+```
 
 ### Further information
 
@@ -277,6 +310,40 @@ any other components and potentially fail the validation stage if an important d
 
 For example, many components that rely on `uart` can use the `FINAL_VALIDATE_SCHEMA` to ensure that the `tx_pin` and/or
 `rx_pin` are configured.
+
+A platform often needs a setting of the hub it belongs to, for example a sensor that only works when the hub has a
+certain option set. `fv.get_declaring_config(id)` returns the config block that declares an ID, so the hub's options
+are one call away:
+
+```python
+import esphome.final_validate as fv
+
+
+def _final_validate(config: ConfigType) -> None:
+    if config[CONF_TYPE] not in _MAGNETIC_FIELDS:
+        return
+    bmi270_config = fv.get_declaring_config(config[CONF_BMI270_ID])
+    if bmi270_config.get(CONF_AUX_DEVICE) != "BMM150":
+        raise cv.Invalid(
+            "This sensor requires the parent bmi270's 'aux_device' to be set to 'BMM150'",
+            path=[CONF_TYPE],
+        )
+
+
+FINAL_VALIDATE_SCHEMA = _final_validate
+```
+
+This replaces looking the path up by hand:
+
+```python
+full_config = fv.full_config.get()
+bmi270_path = full_config.get_path_for_id(config[CONF_BMI270_ID])[:-1]
+bmi270_config = full_config.get_config_for_path(bmi270_path)
+```
+
+It reads the full configuration being validated. Outside final validation, such as in `to_code`, pass the config as
+the second argument: `fv.get_declaring_config(config[CONF_BMI270_ID], CORE.config)`. It raises `KeyError` for an ID
+that nothing declares.
 
 ### Platform components
 
@@ -456,6 +523,72 @@ Both patterns are worked through in full, with real in-tree examples, in
 [Exposing multiple sensors from one component](/architecture/components/sensor#exposing-multiple-sensors-from-one-component).
 The entity-type pages in the navigation tree each describe the equivalent for their own type.
 
+#### Entities that only call the hub
+
+Many child entities do nothing but call one method of their hub: a button that runs `hub->restart()`, or a switch that
+publishes its new state and runs `hub->set_bluetooth(state)`. These need no C++ class of their own. Declare the entity
+with its domain's `Apply` class and pass `apply=` to the `sub_*` call; code generation then writes a small function
+with that call, and the entity runs it when it is pressed or changed:
+
+```python
+CONFIG_SCHEMA = {
+    cv.GenerateID(CONF_LD2410_ID): cv.use_id(LD2410Component),
+    cv.Optional(CONF_BLUETOOTH): switch.switch_schema(
+        switch.ApplySwitch,
+        device_class=DEVICE_CLASS_SWITCH,
+        entity_category=ENTITY_CATEGORY_CONFIG,
+        icon=ICON_BLUETOOTH,
+    ),
+}
+
+
+async def to_code(config: ConfigType) -> None:
+    hub = await cg.get_variable(config[CONF_LD2410_ID])
+    switches = switch.sub_switches(config, parent=hub)
+    await switches(
+        CONF_BLUETOOTH,
+        hub.set_bluetooth_switch,
+        apply="set_bluetooth(state)",
+        publish="before",
+    )
+```
+
+`apply` is the C++ call on the hub, written without the hub in front of it. It can use the names in the table:
+
+| Domain | Class | Names in `apply` | What `publish` publishes |
+| ------ | ----- | ---------------- | ------------------------ |
+| `button` | `button.ApplyButton` | `entity` | (not available) |
+| `switch` | `switch.ApplySwitch` | `entity`, `state` | `state` |
+| `number` | `number.ApplyNumber` | `entity`, `value` | `value` |
+| `select` | `select.ApplySelect` | `entity`, `index`, `option` (the selected option's text) | `index` |
+
+`publish="before"` or `publish="after"` publishes the new state before or after the call. Leave it out when the hub
+publishes the state itself, for example once the device confirms the change. Code generation stops with an error
+when the `Apply` class has no `apply=`, when `apply=` is used with another class or without `parent=`, and when
+`publish=` is used without `apply=` or on a button. The setter can be `None` when the hub keeps no pointer to the
+entity. For a platform whose whole config is one entity, call
+`.create(config, setter, apply=..., publish=...)` on the `sub_*` result instead.
+
+This removes a class, a header and a source file per entity, and the entity stores no hub pointer. Entities whose
+`apply` and `publish` are the same share one generated function, and so one class. To get that for a group of similar
+entities, pass `entity` to the hub and let the hub find out which one changed, as `ld2410` does for its 18 gate
+threshold numbers with `apply="set_gate_threshold(entity)"`:
+
+```cpp
+void LD2410Component::set_gate_threshold(number::Number *n) {
+  // Found by pointer: up to 18 compares per write beat storing the gate in each number
+  uint8_t gate = 0;
+  while (gate < TOTAL_GATES && this->gate_move_threshold_numbers_[gate] != n &&
+         this->gate_still_threshold_numbers_[gate] != n)
+    gate++;
+  if (gate == TOTAL_GATES)
+    return;
+  ...
+}
+```
+
+Keep a C++ class when the entity has state or logic of its own beyond that one call.
+
 ## C++ component structure
 
 Given the example Python code above, let's consider the following C++ code:
@@ -576,7 +709,7 @@ state:
 
 - `status_set_warning()` / `status_set_error()` set the flag until the component clears it with
   `status_clear_warning()` / `status_clear_error()`. Pass a `LOG_STR("...")` message to log why; without one the log
-  says "unspecified".
+  says "unspecified". `status_comm_result()` (below) sets or clears the warning from a read or write result.
 - `status_momentary_warning()` / `status_momentary_error()` set the flag and clear it again after a timeout (5000 ms by
   default). Use them for one-off failures, such as a single failed read. A new call restarts the timeout.
 - `mark_failed()` marks the component as failed when it cannot work at all, typically from `setup()`.
@@ -591,6 +724,29 @@ Before ESPHome 2026.11.0 the momentary calls required a name as their first argu
 `status_momentary_warning("read", 1000)`. The named form still compiles but is deprecated, and will be removed in
 2027.5.0: the name was only used to key the timer, it is kept as a string (RAM on ESP8266), and it can clash with the
 component's own `set_timeout()` names. Drop the name to migrate.
+
+A read or write that runs again on every update sets the warning when it fails and clears it when it works again.
+`status_comm_result(ok)` does both and returns `ok`, so the failure check stays one line:
+
+```cpp
+// Before
+if (!this->read_bytes(REG_RED_DATA_LSB, buffer, sizeof(buffer))) {
+  this->status_set_warning(LOG_STR(ESP_LOG_MSG_COMM_FAIL));
+  return;
+}
+this->status_clear_warning();
+
+// After
+if (!this->status_comm_result(this->read_bytes(REG_RED_DATA_LSB, buffer, sizeof(buffer))))
+  return;
+```
+
+Without a message the warning says "Communication failed" (`ESP_LOG_MSG_COMM_FAIL`). Pass a `LOG_STR("...")` as the
+second argument for another text, for example
+`this->status_comm_result(ok, LOG_STR("Failed to read one or more registers"))`. Use it for failures after `setup()`;
+a device that cannot be set up at all still calls `mark_failed()`. A component has one warning flag, so a success
+clears a warning set by any other check too; do not mix it with other `status_set_warning()` conditions in the same
+update.
 
 ### Component-specific methods
 

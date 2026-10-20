@@ -57,6 +57,7 @@ export default defineConfig({
         {
           label: "Contributing",
           items: [
+            "contributing/forks-and-pull-requests",
             "contributing/development-environment",
             "contributing/submitting-your-work",
             {
@@ -80,9 +81,11 @@ export default defineConfig({
                     "architecture/components/bluetooth",
                     "architecture/components/gpio",
                     "architecture/components/i2c",
+                    "architecture/components/remote_base",
                     "architecture/components/spi",
                     "architecture/components/uart",
                     "architecture/components/uart_virtual",
+                    "architecture/components/usb_host",
                   ],
                 },
                 "architecture/components/automations",

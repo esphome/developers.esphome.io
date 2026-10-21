@@ -332,7 +332,8 @@ CONFIG_SCHEMA = cv.All(
 - `cv.key_requires(keys, *required, any_of=False)`: `keys` are only allowed when all of `required` are set, or at least
   one of them with `any_of=True`.
 
-Each error points at the offending key. When most of the schema changes with one key's value, use
+Each error points at the offending key. Both take an optional `hint=` that is added to the error, for a reason the
+user needs, such as why the option does not apply. When most of the schema changes with one key's value, use
 `cv.typed_schema()` instead.
 
 ### Final validation

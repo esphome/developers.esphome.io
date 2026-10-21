@@ -161,6 +161,21 @@ A UART device that ends a frame after a quiet gap calls `uart.is_unclocked(confi
 while the schemas run, so every `to_code` sees them, whatever the order of the YAML. `is_unclocked()` compares ids by
 name, so a generated id is found too. Both are plain functions, not coroutines.
 
+## Character Times
+
+`UARTComponent` gives the timing of its configured line. `bits_per_char()` counts the start, data, parity and stop
+bits of one character: 10 for 8N1, 11 for 8E1. A UART that never set its data or stop bits counts as 8N1.
+`wire_time_us(chars)` returns how many microseconds `chars` characters take at the baud rate, rounded down. A baud
+rate of 0 counts as 1, so it never divides by zero. Both use integer arithmetic only. A `UARTDevice` calls them on
+`this->parent_`. They are available in ESPHome 2026.11.0 and later.
+
+```cpp
+// A Modbus RTU frame ends after 3.5 characters (7 / 2) of silence, at least 1750 us.
+uint32_t gap_us = std::max<uint32_t>(1750, this->parent_->wire_time_us(7) / 2);
+```
+
+On the UARTs listed above these times describe the configured line, not when the bytes arrive.
+
 ## Components that own a UART
 
 A component that copies bytes into a UART from a faster source, such as a socket, should not block on the line.

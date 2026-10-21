@@ -164,7 +164,7 @@ name, so a generated id is found too. Both are plain functions, not coroutines.
 ## Character Times
 
 `UARTComponent` gives the timing of its configured line. `bits_per_char()` counts the start, data, parity and stop
-bits of one character: 10 for 8N1, 11 for 8E1. A UART that never set its data or stop bits counts as 8N1.
+bits of one character: 10 for 8N1, 11 for 8E1. Data bits that were never set count as 8, stop bits as 1.
 `wire_time_us(chars)` returns how many microseconds `chars` characters take at the baud rate, rounded down. A baud
 rate of 0 counts as 1, so it never divides by zero. Both use integer arithmetic only. A `UARTDevice` calls them on
 `this->parent_`. They are available in ESPHome 2026.11.0 and later.

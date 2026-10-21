@@ -326,15 +326,15 @@ CONFIG_SCHEMA = cv.All(
 )
 ```
 
-- `cv.only_when(keys, selector, values, negate=False)`: `keys` (one key or a list) are only allowed when `selector`
-  is one of `values`. With `negate=True` they are only allowed when it is none of them. The selector may be a string,
-  number or boolean option, and its default counts because the check runs after the schema.
-- `cv.key_requires(keys, *required, any_of=False)`: `keys` are only allowed when all of `required` are set, or at least
-  one of them with `any_of=True`.
+- `cv.only_when(keys, selector, values, *, negate=False, hint=None)`: `keys` (one key or a list) are only allowed
+  when `selector` is one of `values`. With `negate=True` they are only allowed when it is none of them. The selector
+  may be a string, number or boolean option, and its default counts because the check runs after the schema.
+- `cv.key_requires(keys, *required, any_of=False, hint=None)`: `keys` are only allowed when all of `required` are
+  set, or at least one of them with `any_of=True`.
 
-Each error points at the offending key. Both take an optional `hint=` that is added to the error, for a reason the
-user needs, such as why the option does not apply. When most of the schema changes with one key's value, use
-`cv.typed_schema()` instead.
+Give the restricted keys no `default`: a defaulted key is always set, so the check would always fail. Each error points
+at the offending key; `hint` adds a sentence to it, such as why the option does not apply or what to use instead.
+When most of the schema changes with one key's value, use `cv.typed_schema()` instead.
 
 ### Final validation
 

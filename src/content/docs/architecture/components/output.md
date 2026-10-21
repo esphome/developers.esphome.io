@@ -155,7 +155,11 @@ Each channel only forwards its level to the hub, so it needs no C++ class of its
 code generation write the call to the hub:
 
 ```python
+import esphome.codegen as cg
+from esphome.components import output
+import esphome.config_validation as cv
 from esphome.const import CONF_CHANNEL, CONF_ID
+from esphome.types import ConfigType
 
 from . import PCA9685Output
 

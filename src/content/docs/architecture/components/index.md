@@ -563,6 +563,10 @@ async def to_code(config: ConfigType) -> None:
 | `select` | `select.ApplySelect` | `entity`, `index`, `option` (the selected option's text) | `index` |
 | `output` | `output.ApplyFloatOutput`, `output.ApplyBinaryOutput` | `entity`, `index` (the channel passed to the constructor), `state` | (not available) |
 
+For outputs, use `output.sub_float_outputs` or `output.sub_binary_outputs`. Arguments given to `.create()` after the
+setter are passed to the output's constructor, which is how a channel number reaches `index`; see
+[Homogeneous channels](/architecture/components/output#homogeneous-channels-a-per-channel-key).
+
 `publish="before"` or `publish="after"` publishes the new state before or after the call. Leave it out when the hub
 publishes the state itself, for example once the device confirms the change. Code generation stops with an error
 when the `Apply` class has no `apply=`, when `apply=` is used with another class or without `parent=`, and when

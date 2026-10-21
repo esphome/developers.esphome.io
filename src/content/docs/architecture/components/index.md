@@ -332,9 +332,10 @@ CONFIG_SCHEMA = cv.All(
 - `cv.key_requires(keys, *required, any_of=False, hint=None)`: `keys` are only allowed when all of `required` are
   set, or at least one of them with `any_of=True`.
 
-Give the restricted keys no `default`: a defaulted key is always set, so the check would always fail. Each error points
-at the offending key; `hint` adds a sentence to it, such as why the option does not apply or what to use instead.
-When most of the schema changes with one key's value, use `cv.typed_schema()` instead.
+Give the restricted keys no `default`: a defaulted key is always set, so the check would fail whenever the condition
+is not met, even if the user never wrote the key. Each error points at the offending key; `hint` adds a sentence to
+it, such as why the option does not apply or what to use instead. When most of the schema changes with one key's
+value, use `cv.typed_schema()` instead.
 
 ### Final validation
 

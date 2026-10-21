@@ -561,12 +561,13 @@ async def to_code(config: ConfigType) -> None:
 | `switch` | `switch.ApplySwitch` | `entity`, `state` | `state` |
 | `number` | `number.ApplyNumber` | `entity`, `value` | `value` |
 | `select` | `select.ApplySelect` | `entity`, `index`, `option` (the selected option's text) | `index` |
+| `output` | `output.ApplyFloatOutput`, `output.ApplyBinaryOutput` | `entity`, `index` (the channel passed to the constructor), `state` | (not available) |
 
 `publish="before"` or `publish="after"` publishes the new state before or after the call. Leave it out when the hub
 publishes the state itself, for example once the device confirms the change. Code generation stops with an error
 when the `Apply` class has no `apply=`, when `apply=` is used with another class or without `parent=`, and when
-`publish=` is used without `apply=` or on a button. The setter can be `None` when the hub keeps no pointer to the
-entity. For a platform whose whole config is one entity, call
+`publish=` is used without `apply=` or on a button or output. The setter can be `None` when the hub keeps no pointer
+to the entity. For a platform whose whole config is one entity, call
 `.create(config, setter, apply=..., publish=...)` on the `sub_*` result instead.
 
 This removes a class, a header and a source file per entity, and the entity stores no hub pointer. Entities whose

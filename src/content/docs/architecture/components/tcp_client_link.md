@@ -31,8 +31,8 @@ write error closes the link, logs it and schedules the next attempt; the caller 
 schema: one stream socket always, plus one listen socket when `role` is `server`.
 
 `final_validate_idle_timeout` in `socket/__init__.py` is a `FINAL_VALIDATE_SCHEMA` for a schema with a `timeout`
-key that has a default: `0s` passes, and any other value shorter than one main loop pass is rejected, because the
-link would close between two polls. Assign it as `FINAL_VALIDATE_SCHEMA` or inside `cv.All(...)`; it reads the key
+key that has a default: `0s` passes, and any other value shorter than one main loop pass is rejected.
+Assign it as `FINAL_VALIDATE_SCHEMA` or inside `cv.All(...)`; it reads the key
 without a fallback.
 
 `get_loop_interval()` in `esphome/core/config.py` returns `loop_interval` from the `esphome:` block, or

@@ -42,8 +42,7 @@ Note that `MySwitch` inherits from both `switch.Switch` and a component base (`c
 
 Use the `switch.switch_schema()` helper. It returns a schema pre-populated with all of the options common to every
 switch - `name`, `id`, `icon`, `inverted`, `restore_mode`, `initial_state`, `restore_state`, `device_class`,
-`entity_category`, the `on_turn_on` /
-`on_turn_off` automations, and so on - and lets you pass defaults for your device:
+`entity_category`, the `on_turn_on` / `on_turn_off` automations, and so on - and lets you pass defaults for your device:
 
 ```python
 CONFIG_SCHEMA = switch.switch_schema(MySwitch).extend(cv.COMPONENT_SCHEMA)
@@ -119,9 +118,10 @@ A few important details:
   single toggle.
 - The base class handles the user's `restore_mode:`, `initial_state:` and `restore_state:` options, including the
   `storage: flash | rtc` choice; `switch_schema(default_restore_mode=...)` only applies when the user set none of them.
-- At the end of `setup()`, call `restore()`. It drives `control()` with the state the restore mode yields, so `inverted:`
-  and your `write_state()` apply, and it does nothing for `restore_mode: DISABLED`; `restore(default)` starts a disabled
-  switch in `default` instead. A hub that owns several switches calls it on each one once the hardware is ready.
+- At the end of `setup()`, call `restore()`. It drives `control()` with the state the restore mode yields, so
+  `inverted:` and your `write_state()` apply, and it does nothing for `restore_mode: DISABLED`; `restore(default)`
+  starts a disabled switch in `default` instead. A hub that owns several switches calls it on each one once the
+  hardware is ready.
   `get_initial_state_with_restore_mode()` is for the rare case where the state must be folded into something else
   before it is written; it returns the logical state, so apply `is_inverted()` yourself.
 

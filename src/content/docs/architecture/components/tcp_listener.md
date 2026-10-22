@@ -107,21 +107,20 @@ void loop() override {
 A rejected peer is closed without being adopted, and the warning is logged at most once every 5 seconds.
 Call the listener's `dump_config()` from the component's own `dump_config()`; it prints one line per
 allowed network. `EAGAIN`, `EWOULDBLOCK`, `ECONNABORTED` and `EINTR` from
-`accept()` are ignored. Any other accept error closes the listen socket; `poll()` reopens it after the
-link's reconnect interval.
+`accept()` are ignored. Any other accept error is logged and keeps the listen socket open; the next loop tries
+again.
 
 ## Several Links
 
 A server with several connections on one port keeps one `TcpClientLink` per connection and calls the two steps of
 `poll()` itself. `poll_listen(clock)` opens the listen socket on the port and reconnect interval of `clock`, one of
-the links, and returns true when a connection waits. `accept(clock)` returns the accepted socket, or `nullptr` when
-none was waiting, the allow list rejected the peer or the accept failed. An accept error closes the listen socket as
-above, and `poll_listen()` reopens it after `clock`'s reconnect interval. The caller picks the link that adopts the
+the links, and returns true when a connection waits. `accept()` returns the accepted socket, or `nullptr` when
+none was waiting, the allow list rejected the peer or the accept failed. The caller picks the link that adopts the
 socket.
 
 ```cpp
 if (this->listener_.poll_listen(this->links_[0])) {
-  auto sock = this->listener_.accept(this->links_[0]);
+  auto sock = this->listener_.accept();
   if (sock != nullptr) {
     // A link that is not connected; close an old connection first when all are in use.
     this->free_link_().adopt(std::move(sock));

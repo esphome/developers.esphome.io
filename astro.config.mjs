@@ -94,6 +94,7 @@ export default defineConfig({
                 "architecture/components/tcp_client_link",
                 "architecture/components/tcp_listener",
                 "architecture/components/mdns",
+                "architecture/components/runtime_image",
                 "architecture/components/advanced",
                 {
                   label: "Entity base classes",

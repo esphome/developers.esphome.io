@@ -39,4 +39,4 @@ without a fallback.
 `DEFAULT_LOOP_INTERVAL` (16 ms) when it is not set. It reads the full configuration, so call it only from a
 `FINAL_VALIDATE_SCHEMA`.
 
-`uart_tcp` and `tcp_uart` use the link and `consume_role_sockets`.
+`uart_tcp` is the first caller; `tcp_uart` follows in esphome#20026.

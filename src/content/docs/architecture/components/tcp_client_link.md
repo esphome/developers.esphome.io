@@ -24,9 +24,8 @@ write error closes the link, logs it and schedules the next attempt; the caller 
   `idle_timeout()` ms since the link came up or the last byte, and is an inline no-op while the link is down or
   `idle_timeout()` is `0` (the default). An idle close is logged at info level and otherwise works like a drop:
   `connected()` turns false and a client waits the reconnect interval before the next attempt.
-- `note_io()` restarts the idle clock. A caller that skips a read because it cannot take more bytes (`tcp_uart`
-  with a full receive buffer, `uart_tcp` with no room in the UART) calls it, so a busy link is not taken for a
-  quiet one.
+- `note_io()` restarts the idle clock. A caller that skips a read because it cannot take more bytes (a full
+  receive buffer, no room in the UART) calls it, so a busy link is not taken for a quiet one.
 
 `consume_role_sockets(component)` in `socket/__init__.py` does the socket accounting for a role keyed
 schema: one stream socket always, plus one listen socket when `role` is `server`.
@@ -40,4 +39,4 @@ without a fallback.
 `DEFAULT_LOOP_INTERVAL` (16 ms) when it is not set. It reads the full configuration, so call it only from a
 `FINAL_VALIDATE_SCHEMA`.
 
-`uart_tcp` and `tcp_uart` use the link, `consume_role_sockets` and `final_validate_idle_timeout`.
+`uart_tcp` and `tcp_uart` use the link and `consume_role_sockets`.

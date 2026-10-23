@@ -399,7 +399,7 @@ FINAL_VALIDATE_SCHEMA = fv.unique_platform_key(
 - `fv.unique_platform_key(domain=..., platform=..., keys=(), message=...)` returns a final validation function that
   allows one entry of the platform for each combination of the `keys` values, or one entry in total when `keys` is
   empty. `message` is formatted with the entry's values, by position (`{0}`) or by key name (`{type}`), and the error
-  points at the last key.
+  points at the last key, or at the entry itself when `keys` is empty.
 
 These helpers are available in ESPHome 2026.11.0 and later (esphome/esphome#21462).
 

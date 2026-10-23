@@ -141,3 +141,72 @@ The summary is a `printf` format that takes the pin number. Both macros go at fi
 keep the format string out of RAM on ESP8266; a component that leaves out the `.cpp` macro fails to link with an
 undefined reference to `ExpanderGPIOPin<...>::dump_summary`. The pin handles inversion itself, so the expander's
 methods always work with the real level of the pin.
+
+### Caching reads and the interrupt pin
+
+Most expanders read all their pins in one bus transfer. Derive the component from
+`gpio_expander::CachedGpioExpanderComponent<T, N>` in `esphome/components/gpio_expander/cached_gpio_component.h` and
+each bank is read once per loop instead of once per pin. `T` is the type that holds one bank (`uint8_t` for a chip
+read 8 pins at a time, `uint16_t` for one read of up to 16 pins) and `N` is the number of pins. The component
+implements `digital_read_hw()`, which reads the bank into a member, `digital_read_cache()`, which returns one pin from
+that member, and `digital_write_hw()`.
+
+The base class also handles an optional active-low interrupt line from the chip. Add
+`gpio_expander.INTERRUPT_EXPANDER_SCHEMA` to the schema, which is `cv.COMPONENT_SCHEMA` with an optional
+`interrupt_pin`, and set the pin in `to_code`. `pcf8574` is the example here:
+
+```python
+CONFIG_SCHEMA = (
+    cv.Schema(
+        {
+            cv.Required(CONF_ID): cv.declare_id(PCF8574Component),
+            cv.Optional(CONF_PCF8575, default=False): cv.boolean,
+        }
+    )
+    .extend(gpio_expander.INTERRUPT_EXPANDER_SCHEMA)
+    .extend(i2c.i2c_device_schema(0x21))
+)
+
+
+async def to_code(config: ConfigType) -> None:
+    var = await i2c.new_i2c_component(config)
+    cg.add(var.set_pcf8575(config[CONF_PCF8575]))
+    await cg.add_pin(var.set_interrupt_pin, config.get(CONF_INTERRUPT_PIN))
+```
+
+On the C++ side, call `setup_interrupt_pin_()` at the end of `setup()` and `enable_polling_loop_()` in `pin_mode()`
+for an input pin:
+
+```cpp
+class PCF8574Component final : public gpio_expander::CachedGpioExpanderComponent<uint16_t, 16>,
+                               public i2c::I2CDevice {
+  ...
+};
+
+void PCF8574Component::setup() {
+  if (!this->read_gpio_()) {
+    this->mark_failed(LOG_STR(ESP_LOG_MSG_COMM_FAIL));
+    return;
+  }
+  ...
+  this->setup_interrupt_pin_();
+}
+
+void PCF8574Component::pin_mode(uint8_t pin, gpio::Flags flags) {
+  if (flags == gpio::FLAG_INPUT) {
+    this->mode_mask_ &= ~(1 << pin);
+    this->write_gpio_();
+    this->enable_polling_loop_();
+  } else if (flags == gpio::FLAG_OUTPUT) {
+    this->mode_mask_ |= 1 << pin;
+  }
+}
+```
+
+Do not override `loop()`; the base class version clears the read cache. The loop starts disabled. Without an interrupt
+pin, `enable_polling_loop_()` turns it on for the first input, so an expander used only for outputs never reads the
+bus. With an interrupt pin, reads stay cached until the line falls, the loop runs again and keeps running until the
+line is released. The setup priority is `setup_priority::IO`, and `interrupt_pin_` is available to log in
+`dump_config()`. The interrupt line is fixed active-low, so the schema rejects `inverted` and `allow_other_uses` on it.
+
+The base class and schema are available in ESPHome 2026.11.0 and later.

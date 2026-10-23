@@ -607,8 +607,9 @@ does not call a namespaced function, when `publish=` is used without `apply=` or
 the entity. For a platform whose whole config is one entity, call `.create(config, setter, apply=..., publish=...)` on
 the `sub_*` result instead.
 
-A switch that only triggers an action, such as restarting the device, uses `publish="momentary"`: it publishes off
-straight away and makes the call only when the switch is turned on, so it never stays on.
+`publish="momentary"` exists only for legacy switches that trigger an action, such as the restart and factory reset
+switches: it publishes off straight away and makes the call only when the switch is turned on, so it never stays on.
+Do not use it for a new entity; an entity that triggers an action is a [button](/architecture/components/button).
 
 ```python
 await switch.sub_switches(config).create(

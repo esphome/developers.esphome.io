@@ -179,6 +179,18 @@ async def to_code(config):
 Note that the hub is handed the channel via its own `register_channel()` method, so it knows which of its outputs to
 write when it flushes to hardware.
 
+Two outputs on the same channel of one hub would overwrite each other's value. Reject them with
+`output.final_validate_unique_channel()`, passing the platform name and the key that holds the hub's ID:
+
+```python
+FINAL_VALIDATE_SCHEMA = output.final_validate_unique_channel(
+    platform="pca9685", hub_key=CONF_PCA9685_ID
+)
+```
+
+Every output hub with a channel key should use it. It is available in ESPHome 2026.11.0 and later
+(esphome/esphome#21467).
+
 ### Heterogeneous channels: a `type` key
 
 If the channels are *not* interchangeable - some binary, some float, or backed by different registers - use

@@ -602,9 +602,19 @@ form can use the names in the table:
 `publish="before"` or `publish="after"` publishes the new state before or after the call. Leave it out when the hub
 publishes the state itself, for example once the device confirms the change. Code generation stops with an error
 when the `Apply` class has no `apply=`, when `apply=` is used with another class, when `apply=` without `parent=`
-does not call a namespaced function, and when `publish=` is used without `apply=` or on a button. The setter can be
-`None` when the hub keeps no pointer to the entity. For a platform whose whole config is one entity, call
-`.create(config, setter, apply=..., publish=...)` on the `sub_*` result instead.
+does not call a namespaced function, when `publish=` is used without `apply=` or on a button, and when
+`publish="momentary"` is used on anything but a switch. The setter can be `None` when the hub keeps no pointer to
+the entity. For a platform whose whole config is one entity, call `.create(config, setter, apply=..., publish=...)` on
+the `sub_*` result instead.
+
+A switch that only triggers an action, such as restarting the device, uses `publish="momentary"`: it publishes off
+straight away and makes the call only when the switch is turned on, so it never stays on.
+
+```python
+await switch.sub_switches(config).create(
+    config, None, apply="restart::restart_device()", publish="momentary"
+)
+```
 
 This removes a class, a header and a source file per entity, and the entity stores no hub pointer. Entities whose
 `apply` and `publish` are the same share one generated function, and so one class. To get that for a group of similar

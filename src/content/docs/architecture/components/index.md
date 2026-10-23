@@ -595,7 +595,7 @@ form can use the names in the table:
 | Domain | Class | Names in `apply` | What `publish` publishes |
 | ------ | ----- | ---------------- | ------------------------ |
 | `button` | `button.ApplyButton` | `entity` | (not available) |
-| `switch` | `switch.ApplySwitch` | `entity`, `state` | `state` |
+| `switch` | `switch.ApplySwitch` | `entity`, `state` | `state` (`false` with `momentary`) |
 | `number` | `number.ApplyNumber` | `entity`, `value` | `value` |
 | `select` | `select.ApplySelect` | `entity`, `index`, `option` (the selected option's text) | `index` |
 

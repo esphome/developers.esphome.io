@@ -209,4 +209,4 @@ bus. With an interrupt pin, reads stay cached until the line falls, the loop run
 line is released. The setup priority is `setup_priority::IO`, and `interrupt_pin_` is available to log in
 `dump_config()`. The interrupt line is fixed active-low, so the schema rejects `inverted` and `allow_other_uses` on it.
 
-The base class and schema are available in ESPHome 2026.11.0 and later.
+The base class and schema are available in ESPHome 2026.11.0 and later (esphome/esphome#21468).

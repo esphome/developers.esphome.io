@@ -71,9 +71,9 @@ Many chips have an active-low reset pin that is pulsed once in `setup()`. `pulse
 with designated initializers; any time left out is 0:
 
 ```cpp
-void ST7789V::setup() {
+void SX126x::setup() {
   ...
-  pulse_reset(this->reset_pin_, {.high_before_ms = 1, .low_ms = 1, .high_after_ms = 5});
+  pulse_reset(this->rst_pin_, {.high_before_ms = 5, .low_ms = 2, .high_after_ms = 5});
   ...
 }
 ```

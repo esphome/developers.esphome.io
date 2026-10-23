@@ -588,7 +588,9 @@ async def to_code(config: ConfigType) -> None:
     )
 ```
 
-`apply` is the C++ call on the hub, written without the hub in front of it. It can use the names in the table:
+With `parent=`, `apply` is the C++ call on the hub, written without the hub in front of it. Without `parent=`, it must
+call a namespaced free function such as `restart::restart_device()`, and code generation writes it as it is. Either
+form can use the names in the table:
 
 | Domain | Class | Names in `apply` | What `publish` publishes |
 | ------ | ----- | ---------------- | ------------------------ |
@@ -599,9 +601,9 @@ async def to_code(config: ConfigType) -> None:
 
 `publish="before"` or `publish="after"` publishes the new state before or after the call. Leave it out when the hub
 publishes the state itself, for example once the device confirms the change. Code generation stops with an error
-when the `Apply` class has no `apply=`, when `apply=` is used with another class or without `parent=`, and when
-`publish=` is used without `apply=` or on a button. The setter can be `None` when the hub keeps no pointer to the
-entity. For a platform whose whole config is one entity, call
+when the `Apply` class has no `apply=`, when `apply=` is used with another class, when `apply=` without `parent=`
+does not call a namespaced function, and when `publish=` is used without `apply=` or on a button. The setter can be
+`None` when the hub keeps no pointer to the entity. For a platform whose whole config is one entity, call
 `.create(config, setter, apply=..., publish=...)` on the `sub_*` result instead.
 
 This removes a class, a header and a source file per entity, and the entity stores no hub pointer. Entities whose
@@ -620,6 +622,31 @@ void LD2410Component::set_gate_threshold(number::Number *n) {
     return;
   ...
 }
+```
+
+An entity with no hub, such as the `restart` button, can use `apply=` too: declare it with the `Apply` class, bind no
+`parent=` and make `apply` a call to a namespaced free function that the component declares in a header:
+
+```python
+CONFIG_SCHEMA = button.button_schema(
+    button.ApplyButton,
+    icon=ICON_RESTART,
+    device_class=DEVICE_CLASS_RESTART,
+    entity_category=ENTITY_CATEGORY_CONFIG,
+)
+
+
+async def to_code(config: ConfigType) -> None:
+    await button.sub_buttons(config).create(config, None, apply="restart::restart_device()")
+```
+
+```cpp
+// restart/button/restart_button.h
+namespace esphome::restart {
+
+void restart_device();
+
+}  // namespace esphome::restart
 ```
 
 Keep a C++ class when the entity has state or logic of its own beyond that one call.

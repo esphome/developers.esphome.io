@@ -433,7 +433,8 @@ assign_bits(this->output_mask_, 1 << pin, value);
 ```
 
 The mask is converted to the register's type first. For a register wider than `int`, use an unsigned mask: a negative
-`int` mask such as `1 << 31` is sign-extended and clears the higher bits too. `assign_bits()` is available in ESPHome
+`int` mask such as `1 << 31` is sign-extended, so it sets or clears the higher bits too. Write `1u << 31`,
+or `1ULL << n` for a 64-bit register. `assign_bits()` is available in ESPHome
 2026.11.0 and later (esphome/esphome#21184).
 
 ### Gating optional features behind conditional compilation

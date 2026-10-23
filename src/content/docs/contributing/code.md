@@ -272,7 +272,10 @@ Choose containers carefully on embedded systems:
 
     ```cpp
     // Good - one allocation in setup(), none after
+    // In the class:
     FixedRingBuffer<uint8_t> rx_buffer_;
+
+    // In setup():
     this->rx_buffer_.init(256);
     ```
 
@@ -288,7 +291,7 @@ Choose containers carefully on embedded systems:
     size_t taken = this->rx_buffer_.pop(out, sizeof(out));
     ```
 
-    The bulk `push()`, `pop()` and `free_space()` are available in ESPHome 2026.11.0 and later. Neither buffer is
+    The bulk `push()`, `pop()` and `free_space()` are available in ESPHome 2026.11.0 and later (esphome/esphome#21474). Neither buffer is
     thread safe.
 
 1. **Byte buffers**: Avoid `std::vector<uint8_t>` unless the buffer needs to grow. Use `std::unique_ptr<uint8_t[]>`.

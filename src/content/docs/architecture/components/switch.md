@@ -117,7 +117,9 @@ A few important details:
   override `assumed_state()` to return `true`. The front-end will then show separate ON and OFF buttons rather than a
   single toggle.
 - The base class handles the user's `restore_mode:`, `initial_state:` and `restore_state:` options, including the
-  `storage: flash | rtc` choice; `switch_schema(default_restore_mode=...)` only applies when the user set none of them.
+  `storage: flash | rtc` choice. `switch_schema(default_restore_mode=...)` applies when the user set neither
+  `restore_mode:` nor `restore_state:`. With only `initial_state:`, a restoring default keeps restoring the saved
+  state, and `initial_state:` sets the state used when nothing is saved.
 - At the end of `setup()`, call `restore()`. It drives `control()` with the state the restore mode yields, so
   `inverted:` and your `write_state()` apply, and it does nothing for `restore_mode: DISABLED`; `restore(default)`
   starts a disabled switch in `default` instead. A hub that owns several switches calls it on each one once the

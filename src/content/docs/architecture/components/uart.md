@@ -316,7 +316,7 @@ void DS1603L::loop() {
 }
 ```
 
-`FrameReader<N, HEADER...>` holds `N` bytes, header included, and needs at least one header byte. `feed()` takes one
+`FrameReader<N, HEADER...>` holds `N` bytes, header included, and takes 1 to 8 header bytes. `feed()` takes one
 byte and returns the finished frame or `nullptr`. The frame stays valid until the next call on the reader. When a
 header breaks partway through, the reader looks for a new header in the bytes it already matched, so a byte that could
 start the next frame is never lost, even with a repeated header such as `0xAA 0xAA 0xBB`.

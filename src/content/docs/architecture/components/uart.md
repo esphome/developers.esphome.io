@@ -323,7 +323,9 @@ start the next frame is never lost, even with a repeated header such as `0xAA 0x
 
 When the caller rejects a frame, for example because the checksum is wrong, `resync()` drops its first byte and looks
 for a header in the rest. This recovers when a header byte that appeared in the payload was taken as the start of the
-frame. Call it only right after `feed()` returned the frame, and use `reset()` otherwise. `length()` is the number of bytes collected so far, which is 0 while the reader is looking for a header.
-`reset()` forgets the partial frame, for example after sending a new command or after a timeout. Besides the buffer
-the reader keeps one byte for its position, or two bytes when `N` is more than 255. It is available in ESPHome
-2026.11.0 and later (esphome/esphome#21446).
+frame. Call it only right after `feed()` returned the frame, and use `reset()` otherwise.
+
+`length()` is the number of bytes collected so far, which is 0 while the reader is looking for a header. `reset()`
+forgets the partial frame, for example after sending a new command or after a timeout. Besides the buffer the reader
+keeps one byte for its position, or two bytes when `N` is more than 255. It is available in ESPHome 2026.11.0 and
+later (esphome/esphome#21446).

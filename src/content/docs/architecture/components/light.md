@@ -221,7 +221,8 @@ light::ESPColorView get_view_internal(int32_t index) const override {
 }
 ```
 
-- `traits()` returns `RGB`, or `RGB_WHITE` and `WHITE` when the order has a white channel.
+- `traits()` returns a `LightTraits` that supports `ColorMode::RGB`, or `ColorMode::RGB_WHITE` and `ColorMode::WHITE`
+  when the order has a white channel.
 - `view()` returns the view of LED `index` in a buffer of `bytes_per_led()` bytes per LED. When the buffer or the effect
   data is null, for example after an allocation failed in `setup()`, it returns a shared scratch pixel with no effect
   data instead. `LightState` keeps writing pixels after a failed setup, so this avoids a write through a null pointer.

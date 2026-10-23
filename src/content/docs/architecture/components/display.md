@@ -87,6 +87,10 @@ A driver with its own drawing class passes that type as the third argument, for 
 `display.add_writer()` is available in ESPHome 2026.11.0 and later (esphome/esphome#21027); earlier releases process
 the lambda with `cg.process_lambda()` and pass it to `var.set_writer()`.
 
+A driver that only needs a frame buffer when something draws into it can check the configuration with
+`display.config_has_writer(config)`. It is true when the display has a `lambda:`, `pages:`, `show_test_card: true` or
+`auto_clear_enabled: true`. It is available in ESPHome 2026.11.0 and later (esphome/esphome#21440).
+
 ### Components that draw into a display
 
 Some components draw into a display from outside its `lambda:` or `pages:`, for example LVGL or `vnc`. Such a
@@ -252,6 +256,43 @@ The rules for an override:
   over by the buffer when `update()` sends it. Outside `update()`, for example from LVGL, a driver may write the block
   straight to the panel.
 - Don't override `draw_pixels_at()` itself: it is not virtual.
+
+### Init sequences
+
+Panels that share the MIPI command set get their init sequence from `mipi.flatten_sequence()` as a flat byte table:
+each command is `cmd, count, args...`, and a delay is `ms, 0xFF`. `InitSequenceReader` from
+`esphome/components/display/init_sequence.h` walks such a table with PROGMEM reads, so the table can stay in flash on
+ESP8266:
+
+```cpp
+void MipiRgbSpi::write_init_sequence_() {
+  display::InitSequenceReader reader(this->init_sequence_, this->init_sequence_len_);
+  display::InitSequenceEntry entry;
+  while (auto step = reader.next(entry)) {
+    if (step == display::INIT_SEQUENCE_STEP_MALFORMED) {
+      this->mark_failed(LOG_STR("Malformed init sequence"));
+      return;
+    }
+    if (step == display::INIT_SEQUENCE_STEP_DELAY) {
+      delay(entry.value);
+      continue;
+    }
+    this->write_command_(entry.value);
+    ...
+  }
+}
+```
+
+`next()` fills `entry` and returns `INIT_SEQUENCE_STEP_COMMAND`, `INIT_SEQUENCE_STEP_DELAY`,
+`INIT_SEQUENCE_STEP_MALFORMED` or `INIT_SEQUENCE_STEP_END`, which is 0 and ends the loop. For a command, `entry.value`
+is the command byte, `entry.args` points at its `entry.count` data bytes in the table, and the count is not masked, so
+all 253 bytes `map_sequence` allows are read. For a delay, `entry.value` is the delay in ms. A table that ends partway
+through an entry is reported as malformed.
+
+A driver that copies the arguments into a fixed buffer passes its size as the second argument, for example
+`reader.next(entry, sizeof(args))`, and a longer command is reported as malformed. The reader keeps only a pointer, a
+length and a position, so a driver can keep it as a member, stop at a delay and continue on a later `loop()`, as
+`st7305` does. It is available in ESPHome 2026.11.0 and later (esphome/esphome#21440).
 
 ### Useful members
 

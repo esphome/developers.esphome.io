@@ -30,7 +30,7 @@ Flash on ESP8266 can only be read in aligned 32 bit words. Code that reads a nam
 
 ### `name_` is now a `ProgmemStringRef`
 
-The protected `EntityBase::name_` member is now a `ProgmemStringRef`: a pointer and a length with no operations that read the characters. Comparing it, copying it or reading its characters no longer compiles, on any platform, so these mistakes are caught at build time instead of crashing on ESP8266. Its `c_str()` still works with a deprecation warning, for subclasses that log `this->name_.c_str()`, and will be removed in 2027.5.0.
+The protected `EntityBase::name_` member is now a `ProgmemStringRef`: a pointer and a length with no operations that read the characters. Comparing it, copying it or reading its characters through `name_` no longer compiles, on any platform, so these mistakes are caught at build time instead of crashing on ESP8266. Its `c_str()` still compiles with a deprecation warning until 2027.5.0, for subclasses that log `this->name_.c_str()`. It returns the same pointer as before, so use it only as a `%s` log argument: `strcmp(this->name_.c_str(), ...)` or `std::string(this->name_.c_str())` still compiles and still crashes on ESP8266.
 
 ### New APIs
 
@@ -64,6 +64,14 @@ ESP_LOGW(TAG, "'%s': not ready", LOG_STR_ARG(this->log_name_()));
 
 Like `get_name()`, it keeps working until it is removed in 2027.5.0, and on ESP8266 it uses the same RAM copy.
 
+### `PIDAutotuner::set_autotuner_id()` takes a `const LogString *`
+
+`PIDAutotuner::set_autotuner_id()` took a `std::string` and now takes a `const LogString *`. This changed right away, with no deprecation period, so a caller that passes a string no longer compiles. Pass the entity's log name instead:
+
+```cpp
+autotuner->set_autotuner_id(this->get_log_name());
+```
+
 ### `Sprinkler::valve_name()` deprecated
 
 `Sprinkler::valve_name()` returned a pointer to the valve's name, which is now in flash on ESP8266. Like `get_name()`, it is deprecated until 2027.5.0, and on ESP8266 it uses the same RAM copy. Use `valve_log_name()` for logging, or `control_switch(n)->get_name_to(buffer)` for a copy:
@@ -80,6 +88,7 @@ ESP_LOGD(TAG, "Valve '%s' on", LOG_STR_ARG(sprinkler->valve_log_name(n)));
 - Read `this->name_` from an entity subclass: deprecation warning for `c_str()`, compile error for anything else
 - Call `friendly_name_()` from an `MQTTComponent` subclass
 - Call `Sprinkler::valve_name()`
+- Call `PIDAutotuner::set_autotuner_id()`: compile error until the argument is a `const LogString *`
 
 **Lambdas in YAML configurations** that call `get_name()` on an entity (for example `id(my_sensor).get_name()`) need the same change.
 

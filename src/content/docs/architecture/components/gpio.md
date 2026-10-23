@@ -66,12 +66,12 @@ that's required for our minimal GPIO component!
 
 ### Pulsing a reset pin
 
-Many chips have an active-low reset pin that is pulsed once in `setup()`. `pulse_reset()` from
+Many chips have an active-low reset pin that is pulsed before the chip is configured. `pulse_reset()` from
 `esphome/core/gpio_pin.h` sets up the pin and drives it high, low, then high again. Name the times in milliseconds
 with designated initializers; any time left out is 0:
 
 ```cpp
-void SX126x::setup() {
+void SX126x::configure() {
   ...
   pulse_reset(this->rst_pin_, {.high_before_ms = 5, .low_ms = 2, .high_after_ms = 5});
   ...

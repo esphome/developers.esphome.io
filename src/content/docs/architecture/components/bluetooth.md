@@ -183,7 +183,7 @@ async def to_code(config: ConfigType) -> None:
 ```
 
 The codegen class lists the base, for example
-`xiaomi_ble.XiaomiEncryptedDevice, cg.Component`. These classes are available in ESPHome 2026.11.0 and later.
+`xiaomi_ble.XiaomiEncryptedDevice, cg.Component`. These classes are available in ESPHome 2026.11.0 and later (esphome/esphome#21481).
 
 ## Implementing a tracker for a new chip
 

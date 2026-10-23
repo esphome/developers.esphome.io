@@ -148,7 +148,7 @@ unit tests.
 
 A sensor for a Xiaomi device derives from `xiaomi_ble::XiaomiDevice`, or from `xiaomi_ble::XiaomiEncryptedDevice`
 when the device needs a `bindkey`. The base class implements `parse_device()`: it checks the address, drops repeated
-frames, decrypts and parses the MiBeacon data, then calls `publish_result_()` with the result. The device only
+frames, decrypts and parses the MiBeacon data, then calls `publish_result()` with the result. The device only
 publishes the values it has:
 
 ```cpp
@@ -158,12 +158,12 @@ class XiaomiLYWSD03MMC final : public Component, public xiaomi_ble::XiaomiEncryp
   void set_temperature(sensor::Sensor *temperature) { temperature_ = temperature; }
 
  protected:
-  void publish_result_(const xiaomi_ble::XiaomiParseResult &res) override;
+  void publish_result(const xiaomi_ble::XiaomiParseResult &res) override;
 
   sensor::Sensor *temperature_{nullptr};
 };
 
-void XiaomiLYWSD03MMC::publish_result_(const xiaomi_ble::XiaomiParseResult &res) {
+void XiaomiLYWSD03MMC::publish_result(const xiaomi_ble::XiaomiParseResult &res) {
   if (res.temperature.has_value() && this->temperature_ != nullptr)
     this->temperature_->publish_state(*res.temperature);
 }

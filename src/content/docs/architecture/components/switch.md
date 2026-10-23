@@ -124,7 +124,7 @@ A few important details:
   `inverted:` and your `write_state()` apply, and it does nothing for `restore_mode: DISABLED`; `restore(default)`
   starts a disabled switch in `default` instead. A hub that owns several switches calls it on each one once the
   hardware is ready.
-  `get_initial_state_with_restore_mode()` is for the rare case where the state must be folded into something else
+- `get_initial_state_with_restore_mode()` is for the rare case where the state must be folded into something else
   before it is written; it returns the logical state, so apply `is_inverted()` yourself.
 
 ### Useful members

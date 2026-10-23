@@ -207,6 +207,41 @@ Two further optional overrides exist for advanced cases:
   own without a following `write_state()` - useful for cheap bookkeeping that should track every change, separate from
   the (potentially more expensive) actual hardware write.
 
+### Addressable LED strips
+
+A strip driver derives from `light::AddressableLight` and keeps its channel order in a `light::ChannelColors` from
+`esphome/components/light/channel_colors.h`, set from the `rgb_order` option. Two helpers on it cover the parts every
+strip driver used to write out by hand:
+
+```cpp
+light::LightTraits get_traits() override { return this->channel_colors_.traits(); }
+
+light::ESPColorView get_view_internal(int32_t index) const override {
+  return this->channel_colors_.view(this->buf_, this->effect_data_, index, &this->correction_);
+}
+```
+
+- `traits()` returns `RGB`, or `RGB_WHITE` and `WHITE` when the order has a white channel.
+- `view()` returns the view of LED `index` in a buffer of `bytes_per_led()` bytes per LED. When the buffer or the effect
+  data is null, for example after an allocation failed in `setup()`, it returns a shared scratch pixel with no effect
+  data instead. `LightState` keeps writing pixels after a failed setup, so this avoids a write through a null pointer.
+
+A driver with a maximum refresh rate calls `throttle_show_()`, a protected helper on `AddressableLight`, at the start of
+`write_state()`. It returns true, with the frame queued for the next loop, until the interval has passed. An interval
+of 0 never holds a frame back, and the check stays correct when `micros()` wraps:
+
+```cpp
+void ESP32RMTLEDStripLightOutput::write_state(light::LightState *state) {
+  uint32_t now = micros();
+  if (this->throttle_show_(now, this->last_refresh_, this->max_refresh_rate_))
+    return;
+  this->last_refresh_ = now;
+  ...
+}
+```
+
+These helpers are available in ESPHome 2026.11.0 and later (esphome/esphome#21445).
+
 ### Useful members
 
 - `ColorMode` / `ColorCapability`: the color-mode and capability enums described above.

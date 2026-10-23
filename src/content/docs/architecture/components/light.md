@@ -231,7 +231,8 @@ A driver with a maximum refresh rate calls `throttle_show_()`, a protected helpe
 of 0 never holds a frame back, and the check stays correct when `micros()` wraps:
 
 ```cpp
-void ESP32RMTLEDStripLightOutput::write_state(light::LightState *state) {
+// max_refresh_rate_ is a uint32_t in µs, 0 for no limit
+void MyStripLightOutput::write_state(light::LightState *state) {
   uint32_t now = micros();
   if (this->throttle_show_(now, this->last_refresh_, this->max_refresh_rate_))
     return;

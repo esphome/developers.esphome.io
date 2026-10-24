@@ -104,6 +104,18 @@ through the user-configured [filter chain](https://esphome.io/components/text_se
 (uppercasing, substitution, mapping, etc.), stores the final result in the `state` member and notifies all
 front-ends. Publish the raw, unfiltered value - the filters the user configured in YAML are applied for you.
 
+A fixed set of status words belongs in a `PROGMEM_STRING_TABLE` (`esphome/core/progmem.h`), which keeps the strings
+in flash on ESP8266. Pass the entry straight to `publish_state()`; on ESP8266 an overload copies it out of flash
+(up to 63 characters), and on other platforms it is a plain `const char *`:
+
+```cpp
+PROGMEM_STRING_TABLE(FieldStatusStrings, "OK", "TOO_STRONG", "TOO_WEAK", "UNKNOWN");
+
+void MyTextSensor::update() {
+  this->publish_state(FieldStatusStrings::get_progmem_str(this->read_status_(), FieldStatusStrings::LAST_INDEX));
+}
+```
+
 ### Useful members
 
 - `state`: the most recent published (filtered) value.

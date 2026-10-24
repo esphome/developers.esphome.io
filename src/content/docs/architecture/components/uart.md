@@ -287,3 +287,7 @@ line with the next byte, `restart_with(c)` starts a new line with `c`, and `disc
 next terminator. `log_if_overflowed(TAG)` logs one shared warning when a line was dropped; a component that calls it
 adds `cg.add_define("USE_LINE_READER")` in its `to_code`, which compiles that shared code in. Besides the buffer the
 reader keeps one byte for its position, or two bytes when `N` is 254 or more.
+
+## See Also
+
+- [Virtual UART](/architecture/components/uart_virtual/)

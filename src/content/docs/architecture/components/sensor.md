@@ -334,5 +334,45 @@ new component with no hub, sub-configs are usually the smaller change.
 Equivalent `SUB_*` macros exist for the other entity types that are commonly exposed this way:
 `SUB_BINARY_SENSOR`, `SUB_BUTTON`, `SUB_NUMBER`, `SUB_SELECT`, `SUB_SWITCH` and `SUB_TEXT_SENSOR`.
 
+## Following another entity
+
+A sensor that only republishes what another entity or a hub reports needs no C++ class. Create a plain `sensor::Sensor`
+and subscribe it to the source with `sensor.follow_sensor(entity, source)`:
+
+```python
+CONFIG_SCHEMA = sensor.sensor_schema(sensor.Sensor).extend(
+    {
+        cv.Required(CONF_SOURCE_ID): cv.use_id(sensor.Sensor),
+    }
+)
+
+
+async def to_code(config):
+    var = await sensor.new_sensor(config)
+    sensor.follow_sensor(var, await cg.get_variable(config[CONF_SOURCE_ID]))
+```
+
+The generated code registers a lambda that captures nothing on the source's `add_on_state_callback`, so the callback
+is stored inline and the entity keeps no source pointer, no `Component` part and no slot in the component list. The
+callback is registered before any `setup()` runs, so the entity sees every state the source publishes, including the
+first. Any source with the same `float` state callback works, such as a `number::Number`;
+`text_sensor.follow_text_sensor()` does the same for text sensors and any source with a `const std::string &` state
+callback.
+
+For a hub or a source with a different callback, describe the callback with `FollowEntity` from
+`esphome.core.entity_helpers`: the method name, its parameters and the value to publish. Arguments after the source
+are passed before the callback:
+
+```python
+_FOLLOW_DATAPOINT = FollowEntity("register_listener", ((cg.uint8, "x"),), "x == 3")
+_FOLLOW_DATAPOINT(var, hub, config[CONF_DATAPOINT])
+# hub->register_listener(7, [](uint8_t x) -> void { ::var->publish_state(x == 3); });
+```
+
+Keep a C++ class when the entity has to act in `setup()`. A source that already holds a state before `setup()` runs,
+such as a binary sensor deriving from `BinarySensorInitiallyOff`, reaches no callback for that state, and copying it
+needs a `setup()` that runs after the entity's own automations are wired. These helpers were added in ESPHome
+2026.11.0.
+
 For everything else, the component implements the usual set of methods
 [as described here](/architecture/components/index#common-methods).

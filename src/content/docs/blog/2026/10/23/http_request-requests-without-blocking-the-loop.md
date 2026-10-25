@@ -58,9 +58,9 @@ The rules:
 
 ## Platform support
 
-On ESP32 with ESP-IDF 5.5.3 or later, the request runs in steps. On every other platform and on older ESP-IDF versions, `begin()` performs the whole request and `poll()` returns `HTTP_REQUEST_PROGRESS_DONE` straight away, and `read_available()` calls `read()`. Code written for the new API therefore works everywhere; it blocks only where the platform cannot avoid it.
+On ESP32 with ESP-IDF 5.5.3 or later, the request runs in steps. On older ESP-IDF versions `begin()` still returns at once and `poll()` still moves the request through its steps, but the `poll()` that connects blocks until the connection is made, and the one that waits for the response blocks until the headers arrive. On every other platform, `begin()` performs the whole request, `poll()` returns `HTTP_REQUEST_PROGRESS_DONE` straight away, and `read_available()` calls `read()`. Code written for the new API therefore works everywhere; it blocks only where the platform cannot avoid it.
 
-On ESP-IDF a few parts still pause the loop:
+On ESP-IDF 5.5.3 and later a few parts still pause the loop:
 
 - The first connection to each host waits for the DNS lookup and the TCP connection, typically a few hundred milliseconds. An unreachable host still blocks for the whole timeout.
 - The TLS handshake takes about 300 ms of processor time.
@@ -98,18 +98,18 @@ void MyComponent::loop() {
       return;
     }
     this->reading_ = true;
-    this->last_data_time_ = App.get_loop_component_start_time();
+    this->last_data_time_ = millis();
   }
   uint8_t buf[256];
   int len = this->container_->read_available(buf, sizeof(buf));
   if (len > 0) {
     this->consume_(buf, len);
-    this->last_data_time_ = App.get_loop_component_start_time();
+    this->last_data_time_ = millis();
   } else if (len < 0) {
     this->finish_(false);
   } else if (this->container_->is_read_complete()) {
     this->finish_(true);
-  } else if (App.get_loop_component_start_time() - this->last_data_time_ >= this->parent_->get_timeout()) {
+  } else if (millis() - this->last_data_time_ >= this->parent_->get_timeout()) {
     this->finish_(false);
   }
 }
@@ -147,8 +147,19 @@ headers have arrived, so the `poll()` step is skipped there.
 
   // in loop()
 #if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 11, 0)
-  if (this->container_->poll() == http_request::HttpRequestProgress::HTTP_REQUEST_PROGRESS_PENDING)
+  auto progress = this->container_->poll();
+  if (progress == http_request::HttpRequestProgress::HTTP_REQUEST_PROGRESS_PENDING)
     return;
+  if (progress == http_request::HttpRequestProgress::HTTP_REQUEST_PROGRESS_FAILED) {
+    this->finish_(false);
+    return;
+  }
+#endif
+  if (this->container_->status_code != 200) {
+    this->finish_(false);
+    return;
+  }
+#if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 11, 0)
   int len = this->container_->read_available(buf, sizeof(buf));
 #else
   int len = this->container_->read(buf, sizeof(buf));

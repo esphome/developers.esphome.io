@@ -380,6 +380,29 @@ It reads the full configuration being validated. Outside final validation, such 
 the second argument: `fv.get_declaring_config(config[CONF_BMI270_ID], CORE.config)`. It raises `KeyError` for an ID
 that nothing declares.
 
+Two helpers cover the other common check, a rule across the entries of one platform:
+
+```python
+import esphome.final_validate as fv
+
+FINAL_VALIDATE_SCHEMA = fv.unique_platform_key(
+    domain="switch",
+    platform="sendspin",
+    keys=(CONF_TYPE,),
+    message="Only one sendspin '{type}' switch is allowed",
+)
+```
+
+- `fv.platform_entries(domain=..., platform=..., match=None)` returns the entries of `domain` set up by `platform`.
+  With `match`, such as `{CONF_UART_ID: config[CONF_UART_ID]}`, it returns only the entries whose keys have those
+  values.
+- `fv.unique_platform_key(domain=..., platform=..., keys=(), message=...)` returns a final validation function that
+  allows one entry of the platform for each combination of the `keys` values, or one entry in total when `keys` is
+  empty. `message` is formatted with the entry's values, by position (`{0}`) or by key name (`{type}`), and the error
+  points at the last key, or at the entry itself when `keys` is empty.
+
+These helpers are available in ESPHome 2026.11.0 and later (esphome/esphome#21462).
+
 ### Platform components
 
 Some components are **platform components**: instead of a single configuration block, the top-level YAML key holds a

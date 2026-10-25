@@ -147,8 +147,9 @@ methods always work with the real level of the pin.
 Most expanders read all their pins in one bus transfer. Derive the component from
 `gpio_expander::CachedGpioExpanderComponent<T, N>` in `esphome/components/gpio_expander/cached_gpio_component.h` and
 reads of different pins in the same bank share one bus transfer within a loop. Without an interrupt pin, a pin's
-cached value is used once, so reading the same pin twice in one loop reads the bank again. `T` is the type that holds one bank (`uint8_t` for a chip
-read 8 pins at a time, `uint16_t` for one read of up to 16 pins) and `N` is the number of pins. The component
+cached value is used once, so reading the same pin twice in one loop reads the bank again. `T` is the type that
+holds one bank (`uint8_t` for a chip that reads 8 pins at a time, `uint16_t` for one read of up to 16 pins) and `N`
+is the number of pins. The component
 implements `digital_read_hw()`, which reads the bank into a member, `digital_read_cache()`, which returns one pin from
 that member, and `digital_write_hw()`.
 

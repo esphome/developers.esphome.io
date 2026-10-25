@@ -79,8 +79,8 @@ static constexpr remote_base::BitTimings BIT_TIMINGS{
 ```
 
 Designated initializers must follow the declaration order: `bit_mark`, `one_space`, `zero_space`, `bit_order`,
-`one_mark`, `zero_mark`, `space_first`. Mark first or space first, a bit is read only when its mark and its space match the same
-value.
+`one_mark`, `zero_mark`, `space_first`. Mark first or space first, a bit is read only when its mark and its space
+match the same value.
 
 When the last bit of a frame is only a mark, because its space runs into the gap after the frame, read the bytes with
 `expect_bytes_last_mark` instead. It needs `one_mark` and `zero_mark` to differ and works only for mark-first bits:

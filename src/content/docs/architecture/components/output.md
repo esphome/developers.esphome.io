@@ -150,10 +150,18 @@ output:
     channel: 1
 ```
 
-```python
-from esphome.const import CONF_CHANNEL, CONF_ID
+Each channel only forwards its level to the hub, so it needs no C++ class of its own. Declare it as
+`output.ApplyFloatOutput` (or `output.ApplyBinaryOutput`), pass the channel as the constructor argument and let
+code generation write the call to the hub:
 
-from . import PCA9685Output, pca9685_ns
+```python
+import esphome.codegen as cg
+from esphome.components import output
+import esphome.config_validation as cv
+from esphome.const import CONF_CHANNEL, CONF_ID
+from esphome.types import ConfigType
+
+from . import PCA9685Output
 
 DEPENDENCIES = ["pca9685"]
 
@@ -161,23 +169,39 @@ CONF_PCA9685_ID = "pca9685_id"
 
 CONFIG_SCHEMA = output.FLOAT_OUTPUT_SCHEMA.extend(
     {
-        cv.Required(CONF_ID): cv.declare_id(PCA9685Channel),
+        cv.Required(CONF_ID): cv.declare_id(output.ApplyFloatOutput),
         cv.GenerateID(CONF_PCA9685_ID): cv.use_id(PCA9685Output),
         cv.Required(CONF_CHANNEL): cv.int_range(min=0, max=15),
     }
 )
 
 
-async def to_code(config):
-    paren = await cg.get_variable(config[CONF_PCA9685_ID])
-    var = cg.new_Pvariable(config[CONF_ID])
-    cg.add(var.set_channel(config[CONF_CHANNEL]))
-    cg.add(paren.register_channel(var))
-    await output.register_output(var, config)
+async def to_code(config: ConfigType) -> None:
+    hub = await cg.get_variable(config[CONF_PCA9685_ID])
+    await output.sub_float_outputs(config, parent=hub).create(
+        config, None, config[CONF_CHANNEL], apply="write_channel(index, state)"
+    )
+    cg.add(hub.register_channel(config[CONF_CHANNEL]))
 ```
 
-Note that the hub is handed the channel via its own `register_channel()` method, so it knows which of its outputs to
-write when it flushes to hardware.
+The hub does the scaling in a public method that takes the channel and the level, which inversion, clamping and power
+scaling have already adjusted:
+
+```cpp
+void PCA9685Output::write_channel(uint8_t channel, float state) {
+  auto value = static_cast<uint16_t>(roundf(state * 4096));
+  if (this->pwm_amounts_[channel] != value)
+    this->update_ = true;
+  this->pwm_amounts_[channel] = value;
+}
+```
+
+The channel is stored in the output itself (it fits in padding, so it costs no RAM unless a power supply is
+configured), so every channel of the hub runs the same generated function. `register_channel()` tells the hub which
+channels are in use, so it knows which ones to write when it flushes to hardware. Keep a C++ output class only when a
+channel has state or logic of its own beyond that one call. See
+[Entities that only call the hub](/architecture/components/index#entities-that-only-call-the-hub) for the same pattern
+on the entity types.
 
 Two outputs on the same channel of one hub would overwrite each other's value. Reject them with
 `output.final_validate_unique_channel()`, passing the platform name and the key that holds the hub's ID:

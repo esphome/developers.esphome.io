@@ -144,6 +144,47 @@ payload formats that encrypt advertisements (BTHome v2, Xiaomi MiBeacon). Both r
 self-contained software AES, so they behave identically on every platform and are covered by host
 unit tests.
 
+### Xiaomi MiBeacon devices
+
+A sensor for a Xiaomi device derives from `xiaomi_ble::XiaomiDevice`, or from `xiaomi_ble::XiaomiEncryptedDevice`
+when the device needs a `bindkey`. The base class implements `parse_device()`: it checks the address, drops repeated
+frames, decrypts and parses the MiBeacon data, then calls `publish_result()` with the result. The device only
+publishes the values it has:
+
+```cpp
+class XiaomiLYWSD03MMC final : public Component, public xiaomi_ble::XiaomiEncryptedDevice {
+ public:
+  void dump_config() override;
+  void set_temperature(sensor::Sensor *temperature) { temperature_ = temperature; }
+
+ protected:
+  void publish_result(const xiaomi_ble::XiaomiParseResult &res) override;
+
+  sensor::Sensor *temperature_{nullptr};
+};
+
+void XiaomiLYWSD03MMC::publish_result(const xiaomi_ble::XiaomiParseResult &res) {
+  if (res.temperature.has_value() && this->temperature_ != nullptr)
+    this->temperature_->publish_state(*res.temperature);
+}
+```
+
+`dump_bindkey_(TAG)` logs the bindkey from `dump_config()`. In Python, add `"xiaomi_ble"` to `AUTO_LOAD` and set the
+address and the bindkey with `xiaomi_ble.setup_xiaomi_device()`, which reads `mac_address` and, when it is set,
+`bindkey`:
+
+```python
+async def to_code(config: ConfigType) -> None:
+    var = await ble_device_base.new_ble_device_component(config)
+    xiaomi_ble.setup_xiaomi_device(var, config)
+
+    sensors = sensor.sub_sensors(config)
+    await sensors(CONF_TEMPERATURE, var.set_temperature)
+```
+
+The codegen class lists the base, for example
+`xiaomi_ble.XiaomiEncryptedDevice, cg.Component`. These classes are available in ESPHome 2026.11.0 and later (esphome/esphome#21481).
+
 ## Implementing a tracker for a new chip
 
 A tracker drives the chip's scanner and provides the `BLEHub` method surface defined in

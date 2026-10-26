@@ -94,6 +94,8 @@ export default defineConfig({
                 "architecture/components/tcp_client_link",
                 "architecture/components/tcp_listener",
                 "architecture/components/mdns",
+                "architecture/components/runtime_image",
+                "architecture/components/deep_sleep",
                 "architecture/components/advanced",
                 {
                   label: "Entity base classes",
@@ -110,6 +112,7 @@ export default defineConfig({
                     "architecture/components/light",
                     "architecture/components/lock",
                     "architecture/components/media_player",
+                    "architecture/components/microphone",
                     "architecture/components/number",
                     "architecture/components/output",
                     "architecture/components/select",

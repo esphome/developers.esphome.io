@@ -198,5 +198,13 @@ and its strings, so let the hardware decide:
 
 If both descriptions fit your device equally well, follow whichever pattern the surrounding component already uses.
 
+## Following another entity
+
+A text sensor that only republishes another entity's string needs no C++ class: create a plain
+`text_sensor::TextSensor` and call `text_sensor.follow_text_sensor(entity, source)`. It works with any source whose
+state callback takes a `const std::string &`, such as a `text::Text`. See
+[following another entity](/architecture/components/sensor#following-another-entity) for how it works and for
+`FollowEntity`.
+
 For everything else, the component implements the usual set of methods
 [as described here](/architecture/components/index#common-methods).

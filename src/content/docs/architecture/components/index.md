@@ -380,6 +380,29 @@ It reads the full configuration being validated. Outside final validation, such 
 the second argument: `fv.get_declaring_config(config[CONF_BMI270_ID], CORE.config)`. It raises `KeyError` for an ID
 that nothing declares.
 
+Two helpers cover the other common check, a rule across the entries of one platform:
+
+```python
+import esphome.final_validate as fv
+
+FINAL_VALIDATE_SCHEMA = fv.unique_platform_key(
+    domain="switch",
+    platform="sendspin",
+    keys=(CONF_TYPE,),
+    message="Only one sendspin '{type}' switch is allowed",
+)
+```
+
+- `fv.platform_entries(domain=..., platform=..., match=None)` returns the entries of `domain` set up by `platform`.
+  With `match`, such as `{CONF_UART_ID: config[CONF_UART_ID]}`, it returns only the entries whose keys have those
+  values.
+- `fv.unique_platform_key(domain=..., platform=..., keys=(), message=...)` returns a final validation function that
+  allows one entry of the platform for each combination of the `keys` values, or one entry in total when `keys` is
+  empty. `message` is formatted with the entry's values, by position (`{0}`) or by key name (`{type}`), and the error
+  points at the last key, or at the entry itself when `keys` is empty.
+
+These helpers are available in ESPHome 2026.11.0 and later (esphome/esphome#21462).
+
 ### Platform components
 
 Some components are **platform components**: instead of a single configuration block, the top-level YAML key holds a
@@ -595,16 +618,32 @@ form can use the names in the table:
 | Domain | Class | Names in `apply` | What `publish` publishes |
 | ------ | ----- | ---------------- | ------------------------ |
 | `button` | `button.ApplyButton` | `entity` | (not available) |
-| `switch` | `switch.ApplySwitch` | `entity`, `state` | `state` |
+| `switch` | `switch.ApplySwitch` | `entity`, `state` | `state` (`false` with `momentary`) |
 | `number` | `number.ApplyNumber` | `entity`, `value` | `value` |
 | `select` | `select.ApplySelect` | `entity`, `index`, `option` (the selected option's text) | `index` |
+| `output` | `output.ApplyFloatOutput`, `output.ApplyBinaryOutput` | `entity`, `index` (the channel passed to the constructor), `state` | (not available) |
+
+For outputs, use `output.sub_float_outputs` or `output.sub_binary_outputs`. Arguments given to `.create()` after the
+setter are passed to the output's constructor, which is how a channel number reaches `index`; see
+[Homogeneous channels](/architecture/components/output#homogeneous-channels-a-per-channel-key).
 
 `publish="before"` or `publish="after"` publishes the new state before or after the call. Leave it out when the hub
-publishes the state itself, for example once the device confirms the change. Code generation stops with an error
-when the `Apply` class has no `apply=`, when `apply=` is used with another class, when `apply=` without `parent=`
-does not call a namespaced function, and when `publish=` is used without `apply=` or on a button. The setter can be
-`None` when the hub keeps no pointer to the entity. For a platform whose whole config is one entity, call
-`.create(config, setter, apply=..., publish=...)` on the `sub_*` result instead.
+publishes the state itself, for example once the device confirms the change. Code generation stops with an error when
+the `Apply` class has no `apply=`, when `apply=` is used with another class, when `apply=` without `parent=` does not
+call a namespaced function, when `publish=` is used without `apply=` or on a button or output, and when
+`publish="momentary"` is used on anything but a switch. The setter can be `None` when the hub keeps no pointer to the
+entity. For a platform whose whole config is one entity, call `.create(config, setter, apply=..., publish=...)` on the
+`sub_*` result instead.
+
+`publish="momentary"` exists only for legacy switches that trigger an action, such as the restart and factory reset
+switches: it publishes off straight away and makes the call only when the switch is turned on, so it never stays on.
+Do not use it for a new entity; an entity that triggers an action is a [button](/architecture/components/button).
+
+```python
+await switch.sub_switches(config).create(
+    config, None, apply="restart::restart_device()", publish="momentary"
+)
+```
 
 This removes a class, a header and a source file per entity, and the entity stores no hub pointer. Entities whose
 `apply` and `publish` are the same share one generated function, and so one class. To get that for a group of similar

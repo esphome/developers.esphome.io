@@ -112,6 +112,7 @@ export default defineConfig({
                     "architecture/components/light",
                     "architecture/components/lock",
                     "architecture/components/media_player",
+                    "architecture/components/microphone",
                     "architecture/components/number",
                     "architecture/components/output",
                     "architecture/components/select",

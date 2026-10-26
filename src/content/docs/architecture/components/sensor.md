@@ -364,14 +364,17 @@ For a hub or a source with a different callback, describe the callback with `Fol
 are passed before the callback:
 
 ```python
-_FOLLOW_DATAPOINT = FollowEntity("register_listener", ((cg.uint8, "x"),), "x == 3")
+from esphome.core.entity_helpers import FollowEntity
+
+_FOLLOW_DATAPOINT = FollowEntity("register_listener", ((cg.uint16, "x"),), "x * 0.1f")
 _FOLLOW_DATAPOINT(var, hub, config[CONF_DATAPOINT])
-# hub->register_listener(7, [](uint8_t x) -> void { ::var->publish_state(x == 3); });
+# With datapoint: 7
+# hub->register_listener(7, [](uint16_t x) -> void { ::var->publish_state(x * 0.1f); });
 ```
 
-Keep a C++ class when the entity has to act in `setup()`. A source that already holds a state before `setup()` runs,
-such as a binary sensor deriving from `BinarySensorInitiallyOff`, reaches no callback for that state, and copying it
-needs a `setup()` that runs after the entity's own automations are wired. These helpers were added in ESPHome
+Keep a C++ class when the entity has to act in `setup()`. A state the source already holds before `setup()` runs
+reaches no callback, so copying it needs a `setup()` that runs after the entity's own automations are wired. A binary
+sensor deriving from `BinarySensorInitiallyOff` is one such source. These helpers were added in ESPHome
 2026.11.0.
 
 For everything else, the component implements the usual set of methods

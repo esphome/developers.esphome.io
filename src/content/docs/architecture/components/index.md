@@ -622,8 +622,11 @@ form can use the names in the table:
 | `number` | `number.ApplyNumber` | `entity`, `value` | `value` |
 | `select` | `select.ApplySelect` | `entity`, `index`, `option` (the selected option's text) | `index` |
 
-`publish="before"` or `publish="after"` publishes the new state before or after the call. Leave it out when the hub
-publishes the state itself, for example once the device confirms the change. Code generation stops with an error
+`publish="before"` or `publish="after"` publishes the new state before or after the call. `publish="on_success"`
+publishes it only when the call returns `true`, for a write the device can refuse: the hub method must return `bool`,
+and after a refused write the entity keeps its old state, for example
+`apply="write_pg_gpo_level(state)", publish="on_success"`. Leave `publish` out when the hub publishes the state
+itself, for example once the device confirms the change. Code generation stops with an error
 when the `Apply` class has no `apply=`, when `apply=` is used with another class, when `apply=` without `parent=`
 does not call a namespaced function, and when `publish=` is used without `apply=` or on a button. The setter can be
 `None` when the hub keeps no pointer to the entity. For a platform whose whole config is one entity, call

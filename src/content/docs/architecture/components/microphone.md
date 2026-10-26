@@ -109,7 +109,7 @@ stops. In `setup()`, set `audio_stream_info_` to the format your hardware produc
 ### Publishing audio
 
 Captured audio is passed to the registered callbacks with `publish_audio_()`. It takes the audio as a
-`std::span<const uint8_t>` (a `std::vector<uint8_t>` converts to one), the format of that audio, and the time it was
+`std::span<uint8_t>` (a `std::vector<uint8_t>` converts to one), the format of that audio, and the time it was
 captured. Callbacks run on the thread that calls `publish_audio_()`, usually the microphone's own capture task, and
 finish before it returns, so you can reuse the buffer right away:
 
@@ -127,7 +127,7 @@ void MyMicrophone::capture_task_(void *params) {
     if (bytes_read == 0)
       continue;
     int64_t capture_time_us = mic->first_frame_time_();
-    mic->publish_audio_(std::span<const uint8_t>(mic->buffer_.data(), bytes_read), stream_info, capture_time_us);
+    mic->publish_audio_(std::span<uint8_t>(mic->buffer_.data(), bytes_read), stream_info, capture_time_us);
   }
 }
 ```
@@ -140,7 +140,9 @@ close to the hardware as you can, for example in the DMA receive interrupt. If y
 argument out; it defaults to 0, which means "unknown".
 
 Muting is handled by the base class: while `set_mute_state(true)` is in effect (the `microphone.mute` action),
-callbacks receive zeros in place of your audio, so do not mute in your own code. Capturing continues.
+`publish_audio_()` sets the buffer to zeros before it calls the callbacks, so do not mute in your own code. Capturing
+continues. Because the buffer is changed, it must be one your microphone owns. If you pass on audio from another
+microphone, as `resampler` does, copy it into your own buffer first.
 
 > [!WARNING]
 > Calling `this->data_callbacks_.call(data)` with a `std::vector<uint8_t>` still works, but it is deprecated and will be

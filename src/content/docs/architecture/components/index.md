@@ -302,6 +302,41 @@ if PSRAM_DOMAIN in CORE.loaded_integrations:
 
 The imported constant also works with other name-based helpers, such as `cv.requires_component(PSRAM_DOMAIN)`.
 
+### Keys that depend on other keys
+
+When a key is only valid with a certain value of another key, or only together with another key, use
+`cv.only_when()` or `cv.key_requires()` after the schema in `cv.All()` instead of a hand-written validator. The schema
+dump lists these rules under the schema's `constraints`, so editors such as the device builder can show or hide the
+key; a custom function is invisible to them.
+
+```python
+CONFIG_SCHEMA = cv.All(
+    cv.Schema(
+        {
+            cv.Optional(CONF_TRANSPORT, default="tcp"): cv.one_of("tcp", "ws", "wss", lower=True),
+            cv.Optional(CONF_WS_PATH): cv.string,
+            cv.Optional(CONF_TIME_CONSTANT): cv.positive_time_period_milliseconds,
+            cv.Optional(CONF_TIME_WEIGHTING): cv.boolean,
+        }
+    ),
+    # 'ws_path' is only valid when 'transport' is 'ws' or 'wss'
+    cv.only_when(CONF_WS_PATH, CONF_TRANSPORT, ("ws", "wss")),
+    # 'time_weighting' requires 'time_constant'
+    cv.key_requires(CONF_TIME_WEIGHTING, CONF_TIME_CONSTANT),
+)
+```
+
+- `cv.only_when(keys, selector, values, *, negate=False, hint=None)`: `keys` (one key or a list) are only allowed
+  when `selector` is one of `values`. With `negate=True` they are only allowed when it is none of them. The selector
+  may be a string, number or boolean option, and its default counts because the check runs after the schema.
+- `cv.key_requires(keys, *required, any_of=False, hint=None)`: `keys` are only allowed when all of `required` are
+  set, or at least one of them with `any_of=True`.
+
+Give the restricted keys no `default`: a defaulted key is always set, so the check would fail whenever the condition
+is not met, even if the user never wrote the key. Each error points at the offending key; `hint` adds a sentence to
+it, such as why the option does not apply or what to use instead. When most of the schema changes with one key's
+value, use `cv.typed_schema()` instead.
+
 ### Final validation
 
 ESPHome has a mechanism to run a final validation step after all of the configuration is initially deemed to be
@@ -344,6 +379,29 @@ bmi270_config = full_config.get_config_for_path(bmi270_path)
 It reads the full configuration being validated. Outside final validation, such as in `to_code`, pass the config as
 the second argument: `fv.get_declaring_config(config[CONF_BMI270_ID], CORE.config)`. It raises `KeyError` for an ID
 that nothing declares.
+
+Two helpers cover the other common check, a rule across the entries of one platform:
+
+```python
+import esphome.final_validate as fv
+
+FINAL_VALIDATE_SCHEMA = fv.unique_platform_key(
+    domain="switch",
+    platform="sendspin",
+    keys=(CONF_TYPE,),
+    message="Only one sendspin '{type}' switch is allowed",
+)
+```
+
+- `fv.platform_entries(domain=..., platform=..., match=None)` returns the entries of `domain` set up by `platform`.
+  With `match`, such as `{CONF_UART_ID: config[CONF_UART_ID]}`, it returns only the entries whose keys have those
+  values.
+- `fv.unique_platform_key(domain=..., platform=..., keys=(), message=...)` returns a final validation function that
+  allows one entry of the platform for each combination of the `keys` values, or one entry in total when `keys` is
+  empty. `message` is formatted with the entry's values, by position (`{0}`) or by key name (`{type}`), and the error
+  points at the last key, or at the entry itself when `keys` is empty.
+
+These helpers are available in ESPHome 2026.11.0 and later (esphome/esphome#21462).
 
 ### Platform components
 
@@ -553,21 +611,39 @@ async def to_code(config: ConfigType) -> None:
     )
 ```
 
-`apply` is the C++ call on the hub, written without the hub in front of it. It can use the names in the table:
+With `parent=`, `apply` is the C++ call on the hub, written without the hub in front of it. Without `parent=`, it must
+call a namespaced free function such as `restart::restart_device()`, and code generation writes it as it is. Either
+form can use the names in the table:
 
 | Domain | Class | Names in `apply` | What `publish` publishes |
 | ------ | ----- | ---------------- | ------------------------ |
 | `button` | `button.ApplyButton` | `entity` | (not available) |
-| `switch` | `switch.ApplySwitch` | `entity`, `state` | `state` |
+| `switch` | `switch.ApplySwitch` | `entity`, `state` | `state` (`false` with `momentary`) |
 | `number` | `number.ApplyNumber` | `entity`, `value` | `value` |
 | `select` | `select.ApplySelect` | `entity`, `index`, `option` (the selected option's text) | `index` |
+| `output` | `output.ApplyFloatOutput`, `output.ApplyBinaryOutput` | `entity`, `index` (the channel passed to the constructor), `state` | (not available) |
+
+For outputs, use `output.sub_float_outputs` or `output.sub_binary_outputs`. Arguments given to `.create()` after the
+setter are passed to the output's constructor, which is how a channel number reaches `index`; see
+[Homogeneous channels](/architecture/components/output#homogeneous-channels-a-per-channel-key).
 
 `publish="before"` or `publish="after"` publishes the new state before or after the call. Leave it out when the hub
-publishes the state itself, for example once the device confirms the change. Code generation stops with an error
-when the `Apply` class has no `apply=`, when `apply=` is used with another class or without `parent=`, and when
-`publish=` is used without `apply=` or on a button. The setter can be `None` when the hub keeps no pointer to the
-entity. For a platform whose whole config is one entity, call
-`.create(config, setter, apply=..., publish=...)` on the `sub_*` result instead.
+publishes the state itself, for example once the device confirms the change. Code generation stops with an error when
+the `Apply` class has no `apply=`, when `apply=` is used with another class, when `apply=` without `parent=` does not
+call a namespaced function, when `publish=` is used without `apply=` or on a button or output, and when
+`publish="momentary"` is used on anything but a switch. The setter can be `None` when the hub keeps no pointer to the
+entity. For a platform whose whole config is one entity, call `.create(config, setter, apply=..., publish=...)` on the
+`sub_*` result instead.
+
+`publish="momentary"` exists only for legacy switches that trigger an action, such as the restart and factory reset
+switches: it publishes off straight away and makes the call only when the switch is turned on, so it never stays on.
+Do not use it for a new entity; an entity that triggers an action is a [button](/architecture/components/button).
+
+```python
+await switch.sub_switches(config).create(
+    config, None, apply="restart::restart_device()", publish="momentary"
+)
+```
 
 This removes a class, a header and a source file per entity, and the entity stores no hub pointer. Entities whose
 `apply` and `publish` are the same share one generated function, and so one class. To get that for a group of similar
@@ -585,6 +661,31 @@ void LD2410Component::set_gate_threshold(number::Number *n) {
     return;
   ...
 }
+```
+
+An entity with no hub, such as the `restart` button, can use `apply=` too: declare it with the `Apply` class, bind no
+`parent=` and make `apply` a call to a namespaced free function that the component declares in a header:
+
+```python
+CONFIG_SCHEMA = button.button_schema(
+    button.ApplyButton,
+    icon=ICON_RESTART,
+    device_class=DEVICE_CLASS_RESTART,
+    entity_category=ENTITY_CATEGORY_CONFIG,
+)
+
+
+async def to_code(config: ConfigType) -> None:
+    await button.sub_buttons(config).create(config, None, apply="restart::restart_device()")
+```
+
+```cpp
+// restart/button/restart_button.h
+namespace esphome::restart {
+
+void restart_device();
+
+}  // namespace esphome::restart
 ```
 
 Keep a C++ class when the entity has state or logic of its own beyond that one call.

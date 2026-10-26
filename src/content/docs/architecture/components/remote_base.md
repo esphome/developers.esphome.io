@@ -60,11 +60,45 @@ if (!data.expect_bytes<BIT_TIMINGS>(state_frame, sizeof(state_frame)))
 
 - Bits go least significant first; set `.bit_order = remote_base::BitOrder::BIT_ORDER_MSB_FIRST` in the `BitTimings`
   for protocols that send the most significant bit first.
-- `expect_bytes` returns false at the first bit whose space matches neither length, leaving that item unread. The
-  bits before it stay read, so the position does not go back to the start of the call. Only whole bytes are written
-  to the output buffer, so it does not need to be zeroed first.
+- `expect_bytes` returns false at the first bit whose mark and space do not both match the one or the zero timings,
+  leaving that item unread. The bits before it stay read, so the position does not go back to the start of the call.
+  Only whole bytes are written to the output buffer, so it does not need to be zeroed first.
 - Frames with gaps or separators between groups of bytes use one call per group, with the separator items between.
 - Fill `BitTimings` with designated initializers so the two spaces cannot be swapped. As a template argument it
   keeps no timings object in RAM.
+
+### Bits whose mark also varies
+
+Some protocols carry the bit in the mark as well, or send each bit's space before its mark. Set `one_mark` and
+`zero_mark` (both default to `bit_mark`, which is unused once both are set) and `space_first`:
+
+```cpp
+// A one is a 750 us space then a 1460 us mark, a zero is a 1460 us space then a 750 us mark
+static constexpr remote_base::BitTimings BIT_TIMINGS{
+    .one_space = 750, .zero_space = 1460, .one_mark = 1460, .zero_mark = 750, .space_first = true};
+```
+
+Designated initializers must follow the declaration order: `bit_mark`, `one_space`, `zero_space`, `bit_order`,
+`one_mark`, `zero_mark`, `space_first`. Mark first or space first, a bit is read only when its mark and its space
+match the same value.
+
+When the last bit of a frame is only a mark, because its space runs into the gap after the frame, read the bytes with
+`expect_bytes_last_mark` instead. It needs `one_mark` and `zero_mark` to differ and works only for mark-first bits:
+
+```cpp
+// A one is a 750 us mark then a 350 us space, a zero a 350 us mark then a 750 us space
+static constexpr remote_base::BitTimings MARK_TIMINGS{.one_space = 350,
+                                                      .zero_space = 750,
+                                                      .bit_order = remote_base::BitOrder::BIT_ORDER_MSB_FIRST,
+                                                      .one_mark = 750,
+                                                      .zero_mark = 350};
+
+uint8_t frame[5];
+if (!data.expect_bytes_last_mark<MARK_TIMINGS>(frame, sizeof(frame)))
+  return false;
+```
+
+To send such a frame, use `item_bytes` as usual: it sends the last bit's space too, which simply lengthens the gap
+after the frame.
 
 These helpers were added in ESPHome 2026.11.0.

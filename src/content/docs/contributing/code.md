@@ -265,6 +265,35 @@ Choose containers carefully on embedded systems:
 1. **Avoid `std::deque`**: It allocates in 512-byte blocks regardless of element size, guaranteeing at least 512 bytes
    of RAM usage immediately. This is a major source of crashes on memory-constrained devices.
 
+1. **Queues**: Use a ring buffer from `esphome/core/helpers.h` instead of `std::queue` or `std::deque`.
+   `StaticRingBuffer<T, N>` holds `N` elements inline, and `FixedRingBuffer<T>` allocates its capacity once with
+   `init()`. Both have `push()`, `pop()`, `front()`, `size()`, `empty()`, `clear()` and iteration from oldest to newest;
+   `push()` returns false when the buffer is full.
+
+    ```cpp
+    // Good - one allocation in setup(), none after
+    // In the class:
+    FixedRingBuffer<uint8_t> rx_buffer_;
+
+    // In setup():
+    this->rx_buffer_.init(256);
+    ```
+
+    `FixedRingBuffer` also has `push_overwrite()`, which drops the oldest element when full, `capacity()`, `full()`
+    and `free_space()`. For trivially copyable types it moves many elements at once:
+
+    ```cpp
+    // Store as many bytes as fit; returns how many were stored
+    size_t stored = this->rx_buffer_.push(data, len);
+
+    // Take up to sizeof(out) of the oldest bytes; returns how many were taken
+    uint8_t out[64];
+    size_t taken = this->rx_buffer_.pop(out, sizeof(out));
+    ```
+
+    The bulk `push()`, `pop()` and `free_space()` are available in ESPHome 2026.11.0 and later
+    (esphome/esphome#21474). Neither buffer is thread safe.
+
 1. **Byte buffers**: Avoid `std::vector<uint8_t>` unless the buffer needs to grow. Use `std::unique_ptr<uint8_t[]>`.
 
     ```cpp
@@ -414,6 +443,28 @@ int32_t raw = sign_extend<24>(raw_energy);
 
 `sign_extend<24>(0xFFFFFE)` is `-2`. `BITS` can be from 1 to 32, which is checked when the code compiles. It is
 `constexpr`, so it also works in constants.
+
+#### Setting or clearing register bits
+
+`assign_bits(reg, mask, on)` sets the bits of `mask` in `reg` when `on` is true and clears them otherwise. It changes
+`reg` in place:
+
+```cpp
+// Before
+if (value) {
+  this->output_mask_ |= (1 << pin);
+} else {
+  this->output_mask_ &= ~(1 << pin);
+}
+
+// After
+assign_bits(this->output_mask_, 1 << pin, value);
+```
+
+The mask is converted to the register's type first. For a register wider than `int`, use an unsigned mask: a negative
+`int` mask such as `1 << 31` is sign-extended, so it sets or clears the higher bits too. Write `1u << 31`,
+or `1ULL << n` for a 64-bit register. `assign_bits()` is available in ESPHome
+2026.11.0 and later (esphome/esphome#21184).
 
 ### Gating optional features behind conditional compilation
 

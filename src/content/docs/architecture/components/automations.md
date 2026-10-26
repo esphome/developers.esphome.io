@@ -415,9 +415,10 @@ The action is the core `ApplyAction<Ts...>`, which stores one function pointer. 
   - `std::string` constants are emitted as a plain literal, or as `progmem_string(ESPHOME_F(...))` on ESP8266 so the literal stays in flash.
   - `const_fn=` renders a constant when `cg.safe_exp` is not the right spelling; it receives the action config and the value. A `!lambda` value bypasses it, so the target must also accept a plain `type_` argument.
 - `ApplyCall("set_range({}, {})", ((CONF_LOW, cg.float_), (CONF_HIGH, cg.float_)))` folds several keys into one statement; each arg may carry a third `const_fn` element. It is skipped when none of the keys is set and a partial set is a config error. A call with no keys, such as `ApplyCall("stop()")` or a trailing `ApplyCall("publish_state()")`, is always emitted, in the order given. An `ApplyCall` template may name the parent as `{parent}` too.
+- `ApplyBytes(CONF_DATA, "transmit_packet({})")` forwards a byte payload. The key is validated with `cv.templatable(...)` over a byte list or string, and the target's single `{}` expands to `data, len`. A constant payload is a shared `PROGMEM` table passed directly, so it costs no RAM; on ESP8266 it is first copied out, to the stack up to `stack=` bytes (default 64) and to the heap beyond that, unless `progmem_target=` names a call that reads flash itself, such as `uart`'s `write_array_progmem`. A user lambda returns `std::vector<uint8_t>` and its data and size are passed. The template may name the parent as `{parent}`.
 - `call="make_call"` is for actions that build a call object: every statement, follow-up calls included, targets the call object returned by `parent->make_call()`, and `perform()` on it is appended last.
 
-`cover.control` and `cover.template.publish` in the ESPHome repository are in-tree examples. The hand-written class below is for actions whose `play()` has logic beyond forwarding values.
+`cover.control` and `cover.template.publish` in the ESPHome repository are in-tree examples; `sx127x.send_packet` and `uart.write` show `ApplyBytes`. The hand-written class below is for actions whose `play()` has logic beyond forwarding values.
 
 ### Python
 

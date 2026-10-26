@@ -288,6 +288,48 @@ next terminator. `log_if_overflowed(TAG)` logs one shared warning when a line wa
 adds `cg.add_define("USE_LINE_READER")` in its `to_code`, which compiles that shared code in. Besides the buffer the
 reader keeps one byte for its position, or two bytes when `N` is 254 or more.
 
+## Reading binary frames
+
+Many devices send fixed-length binary frames that start with one or more header bytes. `FrameReader` from
+`esphome/core/frame_reader.h` is the binary twin of `LineReader`: it skips bytes until a header starts, collects the
+frame in a fixed buffer and returns it once it is complete. The header bytes are template arguments, so on ESP8266 no
+header table is placed in RAM. Checking the checksum stays with the caller:
+
+```cpp
+// ds1603l.h
+#include "esphome/core/frame_reader.h"
+
+FrameReader<FRAME_SIZE, HEADER_BYTE> reader_;
+```
+
+```cpp
+// ds1603l.cpp
+void DS1603L::loop() {
+  uint8_t byte;
+  while (this->available() > 0 && this->read_byte(&byte)) {
+    const uint8_t *frame = this->reader_.feed(byte);
+    if (frame == nullptr)
+      continue;
+    if (!this->parse_data_(frame))
+      this->reader_.resync();
+  }
+}
+```
+
+`FrameReader<N, HEADER...>` holds `N` bytes, header included, and takes 1 to 8 header bytes. `feed()` takes one
+byte and returns the finished frame or `nullptr`. The frame stays valid until the next call on the reader. When a
+header breaks partway through, the reader looks for a new header in the bytes it already matched, so a byte that could
+start the next frame is never lost, even with a repeated header such as `0xAA 0xAA 0xBB`.
+
+When the caller rejects a frame, for example because the checksum is wrong, `resync()` drops its first byte and looks
+for a header in the rest. This recovers when a header byte that appeared in the payload was taken as the start of the
+frame. Call it only right after `feed()` returned the frame, and use `reset()` otherwise.
+
+`length()` is the number of bytes collected so far, which is 0 while the reader is looking for a header. `reset()`
+forgets the partial frame, for example after sending a new command or after a timeout. Besides the buffer the reader
+keeps one byte for its position, or two bytes when `N` is more than 255. It is available in ESPHome 2026.11.0 and
+later (esphome/esphome#21446).
+
 ## See Also
 
 - [Virtual UART](/architecture/components/uart_virtual/)

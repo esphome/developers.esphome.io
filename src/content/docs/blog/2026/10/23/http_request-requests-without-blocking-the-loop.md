@@ -50,7 +50,7 @@ class HttpContainer {
 
 The rules:
 
-- Call `poll()` from `loop()` until it returns something other than `HTTP_REQUEST_PROGRESS_PENDING`. Each call does a limited amount of work.
+- Call `poll()` from `loop()` until it returns something other than `HTTP_REQUEST_PROGRESS_PENDING`. Each call does a limited amount of work. Once `poll()` has returned `HTTP_REQUEST_PROGRESS_DONE` or `HTTP_REQUEST_PROGRESS_FAILED`, further calls return the same value.
 - After `HTTP_REQUEST_PROGRESS_DONE`, `status_code`, `content_length` and the collected headers are set, as they are after `start()`. A server that accepts the request but sends no response within the timeout gives `DONE` with `status_code` set to `-1`, the same as `start()`.
 - `HTTP_REQUEST_PROGRESS_FAILED` means the request could not be completed: the connection failed, the timeout passed before the connection was made, or a redirect could not be followed.
 - Always call `end()` on the container once you are done with it, including after a failure, and when you give up on a request that is still pending.
@@ -135,8 +135,7 @@ void MyComponent::finish_(bool ok) {
 
 ## Supporting Multiple ESPHome Versions
 
-`begin()`, `poll()` and `read_available()` do not exist before 2026.11.0. Guard each use; `start()` returns once the
-headers have arrived, so the `poll()` step is skipped there.
+`begin()`, `poll()` and `read_available()` do not exist before 2026.11.0. Guard each use; `start()` returns once the headers have arrived, so the `poll()` step is skipped there.
 
 ```cpp
 #if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 11, 0)
@@ -146,18 +145,21 @@ headers have arrived, so the `poll()` step is skipped there.
 #endif
 
   // in loop()
+  if (!this->reading_) {
 #if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 11, 0)
-  auto progress = this->container_->poll();
-  if (progress == http_request::HttpRequestProgress::HTTP_REQUEST_PROGRESS_PENDING)
-    return;
-  if (progress == http_request::HttpRequestProgress::HTTP_REQUEST_PROGRESS_FAILED) {
-    this->finish_(false);
-    return;
-  }
+    auto progress = this->container_->poll();
+    if (progress == http_request::HttpRequestProgress::HTTP_REQUEST_PROGRESS_PENDING)
+      return;
+    if (progress == http_request::HttpRequestProgress::HTTP_REQUEST_PROGRESS_FAILED) {
+      this->finish_(false);
+      return;
+    }
 #endif
-  if (this->container_->status_code != 200) {
-    this->finish_(false);
-    return;
+    if (this->container_->status_code != 200) {
+      this->finish_(false);
+      return;
+    }
+    this->reading_ = true;
   }
 #if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 11, 0)
   int len = this->container_->read_available(buf, sizeof(buf));

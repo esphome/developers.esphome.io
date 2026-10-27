@@ -22,8 +22,9 @@ components:
   one for periodic OUT packets.
 - If the requests fit the split ESP-IDF already uses (the default, or the `CONFIG_USB_HOST_HW_BUFFER_BIAS_*` option
   set in `sdkconfig_options`), it keeps that split.
-- Otherwise it sizes a custom split. Control and bulk keep 64 bytes on the S2/S3 and 256 bytes on the P4, and each
-  direction keeps at least 128 bytes on the S2/S3 and 512 bytes on the P4, as in ESP-IDF's own splits.
+- Otherwise it sizes a custom split. Control and bulk keep one bulk packet (64 bytes on the S2/S3, 512 bytes on the
+  P4), since ESP-IDF rejects bulk OUT endpoints larger than that, and each direction keeps at least 128 bytes on the
+  S2/S3 and 512 bytes on the P4.
 - The leftover space goes to the requested directions, split evenly when both are requested, because a device can
   declare a larger max packet size than requested.
 - Requests that don't fit in the usable FIFO fail validation. A custom split needs ESP-IDF 5.5 or later, so on an

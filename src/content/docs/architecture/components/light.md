@@ -238,7 +238,7 @@ to the appropriate accessor instance which can be one of the following types:
     has a color accessor that resolves the provided index to an LED within a segment of some other addressable
     light component.
 
-Refer to [this blog post](/content/docs/blog/2026/11/18/addressable-light-now-backed-by-a-color-accessor.md) for
+Refer to [this blog post](/blog/2026/11/18/addressable-light-now-backed-by-a-color-accessor/) for
 more information about color accessors.
 
 A driver with a maximum refresh rate calls `throttle_show_()`, a protected helper on `AddressableLight`, at the start of

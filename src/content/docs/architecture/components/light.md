@@ -228,15 +228,15 @@ been setup or in case setup failed and the buffers were not allocated.
 Once the `AddressableLight` component is ready to provide access to its LED data, it reassigns `accessor_` to point
 to the appropriate accessor instance which can be one of the following types:
 
-  - `BufferColorAccessor` is the base class for accessors that operate on a linear buffer whose layout is defined
-    by a `ChannelColors` object.
-  - `CorrectedBufferColorAccessor` applies color correction and uncorrection during each access to the color data.
-    This is the most commonly used implementation as of the the time of this writing.
-  - `RawBufferColorAccessor` gets/sets raw color data without color correction and uncorrection.  It is useful for
-    addressable light components that perform color correction elsewhere in the pipeline and for unit tests.
-  - Some other subclass of `ESPColorAccessor` that implements another strategy.  For example, `PartitionLightOutput`
-    has a color accessor that resolves the provided index to an LED within a segment of some other addressable
-    light component.
+- `BufferColorAccessor` is the base class for accessors that operate on a linear buffer whose layout is defined
+  by a `ChannelColors` object.
+- `CorrectedBufferColorAccessor` applies color correction and uncorrection during each access to the color data.
+  This is the most commonly used implementation as of the the time of this writing.
+- `RawBufferColorAccessor` gets/sets raw color data without color correction and uncorrection.  It is useful for
+  addressable light components that perform color correction elsewhere in the pipeline and for unit tests.
+- Some other subclass of `ESPColorAccessor` that implements another strategy.  For example, `PartitionLightOutput`
+  has a color accessor that resolves the provided index to an LED within a segment of some other addressable
+  light component.
 
 Refer to [this blog post](/blog/2026/11/18/addressable-light-now-backed-by-a-color-accessor/) for
 more information about color accessors.

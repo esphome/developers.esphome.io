@@ -34,10 +34,10 @@ When an `AddressableLight` component is constructed, its `accessor_` field initi
 
 Once the `AddressableLight` component is ready to provide access to its LED data, it reassigns `accessor_` to point to the appropriate accessor instance which can be one of the following types:
 
-  - `BufferColorAccessor` is the base class for accessors that operate on a linear buffer whose layout is defined by a `ChannelColors` object.
-  - `CorrectedBufferColorAccessor` applies color correction and uncorrection during each access to the color data.  This is the most commonly used implementation as of the the time of this writing.
-  - `RawBufferColorAccessor` gets/sets raw color data without color correction and uncorrection.  It is useful for addressable light components that perform color correction elsewhere in the pipeline and for unit tests.
-  - Some other subclass of `ESPColorAccessor` that implements another strategy.  For example, `PartitionLightOutput` has a color accessor that resolves the provided index to an LED within a segment of some other addressable light component.
+- `BufferColorAccessor` is the base class for accessors that operate on a linear buffer whose layout is defined by a `ChannelColors` object.
+- `CorrectedBufferColorAccessor` applies color correction and uncorrection during each access to the color data.  This is the most commonly used implementation as of the the time of this writing.
+- `RawBufferColorAccessor` gets/sets raw color data without color correction and uncorrection.  It is useful for addressable light components that perform color correction elsewhere in the pipeline and for unit tests.
+- Some other subclass of `ESPColorAccessor` that implements another strategy.  For example, `PartitionLightOutput` has a color accessor that resolves the provided index to an LED within a segment of some other addressable light component.
 
 `AddressableLight` implements `operator[int32_t index]` to return an `ESPColorView` that holds its accessor pointer along with the requested index.  Likewise the component's range access functions, such as `all()`, return an `ESPColorRange` that holds the accessor pointer along with the start and end index of the range.  Thus `ESPColorView` and `ESPColorRange` remain the main user-facing API for LED access whereas `ESPColorAccessor` is hidden from their view and is mainly of interest to component developers.
 
@@ -66,9 +66,11 @@ With this new architecture, it becomes possible to implement new kinds of addres
 ### Removed APIs (effective immediately)
 
 `AddressableLight`:
+
 - `get_view_internal(int32_t)`: Set `accessor_` field instead.
 
 `ESPColorView`:
+
 - `ESPColorView(uint8_t *, uint8_t *, uint8_t *, uint8_t *, uint8_t *, const ESPColorCorrection *)`: Was used by `get_view_internal()`.  No replacement.
 - `raw_set_color_correction(const ESPColorCorrection *)`: Was only used by `PartitionLightOutput` which now declares its own accessor and applies color correction as a wrapper.  No replacement.
 - `get_color_correction()`: Guarded by `#ifdef` to only be included when the `PartitionLightOutput` is included in the build.  The eventual goal is to remove this method altogether to maintain encapsulation.
@@ -78,24 +80,29 @@ With this new architecture, it becomes possible to implement new kinds of addres
 ### New APIs
 
 `Color`:
+
 - Added const to `operator==(const Color&)` and other non-mutating methods.
 - Added `COLOR_CHANNEL_R`/`_G`/`_B`/`_W` that can be used to directly index into `Color::raw` for per-channel access.
 
 `ChannelColors`:
+
 - Changed to hold a union of `r`/`g`/`b`/`w` offsets as discrete fields and a `ColorChannels::raw` array for per-channel access with the new `COLOR_CHANNEL_*` constants.
 - Added 0, 3, and 4 argument constructors to initialize the new union members properly.  **This change breaks designated initializers.**
 - Added `get`, `get_channel()`, `set()`, and `set_channel()` methods to access LED data at a specific index within a buffer.
 - Added `RESERVED_WHITE` to specify a 4 byte encoding without an actual white channel (as used by some SPI LED strips).
 
 `ESPColorAccessor`:
+
 - Defined the abstract base class and documentation about its invariants, particularly idempotence.
 - Defined three concrete subclasses: `NullColorAccessor`, `CorrectedBufferColorAccessor`, and `RawBufferColorAccessor` as described earlier in this post.
 
 `ESPColorSettable`:
+
 - Pass `Color` and `ESPHSVColor` by value instead of by reference because they fit in a register and it results in smaller code.
 - Added `set_channel()` to set an individual color channel and redirected the other accessors through it.
 
 `ESPColorView`:
+
 - Marked `final` for devirtualization.
 - Added `operator=(const ESPColorView&)` for consistency with `ESPRangeView`.
 - Added `get_raw()` and `set_raw()` for more efficient access of a complete color value.
@@ -103,24 +110,29 @@ With this new architecture, it becomes possible to implement new kinds of addres
 - Added `set_red_raw()`, `set_green_raw()`, `set_blue_raw()`, and `set_white_raw()` for consistency, cheap to do now that the colors are looked up by channel index.
 
 `ESPRangeView`:
+
 - Marked `final` for devirtualization.
 - Now holds a pointer to an `ESPColorAccessor` instead of an `AddressableLight`.
 - Inlined `interpret_index()` to avoid calculating `size()` in the common case where the index is positive.
 - Added `get_channel()` and `set_channel()` that operate on individual color channels, redirected the other accessors.
 
 `ESPRangeIterator`:
+
 - Now holds a pointer to an `ESPColorAccessor` instead of copying the whole `ESPRangeView`.
 
 `ESPColorCorrection`:
+
 - Added `color_correct_channel()` and `color_uncorrect_channel()` to operate on an individual color channel.
 - Redirected the existing methods over to the per-channel flavor.
 
 `AddressableLight`:
+
 - Added an `accessor_` field to hold the `ESPColorAccessor*`, it initially points to `NullColorAccessor::instance`.
 - Added `const` qualifier to `get(int32_t)` to match `operator[]`.
 - Inlined `interpret_index()` to avoid calculating `size()` in the common case where the index is positive.
 
 Miscellaneous changes:
+
 - Added `Inplace<T>` helper that reserves aligned storage for an object to be initialized in-place.
 - Avoided accessing pixel color channels individually in core code when the whole `Color` could be used instead.
 - Updated all LED strip component in tree.

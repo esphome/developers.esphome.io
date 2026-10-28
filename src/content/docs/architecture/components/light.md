@@ -209,23 +209,37 @@ Two further optional overrides exist for advanced cases:
 
 ### Addressable LED strips
 
-A strip driver derives from `light::AddressableLight` and keeps its channel order in a `light::ChannelColors` from
-`esphome/components/light/channel_colors.h`, set from the `rgb_order` option. Two helpers on it cover the parts every
-strip driver used to write out by hand:
+A strip driver derives from `light::AddressableLight` and typically keeps its channel order in a `light::ChannelColors`
+from `esphome/components/light/channel_colors.h`, set from the `channel_colors` option.
+
+The channel colors object provides a helper for implementing the `get_traits()` method.  `traits()` returns a
+`LightTraits` that supports `ColorMode::RGB`, or `ColorMode::RGB_WHITE` and `ColorMode::WHITE` when the order has a
+white channel.
 
 ```cpp
 light::LightTraits get_traits() override { return this->channel_colors_.traits(); }
-
-light::ESPColorView get_view_internal(int32_t index) const override {
-  return this->channel_colors_.view(this->buf_, this->effect_data_, index, &this->correction_);
-}
 ```
 
-- `traits()` returns a `LightTraits` that supports `ColorMode::RGB`, or `ColorMode::RGB_WHITE` and `ColorMode::WHITE`
-  when the order has a white channel.
-- `view()` returns the view of LED `index` in a buffer of `bytes_per_led()` bytes per LED. When the buffer or the effect
-  data is null, for example after an allocation failed in `setup()`, it returns a shared scratch pixel with no effect
-  data instead. `LightState` keeps writing pixels after a failed setup, so this avoids a write through a null pointer.
+When an `AddressableLight` component is constructed, its `accessor_` field initially points to the singleton
+`NullColorAccessor` that simply returns zero on every access until the component sets up the real accessor.
+Thus the component is shielded from potential issues if the user attempts to get/set LEDs before the component has
+been setup or in case setup failed and the buffers were not allocated.
+
+Once the `AddressableLight` component is ready to provide access to its LED data, it reassigns `accessor_` to point
+to the appropriate accessor instance which can be one of the following types:
+
+  - `BufferColorAccessor` is the base class for accessors that operate on a linear buffer whose layout is defined
+    by a `ChannelColors` object.
+  - `CorrectedBufferColorAccessor` applies color correction and uncorrection during each access to the color data.
+    This is the most commonly used implementation as of the the time of this writing.
+  - `RawBufferColorAccessor` gets/sets raw color data without color correction and uncorrection.  It is useful for
+    addressable light components that perform color correction elsewhere in the pipeline and for unit tests.
+  - Some other subclass of `ESPColorAccessor` that implements another strategy.  For example, `PartitionLightOutput`
+    has a color accessor that resolves the provided index to an LED within a segment of some other addressable
+    light component.
+
+Refer to [this blog post](/content/docs/blog/2026/11/18/addressable-light-now-backed-by-a-color-accessor.md) for
+more information about color accessors.
 
 A driver with a maximum refresh rate calls `throttle_show_()`, a protected helper on `AddressableLight`, at the start of
 `write_state()`. It returns true, with the frame queued for the next loop, until the interval has passed. An interval

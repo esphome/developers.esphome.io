@@ -64,6 +64,24 @@ The `void set_output_pin(GPIOPin *pin)` method is implemented to allow setting t
 Finally, the component implements the usual set of methods [as described here](/architecture/components/index#common-methods). This is all
 that's required for our minimal GPIO component!
 
+### Pulsing a reset pin
+
+Many chips have an active-low reset pin that is pulsed once before they are configured. `pulse_reset()` from
+`esphome/core/gpio_pin.h` sets up the pin and drives it high, low, then high again. Name the times in milliseconds
+with designated initializers; any time left out is 0:
+
+```cpp
+void SSD1306::init_reset_() { pulse_reset(this->reset_pin_, {.high_before_ms = 1, .low_ms = 10}); }
+```
+
+- `high_before_ms`: drive the pin high this long first. When it is 0 the pulse starts low.
+- `low_ms`: hold the pin low, so the chip is in reset, this long.
+- `high_after_ms`: drive the pin high again and wait this long for the chip to start.
+
+The call blocks for the whole sequence, and does nothing when the pin is null, so an optional reset pin needs no
+check. The waits use `delay()`, so for pulses shorter than one RTOS tick keep a `delayMicroseconds()` sequence.
+It is available in ESPHome 2026.11.0 and later (esphome/esphome#21470).
+
 ## Providing pins from a GPIO expander
 
 A component for an I/O expander chip offers its pins to other components through a pin schema, so a user can write

@@ -160,9 +160,8 @@ void MyEvent::loop() {
 - A variable without a value is missing from the event. An event keeps the values of its last trigger only, and
   `set_event_types()` clears them; on an event with variables it rejects a list of more than 127 types: it logs an
   error and keeps the old list and values. The
-  `event_types` of a variable refer to positions in the list, so after `set_event_types()` they apply to the types at
-  the same positions. A type that `set_event_types()` puts past the list given in Python carries none of the variables
-  that have `event_types`.
+  `event_types` of a variable are matched by name: after `set_event_types()` the variable still goes with the types
+  of those names, in any order, and no other type carries it.
 - `get_last_event_data()` returns an `event::EventData`: `size()` is the number of variables, `has(i)` whether the
   last event set variable `i`, and `get_bool(i)`, `get_int(i)`, `get_float(i)` and `get_string(i)` read it as
   `false`, `0`, `NAN` or an empty `StringRef` when it is missing or has another type.

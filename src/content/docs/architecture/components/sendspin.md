@@ -88,8 +88,10 @@ Two roles carry configuration that the child supplies while requesting them:
 
 The visualizer role is requested with `request_visualizer_support()` from a validator like the other roles, but its
 configuration is a library struct that the child builds itself and hands to the hub in `to_code`, together with the
-component that will receive the data. The hub only generates `set_visualizer_config()` and `set_visualizer_listener()`
-when the role was requested during validation:
+component that will receive the data. The hub only declares `set_visualizer()` when the role was requested during
+validation, and it registers the role only once `set_visualizer()` is called, since the library refuses to start with
+the default configuration. The hub keeps a pointer to the configuration, so it must outlive the hub; `cg.new_variable()`
+gives it static storage:
 
 ```python
 from esphome.components.sendspin import request_visualizer_support, sendspin_library_ns
@@ -127,9 +129,11 @@ async def to_code(config):
         ("rate_max", 30),
         ("spectrum", spectrum),
     )
-    config = cg.StructInitializer(VisualizerRoleConfig, ("support", support), ("stream", stream))
-    cg.add(hub.set_visualizer_config(config))
-    cg.add(hub.set_visualizer_listener(var))
+    role_config = cg.new_variable(
+        cg.unique_global_id("visualizer_config", VisualizerRoleConfig),
+        cg.StructInitializer(VisualizerRoleConfig, ("support", support), ("stream", stream)),
+    )
+    cg.add(hub.set_visualizer(var, cg.RawExpression(f"&{role_config}")))
 ```
 
 `support` is the RAM budget the role may use for frames the server sends ahead of the playhead; `stream` is the data
@@ -208,12 +212,12 @@ client in its `setup()`, before the client is started.
 - Player: the child implements `sendspin::PlayerRoleListener`; codegen calls `set_listener()` and
   `set_player_config()` on the hub (`register_player_config()` takes care of the latter). `get_player_role()` returns
   the library's `PlayerRole` once the hub is set up; the media source keeps that pointer and drives the role directly.
-- Visualizer: the child implements `sendspin::VisualizerRoleListener`; codegen calls `set_visualizer_config()` and
-  `set_visualizer_listener()`. The data callbacks - `on_loudness()`, `on_beat()`, `on_spectrum()`, `on_peak()` and
-  `on_f_peak()` - fire on the library's drain thread at each datum's playback time (earlier by the config's
-  `display_offset_ms`, if set), so they must be thread safe: store scalar values in atomics, copy the spectrum bins (a
-  `const std::vector<uint16_t> &` the library reuses between calls) into a buffer guarded by a lock, and render from the
-  main loop. The stream lifecycle callbacks (`on_visualizer_stream_start()`, `on_visualizer_stream_end()`,
+- Visualizer: the child implements `sendspin::VisualizerRoleListener`; codegen calls `set_visualizer(listener, &config)`
+  with a configuration in static storage. The data callbacks - `on_loudness()`, `on_beat()`, `on_spectrum()`,
+  `on_peak()` and `on_f_peak()` - fire on the library's drain thread at each datum's playback time (earlier by the
+  config's `display_offset_ms`, if set), so they must be thread safe: store scalar values in atomics, copy the spectrum
+  bins (a `const std::vector<uint16_t> &` the library reuses between calls) into a buffer guarded by a lock, and render
+  from the main loop. The stream lifecycle callbacks (`on_visualizer_stream_start()`, `on_visualizer_stream_end()`,
   `on_visualizer_stream_clear()`) fire on the main loop.
 
 ### Talking to the server

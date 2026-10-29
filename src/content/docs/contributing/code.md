@@ -1291,16 +1291,19 @@ script/clang-tidy --changed --all-headers
 # Python unit tests
 pytest tests/unit_tests
 
-# Compile a component's test configuration for one platform
-script/test_build_components -e compile -c <component> -t esp32-idf
+# Build a component's test configurations; see the component tests page for -e config and the platform options
+script/test_build_components -e compile -c <component>
 ```
+
+The last one is described in more detail under
+[Component/platform test configurations](/architecture/ci/component_tests#running-the-tests).
 
 On Windows, run `script/setup.bat` instead of `script/setup`, and invoke the scripts through Python, since PowerShell
 cannot execute them directly and `script/test_build_components` is a symlink to the `.py` file:
 
 ```powershell
 python script/clang-tidy --changed --all-headers
-python script/test_build_components.py -e compile -c <component> -t esp32-idf
+python script/test_build_components.py -e compile -c <component>
 ```
 
 The `ghcr.io/esphome/esphome-lint` Docker image and the `script/quicklint` and `script/fulltest` wrappers it ran

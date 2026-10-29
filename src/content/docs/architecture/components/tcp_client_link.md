@@ -33,7 +33,8 @@ schema: one stream socket always, plus one listen socket when `role` is `server`
 `final_validate_idle_timeout` in `socket/__init__.py` is a `FINAL_VALIDATE_SCHEMA` for a schema with a `timeout`
 key that has a default: `0s` passes, and any other value shorter than one main loop pass is rejected.
 Assign it as `FINAL_VALIDATE_SCHEMA` or inside `cv.All(...)`; it reads the key
-without a fallback.
+without a fallback. The key must be validated as a time period, for example with
+`cv.positive_time_period_milliseconds`, because the check reads its `total_milliseconds`.
 
 `get_loop_interval()` in `esphome/core/config.py` returns `loop_interval` from the `esphome:` block, or
 `DEFAULT_LOOP_INTERVAL` (16 ms) when it is not set. It reads the full configuration, so call it only from a

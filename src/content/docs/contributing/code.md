@@ -1271,9 +1271,9 @@ When submitting a PR with breaking changes, structure your description to includ
 
 ## Running CI checks locally
 
-The lint checks run as git hooks that `script/setup` installs with [prek](https://prek.j178.dev/), so they already run
-on every commit (see [Setting up a development environment](/contributing/development-environment/)). To run the same
-checks over the whole tree, with the virtual environment activated:
+The lint checks run as git hooks on every commit. `script/setup`, from
+[Setting up a development environment](/contributing/development-environment/), installs them using
+[prek](https://prek.j178.dev/). To run the same checks over the whole tree, with the virtual environment activated:
 
 ```bash
 prek run --all-files

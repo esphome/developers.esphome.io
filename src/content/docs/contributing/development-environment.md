@@ -54,7 +54,10 @@ On Windows with python install manager:
 script\setup.bat
 ```
 
-This will create a Python virtual environment and install various other requirements.
+This will create a Python virtual environment and install the development requirements. It also installs the
+git hooks that run the lint checks on every commit, using [prek](https://prek.j178.dev/). The hooks are only installed
+when the script runs from the main checkout, not from a git worktree, which shares its hooks with the checkout it was
+created from.
 
 ## Activate the virtual environment
 

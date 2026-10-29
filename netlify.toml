@@ -3,6 +3,10 @@
   command = "npm run build"
   environment = { NODE_VERSION = "22" }
 
+# Purge Cloudflare CDN cache after successful deploy.
+[[plugins]]
+  package = "@esphome/netlify-plugin-cloudflare-cache-purge"
+
 # Astro forbids leading underscores in content filenames, so this post's slug
 # dropped the `_` that the old Material URL had. Redirect the legacy URL.
 [[redirects]]

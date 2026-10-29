@@ -10,7 +10,7 @@ images - is a separate *child* component attached to the hub. The hub requires E
 own validation enforces that, so children need no framework check of their own.
 
 A Sendspin client advertises a set of *roles* to the server in its `client/hello` message, and the server only sends
-what a role asks for. The hub supports six of them:
+what a role asks for. The hub supports seven of them:
 
 - `player` - the audio stream (FLAC, Opus or PCM) plus the server's volume, mute and delay commands. Consumed by the
   `media_source` platform.
@@ -23,10 +23,12 @@ what a role asks for. The hub supports six of them:
   consumer; requested by external and custom components.
 - `visualizer` - timestamped loudness, beat, spectrum, onset and dominant frequency data for the playing audio. No
   in-tree consumer; requested by external and custom components.
+- `source` - streams a microphone to the server. Configured on the hub itself, with its `source:` option, rather than
+  requested by a child.
 
-A role is compiled in only when a child component asks for it. Requesting a role defines `USE_SENDSPIN_<ROLE>` for the
-C++ build; a role nobody requested is disabled in the library instead (`CONFIG_SENDSPIN_ENABLE_<ROLE>=n`), so its code
-stays out of the firmware.
+Any other role is compiled in only when a child component asks for it. Requesting a role defines `USE_SENDSPIN_<ROLE>`
+for the C++ build; a role nobody requested is disabled in the library instead (`CONFIG_SENDSPIN_ENABLE_<ROLE>=n`), so
+its code stays out of the firmware.
 
 ## Python
 
@@ -94,6 +96,7 @@ from esphome.components.sendspin import request_visualizer_support, sendspin_lib
 
 VisualizerRoleConfig = sendspin_library_ns.struct("VisualizerRoleConfig")
 VisualizerSupportObject = sendspin_library_ns.struct("VisualizerSupportObject")
+VisualizerStreamConfig = sendspin_library_ns.struct("VisualizerStreamConfig")
 VisualizerSpectrumConfig = sendspin_library_ns.struct("VisualizerSpectrumConfig")
 VisualizerDataType = sendspin_library_ns.enum("VisualizerDataType", is_class=True)
 VisualizerSpectrumScale = sendspin_library_ns.enum("VisualizerSpectrumScale", is_class=True)
@@ -117,16 +120,20 @@ async def to_code(config):
         ("f_min", 40),
         ("f_max", 12000),
     )
-    support = cg.StructInitializer(
-        VisualizerSupportObject,
+    support = cg.StructInitializer(VisualizerSupportObject, ("buffer_capacity", 16384))
+    stream = cg.StructInitializer(
+        VisualizerStreamConfig,
         ("types", [VisualizerDataType.BEAT, VisualizerDataType.LOUDNESS, VisualizerDataType.SPECTRUM]),
-        ("buffer_capacity", 16384),
         ("rate_max", 30),
         ("spectrum", spectrum),
     )
-    cg.add(hub.set_visualizer_config(cg.StructInitializer(VisualizerRoleConfig, ("support", support))))
+    config = cg.StructInitializer(VisualizerRoleConfig, ("support", support), ("stream", stream))
+    cg.add(hub.set_visualizer_config(config))
     cg.add(hub.set_visualizer_listener(var))
 ```
+
+`support` is the RAM budget the role may use for frames the server sends ahead of the playhead; `stream` is the data
+the client asks the server to send.
 
 `sendspin_library_ns` is the library's global `sendspin` namespace, which is where its structs, enums and listener
 interfaces live. The hub and its children live in `esphome::sendspin_` (`sendspin_ns` in Python); the trailing
@@ -160,7 +167,7 @@ event out through a `CallbackManager`. Subscribe in `setup()`:
 ```cpp
 void MyComponent::setup() {
   this->parent_->add_metadata_update_callback([this](const sendspin::ServerMetadataStateObject &metadata) {
-    // Every field is a std::optional. An all-empty object means the connection was lost.
+    // Every field is a std::optional. An all-empty object means the cached metadata was dropped.
     if (metadata.title.has_value()) {
       this->show_title_(*metadata.title);
     }
@@ -173,10 +180,10 @@ All of these fire on the main loop, from the hub's `loop()`, unless noted:
 - `add_group_update_callback()` - a `GroupUpdateObject` whenever the server changes the group the client belongs to.
   Available regardless of roles.
 - Controller: `add_controller_state_callback()` with the group's `ServerStateControllerObject`, and
-  `add_controller_state_clear_callback()` when the connection is lost. `send_client_command()` sends a transport
+  `add_controller_state_clear_callback()` when that state is dropped. `send_client_command()` sends a transport
   command, and optionally a volume or mute, to the server.
-- Metadata: `add_metadata_update_callback()` with a `ServerMetadataStateObject`. A lost connection delivers a
-  default-constructed object (every field `nullopt`), so treat an absent field as cleared rather than as no update.
+- Metadata: `add_metadata_update_callback()` with a `ServerMetadataStateObject`. Dropping the cached metadata delivers
+  a default-constructed object (every field `nullopt`), so treat an absent field as cleared rather than as no update.
   `get_track_progress_ms()` interpolates the track position between updates.
 - Artwork: `add_image_decode_callback()` hands over the encoded image bytes on the library's decode thread, so do the
   decoding there and nothing else; `add_image_display_callback()` and `add_image_clear_callback()` fire on the main
@@ -184,11 +191,12 @@ All of these fire on the main loop, from the hub's `loop()`, unless noted:
   acknowledged once with `artwork_frame_done(slot)` from the main loop before the library releases the next one for
   that slot; a redundant ack is a safe no-op.
 - Color: `add_color_callback()` with a `ServerColorStateObject` whose colors (background, primary, accent and the
-  foreground colors for dark and light backgrounds) are each `std::optional`. A lost connection delivers a
+  foreground colors for dark and light backgrounds) are each `std::optional`. Dropping the cached palette delivers a
   default-constructed object, like metadata.
 
-Stopping the client, which the `sendspin` switch platform does when it is turned off, clears every role exactly as a
-lost connection does, so the clear deliveries above also mean "the client stopped".
+A role's cached state is dropped when the connection to the server is lost, when the server takes the role out of the
+session with `server/activate`, and when the client is stopped, which the `sendspin` switch platform does when it is
+turned off. A later activation or connection resumes with a fresh update.
 
 ### Single-consumer roles
 
@@ -202,11 +210,11 @@ client in its `setup()`, before the client is started.
   the library's `PlayerRole` once the hub is set up; the media source keeps that pointer and drives the role directly.
 - Visualizer: the child implements `sendspin::VisualizerRoleListener`; codegen calls `set_visualizer_config()` and
   `set_visualizer_listener()`. The data callbacks - `on_loudness()`, `on_beat()`, `on_spectrum()`, `on_peak()` and
-  `on_f_peak()` - fire on the library's drain thread at each datum's playback time, so they must be thread safe: store
-  scalar values in atomics, copy the spectrum bins (a `const std::vector<uint16_t> &` the library reuses between
-  calls) into a buffer guarded by a lock, and render from the main loop. The stream lifecycle callbacks
-  (`on_visualizer_stream_start()`, `on_visualizer_stream_end()`, `on_visualizer_stream_clear()`) fire on the main
-  loop.
+  `on_f_peak()` - fire on the library's drain thread at each datum's playback time (earlier by the config's
+  `display_offset_ms`, if set), so they must be thread safe: store scalar values in atomics, copy the spectrum bins (a
+  `const std::vector<uint16_t> &` the library reuses between calls) into a buffer guarded by a lock, and render from the
+  main loop. The stream lifecycle callbacks (`on_visualizer_stream_start()`, `on_visualizer_stream_end()`,
+  `on_visualizer_stream_clear()`) fire on the main loop.
 
 ### Talking to the server
 

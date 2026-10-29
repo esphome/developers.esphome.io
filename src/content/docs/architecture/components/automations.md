@@ -337,6 +337,30 @@ class TurnOnTrigger final : public Trigger<> {
 
 The trigger needs to track mutable state (`last_on_`) across callback invocations. A forwarder struct must contain only a single `Automation*` field -- it cannot store extra state. When the trigger logic requires additional fields, use a `Trigger` subclass instead. The `Trigger` base class manages the connection to the `Automation` object.
 
+### Triggers on a value range
+
+An `on_value_range` style trigger (fire when a float state enters `above`/`below`) does not need its own bound members.
+`automation.new_value_range_trigger(trigger_id, parent, config)` creates the trigger with one generated function that
+returns both bounds as an `esphome::ValueRange` for the current value:
+
+```python
+async def to_code(config: ConfigType) -> None:
+    ...
+    for conf in config.get(CONF_ON_VALUE_RANGE, []):
+        trigger = await automation.new_value_range_trigger(conf[CONF_TRIGGER_ID], var, conf)
+        await automation.build_automation(trigger, [(float, "x")], conf)
+```
+
+```cpp
+// generated for `above: 10` / `below: 90`
+static ValueRange esphome__range_trigger__fn(const float x) { return ValueRange{10.0f, 90.0f}; }
+```
+
+The trigger class takes `ValueRange (*)(float x)` in its constructor and calls `range_(state).contains(state, previous)`.
+A missing bound is `NAN` and is not checked; with both bounds `NAN` the previous result is kept. Constant bounds are
+built in, a `!lambda` bound is called with the state as `x` (which is `const`, so one bound cannot change what the
+other sees), and the trigger is declared before its bounds, so a bound may refer to its own trigger id.
+
 ### When to use which method
 
 | Scenario | Method | Example |

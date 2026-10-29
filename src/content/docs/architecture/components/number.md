@@ -240,6 +240,9 @@ await numbers(CONF_TIMEOUT, hub.set_timeout_number, min_value=0, max_value=900, 
 await numbers(CONF_LIGHT_THRESHOLD, hub.set_light_threshold_number, min_value=0, max_value=255, step=1)
 ```
 
+A number that only passes its new value to the hub needs no class of its own: declare it with `number.ApplyNumber` and pass
+`apply=` to the call. See [Entities that only call the hub](/architecture/components/index#entities-that-only-call-the-hub).
+
 ### Choosing between them
 
 Neither pattern is the "modern" one and neither is deprecated. They express different relationships between a device

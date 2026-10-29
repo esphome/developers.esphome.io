@@ -96,8 +96,7 @@ registers the `LightState` that wraps it:
 ```python
 async def to_code(config):
     var = await light.new_light(config)
-    red = await cg.get_variable(config[CONF_RED])
-    cg.add(var.set_red(red))
+    await cg.add_variable(var.set_red, config[CONF_RED])
     ...
 ```
 
@@ -208,6 +207,43 @@ Two further optional overrides exist for advanced cases:
   own without a following `write_state()` - useful for cheap bookkeeping that should track every change, separate from
   the (potentially more expensive) actual hardware write.
 
+### Addressable LED strips
+
+A strip driver derives from `light::AddressableLight` and keeps its channel order in a `light::ChannelColors` from
+`esphome/components/light/channel_colors.h`, set from the `rgb_order` option. Two helpers on it cover the parts every
+strip driver used to write out by hand:
+
+```cpp
+light::LightTraits get_traits() override { return this->channel_colors_.traits(); }
+
+light::ESPColorView get_view_internal(int32_t index) const override {
+  return this->channel_colors_.view(this->buf_, this->effect_data_, index, &this->correction_);
+}
+```
+
+- `traits()` returns a `LightTraits` that supports `ColorMode::RGB`, or `ColorMode::RGB_WHITE` and `ColorMode::WHITE`
+  when the order has a white channel.
+- `view()` returns the view of LED `index` in a buffer of `bytes_per_led()` bytes per LED. When the buffer or the effect
+  data is null, for example after an allocation failed in `setup()`, it returns a shared scratch pixel with no effect
+  data instead. `LightState` keeps writing pixels after a failed setup, so this avoids a write through a null pointer.
+
+A driver with a maximum refresh rate calls `throttle_show_()`, a protected helper on `AddressableLight`, at the start of
+`write_state()`. It returns true, with the frame queued for the next loop, until the interval has passed. An interval
+of 0 never holds a frame back, and the check stays correct when `micros()` wraps:
+
+```cpp
+// max_refresh_rate_ is a uint32_t in µs, 0 for no limit
+void MyStripLightOutput::write_state(light::LightState *state) {
+  uint32_t now = micros();
+  if (this->throttle_show_(now, this->last_refresh_, this->max_refresh_rate_))
+    return;
+  this->last_refresh_ = now;
+  ...
+}
+```
+
+These helpers are available in ESPHome 2026.11.0 and later (esphome/esphome#21445).
+
 ### Useful members
 
 - `ColorMode` / `ColorCapability`: the color-mode and capability enums described above.
@@ -216,6 +252,40 @@ Two further optional overrides exist for advanced cases:
 - `create_default_transition()`: override to provide a custom `LightTransformer` for transitions; the default uses a
   smooth (gamma-aware) transition.
 - `state->get_effect_name()`: the name of the currently active effect, or `"None"`.
+
+### Mirroring a light that lives elsewhere
+
+Some outputs do not drive hardware but stand in for a light that is controlled somewhere else, for example the
+`homeassistant` light platform, which follows a Home Assistant light entity and sends every local change back as an
+action. Such an output learns the light's state from outside, and that state must not go through a `LightCall`: a
+call validates against the traits, may start a transition, and ends in a `write_state()` the output would then send
+back to where the state came from.
+
+`LightState::set_external_state()` takes the reported values over directly:
+
+```cpp
+LightColorValues values = this->state_->remote_values;  // attributes not reported keep what the light has
+values.set_state(true);
+values.set_brightness(reported_brightness / 255.0f);
+if (!this->state_->set_external_state(values)) {
+  // A local change still waits to be written, or a transition or flash runs: that change is
+  // newer than the report, and a fresh report follows once it has reached the other side
+  return;
+}
+```
+
+The values become the light's current and target values at once and are published to the API and the other
+listeners, including the `on_turn_on` and `on_turn_off` triggers; nothing is written to the output and nothing is
+saved. Nothing is published when the values did not change, unless an effect was running: that is published so
+clients drop the effect name.
+
+The call returns `false` and changes nothing while a local change still waits for the next `write_state()` or while a
+transition or flash runs. The output decides what to do then: drop the report when the other side will report again
+after the local change reaches it, or try again from its next `write_state()`. A running effect does not end by itself,
+so the call stops it and takes the report over.
+
+Since reported state never reaches `write_state()`, every write the output sees is a local change, except the very
+first one, which carries the initial state the light core sets up at boot.
 
 ## Exposing multiple lights from one component
 

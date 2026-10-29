@@ -1271,22 +1271,29 @@ When submitting a PR with breaking changes, structure your description to includ
 
 ## Running CI checks locally
 
-You can run the lint and GitHub Actions checks via a docker image:
+The lint checks run as git hooks that `script/setup` installs with [prek](https://prek.j178.dev/), so they already run
+on every commit (see [Setting up a development environment](/contributing/development-environment/)). To run the same
+checks over the whole tree, with the virtual environment activated:
 
 ```bash
-# Full lint+test suite
-docker run --rm -v "${PWD}/":/esphome -it ghcr.io/esphome/esphome-lint script/fulltest
-
-# Run lint only over changed files
-docker run --rm -v "${PWD}/":/esphome -it ghcr.io/esphome/esphome-lint script/quicklint
+prek run --all-files
 ```
 
-If you are using Windows and have docker installed, the syntax is slightly different.
-If you have cloned ESPHome to `c:\edev\esphome` the path will be `c/edev/esphome`
+This covers Ruff, Ruff's formatter, pyupgrade, yamllint, clang-format, pylint and `script/ci-custom.py`, the same
+set the lint jobs in CI run.
+
+The remaining CI jobs are separate commands:
 
 ```bash
-# convert the volume format
-$current_dir=(Get-Location).Path.ToLower().Replace(':','').Replace('\','/')
-# Run lint only over changed files from powershell
-docker run --rm -v "$($current_dir):/esphome" -it ghcr.io/esphome/esphome-lint script/quicklint
+# C++ static analysis over the files you changed; the first run downloads the toolchains it needs
+script/clang-tidy --changed
+
+# Python unit tests
+pytest tests/unit_tests
+
+# Compile a component's test configuration for one platform
+script/test_build_components -e compile -c <component> -t esp32-idf
 ```
+
+The `ghcr.io/esphome/esphome-lint` Docker image and the `script/quicklint` and `script/fulltest` wrappers it ran
+have been retired. The last image, 2025.4.2, ships Python 3.11, which cannot parse the current scripts.

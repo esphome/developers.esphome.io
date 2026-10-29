@@ -57,6 +57,7 @@ export default defineConfig({
         {
           label: "Contributing",
           items: [
+            "contributing/forks-and-pull-requests",
             "contributing/development-environment",
             "contributing/submitting-your-work",
             {
@@ -80,16 +81,21 @@ export default defineConfig({
                     "architecture/components/bluetooth",
                     "architecture/components/gpio",
                     "architecture/components/i2c",
+                    "architecture/components/remote_base",
                     "architecture/components/spi",
                     "architecture/components/uart",
+                    "architecture/components/usb_host",
                   ],
                 },
                 "architecture/components/automations",
                 "architecture/components/socket_consumption_api",
+                "architecture/components/esp32_tls",
                 "architecture/components/ipv4_allow",
                 "architecture/components/tcp_client_link",
                 "architecture/components/tcp_listener",
                 "architecture/components/mdns",
+                "architecture/components/runtime_image",
+                "architecture/components/deep_sleep",
                 "architecture/components/advanced",
                 {
                   label: "Entity base classes",
@@ -106,6 +112,7 @@ export default defineConfig({
                     "architecture/components/light",
                     "architecture/components/lock",
                     "architecture/components/media_player",
+                    "architecture/components/microphone",
                     "architecture/components/number",
                     "architecture/components/output",
                     "architecture/components/select",

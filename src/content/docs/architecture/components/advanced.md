@@ -319,6 +319,40 @@ this->set_timeout(READ_TIMEOUT_ID, 50, [this]() { this->read_(); });
 this->cancel_timeout(READ_TIMEOUT_ID);
 ```
 
+## The Loop Blocking Warning
+
+Every component `loop()`, `update()` and scheduled callback runs under a guard that measures how long it held the main loop; `setup()` is not measured, its time is only reported in the `Setup ... took N ms` line. When one pass exceeds the threshold (`WARN_IF_BLOCKING_OVER_MS`, 50 ms by default) the log shows:
+
+```text
+[W][component:XXX]: wifi took a long time for an operation (73 ms), max is 50 ms
+```
+
+The threshold ratchets: after a warning the component's own threshold becomes the measured time plus 10 ms, rounded down to a 10 ms step, so a component that blocks once for 73 ms is only reported again when it blocks for more than 80 ms, for the rest of the run. The warning is the main tool for finding work that should be a state machine, a cached value or a `set_timeout`; fix the cause rather than the message.
+
+### `UnavoidableBlockingScope`
+
+A few steps done from a loop pass have no shorter form and cannot be split across passes: turning on a radio, the first Wi-Fi connect, a key generation whose cost is the algorithm itself. Wrapping only that step in an `UnavoidableBlockingScope` (from `esphome/core/application.h`) leaves it out of the measurement for the current pass:
+
+```cpp
+void MyComponent::loop() {
+  if (this->needs_key_) {
+    UnavoidableBlockingScope scope;
+    this->generate_key_();  // 60 ms of arithmetic, nothing to split
+  }
+  this->poll_();  // still measured
+}
+```
+
+When the scope ends it moves the pass start time forward by the time spent inside it, so the guard still reports everything else in the pass and the component's threshold does not ratchet up over the one step nothing can be done about. Code after the scope that reads `App.get_loop_component_start_time()` sees the adjusted time, which is closer to "now" than the original pass start; elapsed time computed from it across the scope leaves out the scoped work, so read `millis()` when the true elapsed time matters. Scopes may nest; the outermost one decides how much of the pass is left out.
+
+Never use it to paper over a problem that can be solved. A slow driver call, a loop that could be a state machine, a computation that could be cached or deferred, a blocking read that could be polled: those are what the warning exists to find, and wrapping them hides the bug instead of fixing it. If in doubt, leave the warning in.
+
+> [!WARNING]
+>
+> - Only work timed by the guard is affected: a component's `loop()` or `update()`, or a scheduler callback. The scope does nothing in `setup()`.
+> - Use the scope from the main loop task only.
+> - The watchdog is not fed inside the scope, so the work must finish within the watchdog timeout, or be paired with a `watchdog::WatchdogManager` (from `esphome/components/watchdog/watchdog.h`) that raises the timeout for the same stretch. Add `"watchdog"` to the component's `AUTO_LOAD` to use it; it compiles on every platform but only changes the timeout on ESP32 and RP2040.
+
 ## Waking the Main Loop from Background Threads
 
 For components that receive events in background threads/FreeRTOS tasks (BLE callbacks, network events, platform callbacks, etc.) and need low-latency processing, use `App.wake_loop_threadsafe()` to immediately wake the main loop instead of waiting 0-16ms for the next loop timeout.
@@ -432,9 +466,87 @@ These are not bugs, so please do not open issue reports for them; a PR that remo
 - After `setup_priority::AFTER_WIFI` the API camera listener has already read the flag; after `setup_priority::AFTER_CONNECTION`, MQTT has too.
 - Un-hiding a YAML `internal: true` entity skips the duplicate name check, and Zigbee never registers it.
 
+## Persisting Component State
+
+A component that must survive a reboot stores a small struct through `global_preferences`. The key must be stable
+across builds and unique per instance; a fixed hash combined with one passed from code generation (the `globals`
+component hashes its `id`) does that. Entities use `make_entity_preference<T>()` instead, which derives the key
+from the entity.
+
+```cpp
+this->pref_ = global_preferences->make_preference<MyState>(fnv1_hash("my_component") ^ this->id_hash_, in_flash);
+if (!this->pref_.load(&state))
+  state = MyState{};  // first boot, layout change or RTC content lost
+this->pref_.save(&state);
+```
+
+Both calls return `false` on failure, and a failed `load()` is the normal path after a power loss on RTC storage.
+
+The second argument picks the backend. `false` means RTC memory on chips that have it: it survives a software reboot
+or a deep-sleep wake, not a power loss, and costs no flash wear, so it is the right choice for values that change
+often. `true` means flash (NVS on ESP32), which survives a power loss but wears with every write.
+
+Entities pass the same choice as the second argument of `make_entity_preference<T>(version, in_flash)`. It derives the
+same key as `make_entity_preference<T>(version)`, which always uses the platform default backend, so adding a
+`storage:` option to an existing entity keeps the values saved under the default for as long as the user leaves that
+backend selected. The key is all that is shared: each backend keeps its own value and never reads the other's, so
+after a switch the entity loads whatever the newly selected backend holds. The first time that is nothing, like a
+first boot, but switching back can bring up a value saved there earlier:
+
+```cpp
+this->rtc_ = this->make_entity_preference<bool>(0, in_flash);
+```
+
+Let the user choose with the `storage:` option from `esphome/preferences.py` instead of hard-coding the backend:
+
+```python
+from esphome import preferences
+from esphome.const import CONF_ID, CONF_STORAGE
+from esphome.helpers import fnv1_hash
+
+CONFIG_SCHEMA = cv.Schema({...}).extend(preferences.storage_schema())
+
+
+async def to_code(config: ConfigType) -> None:
+    var = cg.new_Pvariable(config[CONF_ID])
+    await cg.register_component(var, config)
+    cg.add(var.set_id_hash(fnv1_hash(str(config[CONF_ID]))))
+    cg.add(var.set_in_flash(preferences.is_in_flash(config[CONF_STORAGE])))
+```
+
+On the ESP8266 the space for saved values is small and shared; a component that saves large values or one per
+entity reserves them so the total is checked, see
+[Saved settings on the ESP8266](/contributing/code/#saved-settings-on-the-esp8266).
+
+`storage_schema()` keeps each platform's historic default (RTC on ESP8266, flash elsewhere). A component that prefers
+RTC whenever the chip has it resolves its own default with the two lower-level helpers:
+
+```python
+def _storage_default(value: ConfigType) -> ConfigType:
+    if CONF_STORAGE not in value:
+        if not preferences.rtc_supported():
+            raise cv.Invalid("This chip has no RTC memory; set 'storage: flash'", path=[CONF_STORAGE])
+        value[CONF_STORAGE] = preferences.STORAGE_RTC
+    return value
+
+
+CONFIG_SCHEMA = cv.All(
+    cv.Schema({cv.Optional(CONF_STORAGE): preferences.validate_storage}),
+    _storage_default,
+)
+```
+
+`rtc_supported()` is true on every platform with an RTC-backed preferences backend (ESP8266, and ESP32 except the C2
+and C61); call it from a validator or a callable default, not while the schema is built at import time, when the
+target is not known yet. `validate_storage` accepts `flash` or `rtc` and rejects `rtc` where it is unavailable. `is_in_flash()` also
+emits the define that enables the RTC backend on ESP32, so always route the chosen value through it in `to_code`.
+
 ## See Also
 
 - Component Loop Control: [`esphome/core/component.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.h) and [`esphome/core/component.cpp`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.cpp)
 - Wake Loop Threadsafe: PR [#11681](https://github.com/esphome/esphome/pull/11681)
+- Loop Blocking Warning and `UnavoidableBlockingScope`: PR [#19020](https://github.com/esphome/esphome/pull/19020)
 - Hiding Entities at Boot: PR [#19069](https://github.com/esphome/esphome/pull/19069)
+- Persisting Component State: [`esphome/preferences.py`](https://github.com/esphome/esphome/blob/dev/esphome/preferences.py)
+  and [`esphome/core/preferences.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/preferences.h)
 - [Socket Consumption API](/architecture/components/socket_consumption_api) - For components that use network sockets

@@ -89,9 +89,9 @@ Two roles carry configuration that the child supplies while requesting them:
 The visualizer role is requested with `request_visualizer_support()` from a validator like the other roles, but its
 configuration is a library struct that the child builds itself and hands to the hub in `to_code`, together with the
 component that will receive the data. The hub only declares `set_visualizer()` when the role was requested during
-validation, and it registers the role only once `set_visualizer()` is called, since the library refuses to start with
-the default configuration. The hub keeps a pointer to the configuration, so it must outlive the hub; `cg.new_variable()`
-gives it static storage:
+validation. The role is added to the client in the hub's `setup()` only if `set_visualizer()` was called, since the
+library refuses to start with the default configuration. The hub keeps a pointer to the configuration, so it must
+outlive the hub; `cg.new_variable()` gives it static storage:
 
 ```python
 from esphome.components.sendspin import request_visualizer_support, sendspin_library_ns
@@ -207,18 +207,20 @@ turned off. A later activation or connection resumes with a fresh update.
 The player and visualizer roles each belong to exactly one child, which implements the library's listener interface
 directly; `register_player_config()` and `request_visualizer_support()` reject a second consumer with a validation
 error. The hub only stores the configuration and the listener it is given from codegen and registers the role with the
-client in its `setup()`, before the client is started.
+client in its `setup()`, before the client is started (the visualizer only if `set_visualizer()` was called).
 
 - Player: the child implements `sendspin::PlayerRoleListener`; codegen calls `set_listener()` and
   `set_player_config()` on the hub (`register_player_config()` takes care of the latter). `get_player_role()` returns
   the library's `PlayerRole` once the hub is set up; the media source keeps that pointer and drives the role directly.
+  `on_audio_write()` runs on the library's sync task thread, so it must be thread safe; the stream, volume, mute and
+  output delay callbacks fire on the main loop.
 - Visualizer: the child implements `sendspin::VisualizerRoleListener`; codegen calls `set_visualizer(listener, &config)`
   with a configuration in static storage. The data callbacks - `on_loudness()`, `on_beat()`, `on_spectrum()`,
-  `on_peak()` and `on_f_peak()` - fire on the library's drain thread at each datum's playback time (earlier by the
-  config's `display_offset_ms`, if set), so they must be thread safe: store scalar values in atomics, copy the spectrum
-  bins (a `const std::vector<uint16_t> &` the library reuses between calls) into a buffer guarded by a lock, and render
-  from the main loop. The stream lifecycle callbacks (`on_visualizer_stream_start()`, `on_visualizer_stream_end()`,
-  `on_visualizer_stream_clear()`) fire on the main loop.
+  `on_peak()` and `on_f_peak()` - fire on the library's drain thread at each datum's playback time (earlier by
+  `VisualizerRoleConfig::display_offset_ms`, if set), so they must be thread safe: store scalar values in atomics, copy
+  the spectrum bins (a `const std::vector<uint16_t> &` the library reuses between calls) into a buffer guarded by a
+  lock, and render from the main loop. The stream lifecycle callbacks (`on_visualizer_stream_start()`,
+  `on_visualizer_stream_end()`, `on_visualizer_stream_clear()`) fire on the main loop.
 
 ### Talking to the server
 

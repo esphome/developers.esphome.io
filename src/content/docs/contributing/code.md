@@ -1285,14 +1285,22 @@ set the lint jobs in CI run.
 The remaining CI jobs are separate commands:
 
 ```bash
-# C++ static analysis over the files you changed; the first run downloads the toolchains it needs
-script/clang-tidy --changed
+# C++ static analysis over the files you changed, headers included; the first run downloads the toolchains it needs
+script/clang-tidy --changed --all-headers
 
 # Python unit tests
 pytest tests/unit_tests
 
 # Compile a component's test configuration for one platform
 script/test_build_components -e compile -c <component> -t esp32-idf
+```
+
+On Windows, run `script/setup.bat` instead of `script/setup`, and invoke the scripts through Python, since PowerShell
+cannot execute them directly and `script/test_build_components` is a symlink to the `.py` file:
+
+```powershell
+python script/clang-tidy --changed --all-headers
+python script/test_build_components.py -e compile -c <component> -t esp32-idf
 ```
 
 The `ghcr.io/esphome/esphome-lint` Docker image and the `script/quicklint` and `script/fulltest` wrappers it ran

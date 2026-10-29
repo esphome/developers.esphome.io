@@ -348,6 +348,7 @@ async def to_code(config: ConfigType) -> None:
     ...
     for conf in config.get(CONF_ON_VALUE_RANGE, []):
         trigger = await automation.new_value_range_trigger(conf[CONF_TRIGGER_ID], var, conf)
+        await cg.register_component(trigger, conf)
         await automation.build_automation(trigger, [(float, "x")], conf)
 ```
 

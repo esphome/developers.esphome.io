@@ -386,6 +386,8 @@ class MyHub : public Component {
 
 Prefer a callback (above) when the parent already has a callback list for the event, or when other code listens to it too.
 
+When each automation needs its own stored value next to it, such as a threshold the hub compares against, build the automations one at a time with `automation.new_automation(args, conf)` and pass each one to the hub's own setter with that value. It returns the `Automation<args>` with its actions and no trigger.
+
 ### When to use which method
 
 | Scenario | Method | Example |

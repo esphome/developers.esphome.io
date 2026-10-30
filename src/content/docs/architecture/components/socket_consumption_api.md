@@ -119,6 +119,8 @@ socket; `web_server_base` does. Register the client connections your component k
 ```python
 from esphome.components import web_server_base
 
+DOMAIN = "web_server"
+
 def _consume_web_server_sockets(config):
     # A browser opens several connections: page resources, the event stream and control requests
     web_server_base.add_httpd_clients(5, DOMAIN)
@@ -134,9 +136,12 @@ CONFIG_SCHEMA = cv.All(
 
 `add_httpd_clients()` registers the TCP sockets and adds them to the shared server's client total. On ESP32 that
 total sets the ESP-IDF HTTP server's open socket limit (`max_open_sockets`) at build time, never below the ESP-IDF
-default of 7, so a component that keeps long lived connections (for example a stream) must count them here, or the
-server runs out of slots and purges the oldest connection. `web_server_idf` also registers the 2 UDP control sockets the ESP-IDF HTTP server opens. Call
-it during config validation, and do not register the same clients again with `socket.consume_sockets()`.
+default of 7, so a component that keeps long-lived connections (for example a stream) must count them here, or the
+server runs out of slots and purges the oldest connection. Call `add_httpd_clients()` during config validation, and
+do not register the same clients again with `socket.consume_sockets()`.
+
+`web_server_idf` registers the two UDP control sockets that the ESP-IDF HTTP server opens, so components never count
+those.
 
 Short requests that close right away, like a Prometheus scrape, need no registration.
 
@@ -161,7 +166,7 @@ CONFIG_SCHEMA = cv.All(
 
 ## How It Works
 
-1. **Registration Phase:** During configuration validation, each component calls `socket.consume_sockets(count, name)` to register its socket needs.
+1. **Registration Phase:** During configuration validation, each component calls `socket.consume_sockets(count, name)` to register its socket needs. Clients of the shared web server call `web_server_base.add_httpd_clients(count, name)` instead, which registers the sockets the same way.
 
 1. **Accumulation:** ESPHome stores these registrations in `CORE.data[KEY_SOCKET_CONSUMERS]`, accumulating the total across all components.
 

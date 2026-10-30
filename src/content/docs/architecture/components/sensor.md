@@ -273,15 +273,18 @@ class MyComponent final : public PollingComponent {
 };
 
 void MyComponent::update() {
-  // Always null-check: the user may have configured only one of them.
-  if (this->temperature_sensor_ != nullptr) {
-    this->temperature_sensor_->publish_state(this->read_temperature_());
-  }
-  if (this->humidity_sensor_ != nullptr) {
-    this->humidity_sensor_->publish_state(this->read_humidity_());
-  }
+  PUBLISH_STATE(this->temperature_sensor_, this->read_temperature_());
+  PUBLISH_STATE(this->humidity_sensor_, this->read_humidity_());
 }
 ```
+
+The user may have configured only some of the sensors, so every publish needs a null check.
+`PUBLISH_STATE(entity, ...)` from `esphome/core/entity_base.h` does that check: it calls `entity->publish_state(...)`
+only when `entity` is set, and it evaluates the arguments only in that case, so `this->read_temperature_()` above does
+not run when no temperature sensor is configured. It works for every entity type with `publish_state()` (binary
+sensors, text sensors, switches, numbers, selects, ...), and passes several arguments through, for example
+`PUBLISH_STATE(this->version_text_sensor_, buf, len)`. `PUBLISH_STATE` was added in ESPHome 2026.11.0; older code
+writes the `if (this->x_sensor_ != nullptr)` check by hand.
 
 #### Skipping repeated values
 

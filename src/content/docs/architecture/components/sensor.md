@@ -319,7 +319,7 @@ also be used directly, for example in a `std::array` of per-target sensors. `Sen
 
 A parser that fills a struct of `optional<float>` fields, one per reading it found in a packet, publishes each field
 only when it has a value and the sensor is configured. `sensor::publish_optional()` from `sensor.h` does both checks,
-and one call per field is smaller in flash than the `if` it replaces:
+in one call per field:
 
 ```cpp
 // Before
@@ -330,8 +330,8 @@ if (res.temperature.has_value() && this->temperature_sensor_ != nullptr)
 sensor::publish_optional(this->temperature_sensor_, res.temperature);
 ```
 
-The helper is an out-of-line function, so it pays off from about three calls in a build. Keep the `if` when the value
-needs changing before it is published. `publish_optional` was added in ESPHome 2026.11.0.
+The helper is defined `inline` in the header, so the compiler decides at each call whether to inline it. Keep the `if`
+when the value needs changing before it is published. `publish_optional` was added in ESPHome 2026.11.0.
 
 ### Choosing between them
 

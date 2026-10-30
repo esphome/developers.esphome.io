@@ -2,7 +2,7 @@
 title: "Socket Consumption API"
 ---
 
-When developing components that use network sockets on ESP32 with ESP-IDF, you must register your socket requirements using the Socket Consumption API. This ensures ESPHome automatically configures `CONFIG_LWIP_MAX_SOCKETS` with sufficient capacity for all components in a configuration.
+When developing components that use network sockets, you must register your socket requirements using the Socket Consumption API. ESPHome uses the registrations to size socket limits (for example `CONFIG_LWIP_MAX_SOCKETS` on ESP32), and on nRF52 to decide whether the TCP stack is built at all. See [Platform Support](#platform-support).
 
 ## Background
 
@@ -12,7 +12,7 @@ On ESP32 with ESP-IDF, the `CONFIG_LWIP_MAX_SOCKETS` setting limits how many soc
 E (3555) httpd: httpd_server_init: error in creating msg socket (23)
 ```
 
-The Socket Consumption API solves this by having components declare their socket needs during configuration validation. The ESP32 platform then automatically calculates and configures the required limit based on the total needs of all components.
+The Socket Consumption API solves this by having components declare their socket needs during configuration validation. Each platform then configures its network stack from the total needs of all components.
 
 ## When to Register Socket Usage
 
@@ -46,7 +46,8 @@ import esphome.config_validation as cv
 def _consume_sockets(config):
     """Register socket needs for this component."""
     # Example: 1 listening socket + 2 concurrent client connections
-    socket.consume_sockets(3, "my_component")(config)
+    socket.consume_sockets(1, "my_component", socket.SocketType.TCP_LISTEN)(config)
+    socket.consume_sockets(2, "my_component", socket.SocketType.TCP)(config)
     return config
 
 CONFIG_SCHEMA = cv.All(
@@ -56,6 +57,12 @@ CONFIG_SCHEMA = cv.All(
     _consume_sockets,  # Register socket usage during validation
 )
 ```
+
+The socket type defaults to `SocketType.TCP`. Pass the type that matches what the component opens:
+
+- `SocketType.TCP`: outbound TCP connections and accepted TCP clients
+- `SocketType.TCP_LISTEN`: listening TCP sockets
+- `SocketType.UDP`: UDP sockets, including multicast
 
 ### 3. Calculate Your Socket Requirements
 
@@ -152,7 +159,7 @@ CONFIG_SCHEMA = cv.All(
 
 1. **Accumulation:** ESPHome stores these registrations in `CORE.data[KEY_SOCKET_CONSUMERS]`, accumulating the total across all components.
 
-1. **Auto-Configuration:** The ESP32 platform's `_configure_lwip_max_sockets()` function reads the total and sets `CONFIG_LWIP_MAX_SOCKETS` in sdkconfig.
+1. **Auto-Configuration:** Each platform reads the totals and configures its network stack, as listed under [Platform Support](#platform-support). On ESP32, `_configure_lwip_max_sockets()` sets `CONFIG_LWIP_MAX_SOCKETS` in sdkconfig.
 
 1. **User Overrides:** Manual user settings via `sdkconfig_options` are respected. ESPHome validates that manual values are sufficient and warns if too low.
 
@@ -163,7 +170,7 @@ The Socket Consumption API is currently used by:
 - **ESP32** (ESP-IDF framework): sizes `CONFIG_LWIP_MAX_SOCKETS`.
 - **RP2040 and LibreTiny**: size the lwIP connection pools, with minimums on top.
 - **nRF52** (Zephyr): decides whether Zephyr's TCP stack is built at all. A build with no registered `SocketType.TCP` or
-  `SocketType.TCP_LISTEN` socket leaves TCP out, so an unregistered TCP socket fails at run time.
+  `SocketType.TCP_LISTEN` socket (and no `async_tcp`) leaves TCP out, so an unregistered TCP socket fails at run time.
 
 Other platforms, such as ESP8266, ignore the registrations. Register your sockets anyway: a component that opens sockets
 **must** register them, whatever platform you test on.

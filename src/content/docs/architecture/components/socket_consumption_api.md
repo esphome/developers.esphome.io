@@ -160,9 +160,13 @@ CONFIG_SCHEMA = cv.All(
 
 The Socket Consumption API is currently used by:
 
-- ESP32 (ESP-IDF framework only)
+- **ESP32** (ESP-IDF framework): sizes `CONFIG_LWIP_MAX_SOCKETS`.
+- **RP2040 and LibreTiny**: size the lwIP connection pools, with minimums on top.
+- **nRF52** (Zephyr): decides whether Zephyr's TCP stack is built at all. A build with no registered `SocketType.TCP` or
+  `SocketType.TCP_LISTEN` socket leaves TCP out, so an unregistered TCP socket fails at run time.
 
-Other platforms (ESP8266, RP2040, etc.) ignore socket registrations as they don't have configurable socket limits.
+Other platforms, such as ESP8266, ignore the registrations. Register your sockets anyway: a component that opens sockets
+**must** register them, whatever platform you test on.
 
 ## Validation and Warnings
 

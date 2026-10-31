@@ -394,7 +394,7 @@ for conf in config:
 | Different callback arguments or a constant filter | Callback with `params`, `forward`, `when` | [`select on_value`](https://github.com/esphome/esphome/blob/dev/esphome/components/select/__init__.py) -- forwards the option text looked up from the index |
 | Callback carries nothing, automation gets the parent | `build_parent_callback_automation` | [`fan on_state`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/__init__.py) -- forwards `::the_fan` |
 | Registration takes extra arguments | `build_trigger_callback` | [`mqtt on_message`](https://github.com/esphome/esphome/blob/dev/esphome/components/mqtt/__init__.py) -- the component passes the lambda to `subscribe(topic, callback, qos)`, filtered on the configured payload |
-| Trigger with no arguments that is a component | `build_component_automation` | [`esphome on_boot`](https://github.com/esphome/esphome/blob/dev/esphome/core/config.py) -- `StartupCallback` calls the generated function from `setup()` |
+| Trigger with no arguments that is a component | `build_component_automation` | `esphome on_boot` -- `StartupCallback` calls the generated function from `setup()` ([esphome/esphome#21989](https://github.com/esphome/esphome/pull/21989), pending) |
 | Extra state needed | Trigger class | [`fan on_turn_on`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/automation.h) -- `FanTurnOnTrigger` tracks `last_on_` for edge detection (mutable state, can't be a forwarder) |
 | Complex logic (timing, state machine) | Trigger class | [`binary_sensor on_multi_click`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/automation.h) -- `MultiClickTrigger` with timing, cooldown, and multiple state fields |
 

@@ -110,9 +110,74 @@ as the "last event type", and notifies the front-end. If the string does not mat
 error and does nothing - so the strings you pass to `trigger()` must exactly match the `event_types` you supplied in
 Python.
 
+### Events with values
+
+An event can carry typed values, such as the steps of a rotary dimmer. Declare them with the `variables` keyword
+argument of `new_event()` or `register_event()`. Each entry is `"name": "type"` or a dict with `type`, optionally
+`event_types` (the types that carry the variable) and, for a `string`, `max_length`:
+
+```python
+async def to_code(config):
+    var = await event.new_event(
+        config,
+        event_types=["press", "rotate_left", "rotate_right"],
+        variables={
+            "number_of_presses": {"type": "int", "event_types": ["press"]},
+            "steps": {"type": "int", "event_types": ["rotate_left", "rotate_right"]},
+        },
+    )
+    await cg.register_component(var, config)
+```
+
+The types are `bool`, `int` (`int32_t`), `float` and `string` (`max_length` in bytes of UTF-8, default 64, at most 127).
+An event has at most 16 variables, and an event with variables at most 127 event types. Names follow the rules of an ID
+(`cv.validate_id_name`) and must not be one of the attribute names Home Assistant sets itself, such as `friendly_name`.
+`new_event()` raises `cv.Invalid` otherwise. If your users declare variables in YAML, validate them in `CONFIG_SCHEMA`
+with `event.validate_variables` and `event.check_variables(variables, event_types)`, as the template event does.
+`check_variables()` raises `cv.Invalid` and returns nothing, so call it from a validator that returns the config. Users
+set the values with `data:` of `event.trigger`, and each `on_event` automation gets every variable by its name.
+
+In C++, pass each value with the index of its variable, its place in `variables`:
+
+```cpp
+enum DimmerVariable : uint8_t { DIMMER_NUMBER_OF_PRESSES, DIMMER_STEPS };  // order of variables= in __init__.py
+
+void MyEvent::loop() {
+  const int32_t steps = this->read_steps_();
+  if (steps > 0) {
+    this->trigger("rotate_right", {{DIMMER_STEPS, steps}});
+  }
+}
+```
+
+- A value is a `bool`, an integer, an enum of at most 32 bits, a `float`, or a text as `StringRef`, `const char *` or
+  `std::string`. A `uint32_t`, a 64-bit integer or a wider enum needs a cast to `int32_t`. A `float` variable also takes
+  an integer. `trigger()` copies a text into the event's data, so a temporary buffer is fine. A text must be valid
+  UTF-8; pass binary data as hex, for example with `format_hex_to()`.
+- `trigger()` checks the event type first; an unknown type changes nothing. It stores each value that fits and logs
+  the others: an error for an unknown index, a variable the event type does not carry or a wrong type, a warning for
+  a text longer than `max_length`. A text is never cut. The event fires with the values that fit.
+- A variable without a value is missing from the event. An event keeps the values of its last trigger only, and
+  `set_event_types()` clears them; on an event with variables it rejects a list of more than 127 types: it logs an
+  error and keeps the old list and values. The
+  `event_types` of a variable are matched by name: after `set_event_types()` the variable still goes with the types
+  of those names, in any order, and no other type carries it.
+- `get_last_event_data()` returns an `event::EventData`: `size()` is the number of variables, `has(i)` whether the
+  last event set variable `i`, and `get_bool(i)`, `get_int(i)`, `get_float(i)` and `get_string(i)` read it as
+  `false`, `0`, `NAN` or an empty `StringRef` when it is missing or has another type.
+  The `StringRef` points into the event's data and
+  changes with the next trigger. `variable(i)` (for `i` below `size()`; not checked) returns the declaration with its
+  `name` and `type`; on ESP8266 the name is in flash, so use `LOG_STR_ARG()` and the `_P` functions such as
+  `ESPHOME_strlen_P()`.
+- Both calls exist only under `USE_EVENT_DATA`, which codegen defines when at least one event of the build declares
+  variables. Call them directly only if every build of your component creates such an event; if the event or its
+  variables are optional, guard the calls with `#ifdef USE_EVENT_DATA`.
+
 ### Useful members
 
 - `trigger(const std::string &event_type)`: fires the named event, notifying the front-end.
+- `trigger(const char *event_type, std::initializer_list<EventArg> args)`: fires the named event with values.
+- `get_last_event_data()`: the values of the last event.
 - `get_last_event_type()`: returns the most recently triggered event type as a `StringRef`, or an empty one if
   nothing has fired yet.
 - `has_event()`: whether any event has been triggered since boot.

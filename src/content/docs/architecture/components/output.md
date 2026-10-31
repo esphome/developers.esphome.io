@@ -215,6 +215,21 @@ FINAL_VALIDATE_SCHEMA = output.final_validate_unique_channel(
 Every output hub with a channel key should use it. It is available in ESPHome 2026.11.0 and later
 (esphome/esphome#21467).
 
+When the number of channels comes from the hub's own config (a chip count or a `num_channels` option), a schema
+range cannot check it. Pass `channel_count`, a function that takes the config block declaring the hub and returns its
+number of channels; a channel at or past that count is rejected before the duplicate check:
+
+```python
+FINAL_VALIDATE_SCHEMA = output.final_validate_unique_channel(
+    platform="my9231",
+    hub_key=CONF_MY9231_ID,
+    channel_count=lambda hub: hub[CONF_NUM_CHANNELS],
+)
+```
+
+Hubs with a fixed number of channels keep `cv.int_range()` (or an enum) in their schema and leave `channel_count`
+out. It is available in ESPHome 2026.11.0 and later (esphome/esphome#21854).
+
 ### Heterogeneous channels: a `type` key
 
 If the channels are *not* interchangeable - some binary, some float, or backed by different registers - use

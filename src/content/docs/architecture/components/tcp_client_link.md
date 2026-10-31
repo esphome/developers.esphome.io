@@ -42,4 +42,9 @@ without a fallback. The key must be validated as a time period, for example with
 `DEFAULT_LOOP_INTERVAL` (16 ms) when it is not set. It reads the full configuration, so call it only from a
 `FINAL_VALIDATE_SCHEMA`.
 
-`uart_tcp` is the first caller; `tcp_uart` follows in esphome#20026.
+The link is IPv4-only: `set_host` takes an IPv4 address or a hostname with an A record, and an IPv6 literal
+never connects. `socket.ipv4_host` rejects an IPv6 literal at config time. A connect still pending after the
+longer of the reconnect interval and 10 seconds is dropped. Keepalive is best-effort; raw lwIP (ESP8266, RP2040)
+has none, so there a half-open link shows only on a failed write.
+
+`uart_tcp` and `tcp_uart` are the callers.

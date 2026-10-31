@@ -317,9 +317,10 @@ also be used directly, for example in a `std::array` of per-target sensors. `Sen
 
 #### Publishing optional readings
 
-A parser that fills a struct of `optional<float>` fields, one per reading it found in a packet, publishes each field
-only when it has a value and the sensor is configured. `sensor::publish_optional()` from `sensor.h` does both checks,
-in one call per field:
+A parser that fills a struct of `optional` fields, one per reading it found in a packet, publishes each field only
+when it has a value and the entity is configured. `publish_optional()` from `esphome/core/entity_base.h` does both
+checks, in one call per field. It works for any entity with a matching `publish_state()`, such as a binary sensor
+with an `optional<bool>` field:
 
 ```cpp
 // Before
@@ -327,7 +328,7 @@ if (res.temperature.has_value() && this->temperature_sensor_ != nullptr)
   this->temperature_sensor_->publish_state(*res.temperature);
 
 // After
-sensor::publish_optional(this->temperature_sensor_, res.temperature);
+publish_optional(this->temperature_sensor_, res.temperature);
 ```
 
 The helper is defined `inline` in the header, so the compiler decides at each call whether to inline it. Keep the `if`

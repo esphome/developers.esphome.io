@@ -167,20 +167,16 @@ Most expanders read all their pins in one bus transfer. Derive the component fro
 reads of different pins in the same bank share one bus transfer within a loop. Without an interrupt pin, a pin's
 cached value is used once, so reading the same pin twice in one loop reads the bank again. `T` is the type that
 holds one bank (`uint8_t` for a chip that reads 8 pins at a time, `uint16_t` for one read of up to 16 pins) and `N`
-is the number of pins. The component
-implements `digital_read_hw()`, which reads the bank into a member, `digital_read_cache()`, which returns one pin from
-that member, and `digital_write_hw()`.
+is the number of pins.
 
-A chip that reads one bank at a time, like `mcp23017` or `pca6416a`, can derive from
-`gpio_expander::BankedGpioExpanderComponent<T, N>` instead. It keeps the last value read from each bank in `input_`,
-one entry per bank, and provides `digital_read_cache()`. `digital_read_hw()` then only reads the bank and stores it.
-Store the value only when the read succeeds, so the other pins of that bank keep their cached state:
+The base class keeps the last value read from each bank in `input_`, one entry per bank, and provides
+`digital_read_cache()`. The component implements `digital_read_hw()`, which reads the bank that holds `pin` into
+`input_[pin / 8]` (for `T` = `uint8_t`; a chip read in one transfer has one bank, `input_[0]`), and
+`digital_write_hw()`. Store the value only when the read succeeds, so the other pins of that bank keep their cached
+state. Override `digital_read_cache()` only when a pin's state needs more than its bit, as `sx1509` does for output
+pins.
 
 ```cpp
-class MCP23X17Base : public gpio_expander::BankedGpioExpanderComponent<uint8_t, 16> {
-  ...
-};
-
 bool MCP23X17Base::digital_read_hw(uint8_t pin) {
   uint8_t data;
   if (!this->read_reg(pin < 8 ? MCP23X17_GPIOA : MCP23X17_GPIOB, &data)) {
@@ -192,7 +188,9 @@ bool MCP23X17Base::digital_read_hw(uint8_t pin) {
 }
 ```
 
-`BankedGpioExpanderComponent` is available in ESPHome 2026.11.0 and later (esphome/esphome#22056).
+An expander that does not use `CachedGpioExpanderComponent` gets the same store by deriving from
+`gpio_expander::GpioExpanderInputs<gpio_expander::CachedGpioExpander<T, N>>`. The input store is available in ESPHome
+2026.11.0 and later (esphome/esphome#22056).
 
 The base class also handles an optional active-low interrupt line from the chip. Add
 `gpio_expander.INTERRUPT_EXPANDER_SCHEMA` to the schema, which is `cv.COMPONENT_SCHEMA` with an optional

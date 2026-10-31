@@ -2,7 +2,7 @@
 title: "Socket Consumption API"
 ---
 
-When developing components that use network sockets on ESP32 with ESP-IDF, you must register your socket requirements using the Socket Consumption API. This ensures ESPHome automatically configures `CONFIG_LWIP_MAX_SOCKETS` with sufficient capacity for all components in a configuration.
+When developing components that use network sockets, you must register your socket requirements using the Socket Consumption API. ESPHome uses the registrations to size socket limits (for example `CONFIG_LWIP_MAX_SOCKETS` on ESP32), and on nRF52 to decide whether the TCP stack is built at all. See [Platform Support](#platform-support).
 
 ## Background
 
@@ -12,7 +12,7 @@ On ESP32 with ESP-IDF, the `CONFIG_LWIP_MAX_SOCKETS` setting limits how many soc
 E (3555) httpd: httpd_server_init: error in creating msg socket (23)
 ```
 
-The Socket Consumption API solves this by having components declare their socket needs during configuration validation. The ESP32 platform then automatically calculates and configures the required limit based on the total needs of all components.
+The Socket Consumption API solves this by having components declare their socket needs during configuration validation. Each platform then configures its network stack from the total needs of all components.
 
 ## When to Register Socket Usage
 
@@ -46,7 +46,8 @@ import esphome.config_validation as cv
 def _consume_sockets(config):
     """Register socket needs for this component."""
     # Example: 1 listening socket + 2 concurrent client connections
-    socket.consume_sockets(3, "my_component")(config)
+    socket.consume_sockets(1, "my_component", socket.SocketType.TCP_LISTEN)(config)
+    socket.consume_sockets(2, "my_component", socket.SocketType.TCP)(config)
     return config
 
 CONFIG_SCHEMA = cv.All(
@@ -57,6 +58,12 @@ CONFIG_SCHEMA = cv.All(
 )
 ```
 
+The socket type defaults to `SocketType.TCP`. Pass the type that matches what the component opens:
+
+- `SocketType.TCP`: outbound TCP connections and accepted TCP clients
+- `SocketType.TCP_LISTEN`: listening TCP sockets
+- `SocketType.UDP`: UDP sockets, including multicast
+
 ### 3. Calculate Your Socket Requirements
 
 Count all sockets your component uses:
@@ -65,21 +72,22 @@ Count all sockets your component uses:
 
 ```python
 # Web server with one listener
-socket.consume_sockets(1, "my_server")
+socket.consume_sockets(1, "my_server", socket.SocketType.TCP_LISTEN)
 ```
 
 **Client connections:** Add expected concurrent connections:
 
 ```python
 # API: 1 listener + 3 typical concurrent clients
-socket.consume_sockets(4, "api")
+socket.consume_sockets(1, "api", socket.SocketType.TCP_LISTEN)
+socket.consume_sockets(3, "api", socket.SocketType.TCP)
 ```
 
 **Multicast sockets:** Count IPv4 and IPv6 separately:
 
 ```python
 # mDNS: separate sockets for IPv4 and IPv6
-socket.consume_sockets(2, "mdns")
+socket.consume_sockets(2, "mdns", socket.SocketType.UDP)
 ```
 
 **Multiple instances:** Register per-instance if `MULTI_CONF` is enabled:
@@ -87,7 +95,9 @@ socket.consume_sockets(2, "mdns")
 ```python
 def _consume_camera_sockets(config):
     # Each camera instance needs 3 sockets (1 listener + 2 clients)
-    socket.consume_sockets(3, f"esp32_camera_web_server_{config[CONF_ID]}")(config)
+    name = f"esp32_camera_web_server_{config[CONF_ID]}"
+    socket.consume_sockets(1, name, socket.SocketType.TCP_LISTEN)(config)
+    socket.consume_sockets(2, name, socket.SocketType.TCP)(config)
     return config
 ```
 
@@ -99,7 +109,7 @@ def _consume_camera_sockets(config):
 def _consume_mqtt_sockets(config):
     """MQTT needs one socket for broker connection."""
     from esphome.components import socket
-    socket.consume_sockets(1, "mqtt")(config)
+    socket.consume_sockets(1, "mqtt", socket.SocketType.TCP)(config)
     return config
 
 CONFIG_SCHEMA = cv.All(
@@ -116,7 +126,8 @@ CONFIG_SCHEMA = cv.All(
 def _consume_web_server_sockets(config):
     """Web server needs 1 listener + 2 concurrent clients."""
     from esphome.components import socket
-    socket.consume_sockets(3, "web_server")(config)
+    socket.consume_sockets(1, "web_server", socket.SocketType.TCP_LISTEN)(config)
+    socket.consume_sockets(2, "web_server", socket.SocketType.TCP)(config)
     return config
 
 CONFIG_SCHEMA = cv.All(
@@ -134,7 +145,9 @@ def _consume_camera_sockets(config):
     """Each camera web server needs 3 sockets."""
     from esphome.components import socket
     # Use unique consumer name per instance
-    socket.consume_sockets(3, f"camera_{config[CONF_ID]}")(config)
+    name = f"camera_{config[CONF_ID]}"
+    socket.consume_sockets(1, name, socket.SocketType.TCP_LISTEN)(config)
+    socket.consume_sockets(2, name, socket.SocketType.TCP)(config)
     return config
 
 CONFIG_SCHEMA = cv.All(
@@ -148,11 +161,11 @@ CONFIG_SCHEMA = cv.All(
 
 ## How It Works
 
-1. **Registration Phase:** During configuration validation, each component calls `socket.consume_sockets(count, name)` to register its socket needs.
+1. **Registration Phase:** During configuration validation, each component calls `socket.consume_sockets(count, name, type)` to register its socket needs. `type` is optional and defaults to `SocketType.TCP`.
 
 1. **Accumulation:** ESPHome stores these registrations in `CORE.data[KEY_SOCKET_CONSUMERS]`, accumulating the total across all components.
 
-1. **Auto-Configuration:** The ESP32 platform's `_configure_lwip_max_sockets()` function reads the total and sets `CONFIG_LWIP_MAX_SOCKETS` in sdkconfig.
+1. **Auto-Configuration:** Each platform reads the totals and configures its network stack, as listed under [Platform Support](#platform-support). On ESP32, `_configure_lwip_max_sockets()` sets `CONFIG_LWIP_MAX_SOCKETS` in sdkconfig.
 
 1. **User Overrides:** Manual user settings via `sdkconfig_options` are respected. ESPHome validates that manual values are sufficient and warns if too low.
 
@@ -160,9 +173,13 @@ CONFIG_SCHEMA = cv.All(
 
 The Socket Consumption API is currently used by:
 
-- ESP32 (ESP-IDF framework only)
+- **ESP32** (ESP-IDF framework): sizes `CONFIG_LWIP_MAX_SOCKETS`.
+- **RP2040 and LibreTiny**: size the lwIP connection pools, with minimums on top.
+- **nRF52** (Zephyr): decides whether Zephyr's TCP stack is built at all. A build with no registered `SocketType.TCP` or
+  `SocketType.TCP_LISTEN` socket (and no `async_tcp`) leaves TCP out, so an unregistered TCP socket fails at run time.
 
-Other platforms (ESP8266, RP2040, etc.) ignore socket registrations as they don't have configurable socket limits.
+Other platforms, such as ESP8266, ignore the registrations. Register your sockets anyway: a component that opens sockets
+**must** register them, whatever platform you test on.
 
 ## Validation and Warnings
 

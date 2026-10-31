@@ -215,6 +215,9 @@ FINAL_VALIDATE_SCHEMA = output.final_validate_unique_channel(
 Every output hub with a channel key should use it. It is available in ESPHome 2026.11.0 and later
 (esphome/esphome#21467).
 
+If the channel key is not `channel` (sx1509 uses `pin`), pass it as `channel_key=CONF_PIN`; this is available
+in ESPHome 2026.11.0 and later (esphome/esphome#21899).
+
 ### Heterogeneous channels: a `type` key
 
 If the channels are *not* interchangeable - some binary, some float, or backed by different registers - use

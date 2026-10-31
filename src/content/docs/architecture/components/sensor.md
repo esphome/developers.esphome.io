@@ -2,4 +2,404 @@
 title: "Sensor"
 ---
 
+The `sensor` component is one of ESPHome's core [entity](/architecture/components/index) types. A sensor represents a
+single numeric measurement - a temperature, a voltage, a humidity reading, and so on - which is published to the
+front-end (Home Assistant, the web server, MQTT, etc.) as a floating point value.
 
+Rather than being used on its own, `sensor` is a *platform* base: individual components (for example `dht`, `adc` or
+`bmp280`) register one or more sensors and periodically push new values into them. If you are writing a component that
+measures something, you will almost always expose that measurement as a sensor.
+
+We have an [example, minimal sensor component](https://github.com/esphome/starter-components/tree/main/components/empty_sensor)
+which is a good starting point.
+
+## Python
+
+A sensor platform lives in a `sensor.py` file (or a `sensor/__init__.py` package) inside your component's directory. This
+file name tells ESPHome that the component provides a `sensor` platform, allowing the user to configure it under the
+`sensor:` block:
+
+```yaml
+sensor:
+  - platform: my_component
+    name: "My Measurement"
+```
+
+The typical imports and class declaration look like this:
+
+```python
+import esphome.codegen as cg
+import esphome.config_validation as cv
+from esphome.components import sensor
+from esphome.const import UNIT_CELSIUS, ICON_THERMOMETER, DEVICE_CLASS_TEMPERATURE
+
+my_sensor_ns = cg.esphome_ns.namespace("my_sensor")
+MySensor = my_sensor_ns.class_("MySensor", cg.PollingComponent, sensor.Sensor)
+```
+
+Note that `MySensor` inherits from both a component base (`cg.PollingComponent` here, since a sensor is usually polled)
+and `sensor.Sensor`.
+
+### Configuration schema
+
+Instead of building the schema from scratch, use the `sensor.sensor_schema()` helper. It returns a schema pre-populated
+with all of the options common to every sensor - `name`, `id`, `filters`, `accuracy_decimals`, `unit_of_measurement`,
+`device_class`, `state_class`, `entity_category` and so on - and lets you supply sensible defaults for your specific
+device:
+
+```python
+CONFIG_SCHEMA = sensor.sensor_schema(
+    MySensor,
+    unit_of_measurement=UNIT_CELSIUS,
+    icon=ICON_THERMOMETER,
+    accuracy_decimals=1,
+    device_class=DEVICE_CLASS_TEMPERATURE,
+    state_class=sensor.StateClass.MEASUREMENT,
+).extend(cv.polling_component_schema("60s"))
+```
+
+Passing your class (`MySensor`) as the first argument tells the helper which class to declare the ID for, so you do not
+need a separate `cv.GenerateID()`. The `.extend(cv.polling_component_schema("60s"))` call adds the `update_interval`
+option with a default of 60 seconds.
+
+### Code generation
+
+In `to_code`, use the `sensor.new_sensor()` helper. It calls `cg.new_Pvariable()` for you *and* generates all the code
+to apply the common sensor options (name, unit, filters, etc.) from the configuration:
+
+```python
+async def to_code(config):
+    var = await sensor.new_sensor(config)
+    await cg.register_component(var, config)
+```
+
+If your component owns a sensor as a child (rather than *being* a sensor), use `await sensor.register_sensor(var, config)`
+instead, having declared the ID yourself.
+
+## C++
+
+The C++ class inherits from `sensor::Sensor` alongside its component base:
+
+```cpp
+#include "esphome/core/component.h"
+#include "esphome/components/sensor/sensor.h"
+
+namespace esphome::my_sensor {
+
+class MySensor : public sensor::Sensor, public PollingComponent {
+ public:
+  void update() override;
+  void dump_config() override;
+};
+
+}  // namespace esphome::my_sensor
+```
+
+### Publishing values
+
+`sensor::Sensor` is a read-only entity: there is no command coming back from the front-end. Your only job is to push
+new measurements out. Whenever you have a new reading, call `publish_state()`:
+
+```cpp
+void MySensor::update() {
+  float value = this->read_measurement_();
+  this->publish_state(value);
+}
+```
+
+`publish_state()` takes the raw `float` value, passes it through the user-configured [filter chain](https://esphome.io/components/sensor/#sensor-filters)
+(offsets, moving averages, calibration, etc.), stores the final result in the `state` member and notifies all
+front-ends. Publish the raw, unfiltered value - the filters the user configured in YAML are applied for you.
+
+To publish an "unknown"/unavailable state, publish `NAN` (`quiet_NaN`).
+
+### Useful members
+
+- `state`: the most recent published (filtered) value.
+- `has_state()`: whether a value has ever been published.
+- `get_accuracy_decimals()` / `get_unit_of_measurement()` / `get_device_class()`: the metadata configured by the user or
+  by your schema defaults.
+- `LOG_SENSOR(prefix, type, obj)`: a convenience macro for `dump_config()` that logs the sensor's name, unit, accuracy
+  and device class in the standard format.
+
+## Exposing multiple sensors from one component
+
+Hardware rarely maps to exactly one sensor. A DHT22 reports temperature *and* humidity; a power meter reports voltage,
+current and power; a BLE device may expose a dozen readings. There are two established ways to model this. Both are
+valid and both are widely used in-tree - which one fits depends on how the hardware itself is shaped, so read the two
+together and pick the one that describes your device more honestly.
+
+### A hub plus a `type` on the platform
+
+If your component already has a top-level hub component - something the user configures once to describe the device or
+connection - you can let the user add *one `sensor:` entry per reading*, distinguished by a `type` key. Use
+`cv.typed_schema()` with `key=CONF_TYPE`:
+
+```yaml
+# The hub: configured once.
+my_hub:
+  id: the_hub
+
+sensor:
+  - platform: my_hub
+    type: voltage
+    name: "Voltage"
+  - platform: my_hub
+    type: current
+    name: "Current"
+    filters:
+      - throttle: 10s
+```
+
+Each `type` gets its own schema, so each can declare its own unit, accuracy, device class and even its own C++ class
+and component base:
+
+```python
+from esphome.const import CONF_TYPE
+
+from .. import CONF_MY_HUB_ID, MyHub, my_hub_ns
+
+DEPENDENCIES = ["my_hub"]
+
+_HUB_ID_SCHEMA = cv.Schema({cv.GenerateID(CONF_MY_HUB_ID): cv.use_id(MyHub)})
+
+CONFIG_SCHEMA = cv.typed_schema(
+    {
+        "voltage": sensor.sensor_schema(
+            MyHubVoltageSensor,
+            unit_of_measurement=UNIT_VOLT,
+            accuracy_decimals=2,
+            device_class=DEVICE_CLASS_VOLTAGE,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ).extend(_HUB_ID_SCHEMA),
+        "current": sensor.sensor_schema(
+            MyHubCurrentSensor,
+            unit_of_measurement=UNIT_AMPERE,
+            accuracy_decimals=2,
+            device_class=DEVICE_CLASS_CURRENT,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ).extend(_HUB_ID_SCHEMA),
+    },
+    key=CONF_TYPE,
+)
+
+
+async def to_code(config):
+    var = await sensor.new_sensor(config)
+    await cg.register_component(var, config)
+    await cg.register_parented(var, config[CONF_MY_HUB_ID])
+```
+
+`cg.register_parented()` gives each sensor a `parent_` pointer back to the hub, so the hub can push readings into it (or
+the sensor can pull from the hub). See the `sensor` platform of the `sendspin` component for a real, in-tree example of
+this pattern.
+
+What this shape gives you:
+
+- Each sensor is a first-class platform entry, so it picks up the full set of per-entity options naturally.
+- Adding a new reading later is purely additive - one more key in the `typed_schema` - with no reshaping of the existing
+  schema and no change to existing user configurations.
+- Different readings can use different C++ classes and component bases (for example one polled at an interval, another
+  updated only when an event arrives).
+
+### Sub-configs on a single platform entry
+
+Many existing components instead expose all of their readings as optional *sub-configs* nested under one platform entry.
+[`dht`](https://github.com/esphome/esphome/tree/dev/esphome/components/dht) is the simplest example:
+
+```yaml
+sensor:
+  - platform: dht
+    pin: GPIO22
+    temperature:
+      name: "Living Room Temperature"
+    humidity:
+      name: "Living Room Humidity"
+```
+
+Here the *component* is the platform entry, and each reading is an optional key whose value is an inline
+`sensor.sensor_schema()`. Note that `sensor_schema()` is called without a class argument, so each sub-config declares a
+plain `sensor::Sensor`:
+
+```python
+CONFIG_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(): cv.declare_id(DHT),
+        cv.Required(CONF_PIN): pins.internal_gpio_input_pullup_pin_schema,
+        cv.Optional(CONF_TEMPERATURE): sensor.sensor_schema(
+            unit_of_measurement=UNIT_CELSIUS,
+            accuracy_decimals=1,
+            device_class=DEVICE_CLASS_TEMPERATURE,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
+        cv.Optional(CONF_HUMIDITY): sensor.sensor_schema(...),
+    }
+).extend(cv.polling_component_schema("60s"))
+
+
+async def to_code(config):
+    var = cg.new_Pvariable(config[CONF_ID])
+    await cg.register_component(var, config)
+
+    sensors = sensor.sub_sensors(config)
+    await sensors(CONF_TEMPERATURE, var.set_temperature_sensor)
+    await sensors(CONF_HUMIDITY, var.set_humidity_sensor)
+```
+
+`sensor.sub_sensors(config)` binds the configuration once. Each call with a key and a setter creates the sensor
+whenever `key` is present in the configuration and passes it to `setter`. It returns the new sensor, or `None` only
+when the key is absent, so the result can be used directly as a condition when a configured sensor needs more setup.
+Always write the setter out at the call site as shown. Do not build its name with `getattr` and an f-string: an
+explicit setter can be found with a search, reviewers can see it, and any setter name works.
+
+The same helper exists for every entity type that has a `SUB_*` macro: `binary_sensor.sub_binary_sensors()`,
+`text_sensor.sub_text_sensors()`, `button.sub_buttons()`, `switch.sub_switches()`, `number.sub_numbers()` and
+`select.sub_selects()`. Entities that call back into their hub derive from `Parented<T>`; bind the hub with
+`parent=` and it is set on each entity before the setter runs. Extra arguments for the entity, such as
+`min_value` for a number or `options` for a select, go on each call. These helpers were added in ESPHome 2026.10.0;
+older code writes each entity as an `if` block around `new_sensor()` and `cg.add()`.
+
+On the C++ side, your component holds a pointer per reading and publishes to whichever ones the user configured. Rather
+than writing those members and setters out by hand, use the `SUB_SENSOR(name)` macro from `sensor.h`, which generates a
+protected `name##_sensor_` member (defaulted to `nullptr`) and a public `set_##name##_sensor()` setter:
+
+```cpp
+class MyComponent final : public PollingComponent {
+ public:
+  SUB_SENSOR(temperature)
+  SUB_SENSOR(humidity)
+
+  void update() override;
+};
+
+void MyComponent::update() {
+  PUBLISH_STATE(this->temperature_sensor_, this->read_temperature_());
+  PUBLISH_STATE(this->humidity_sensor_, this->read_humidity_());
+}
+```
+
+The user may have configured only some of the sensors, so every publish needs a null check.
+`PUBLISH_STATE(entity, ...)` from `esphome/core/entity_base.h` does that check: it calls `entity->publish_state(...)`
+only when `entity` is set, and it evaluates the arguments only in that case, so `this->read_temperature_()` above does
+not run when no temperature sensor is configured. It works for every entity type with `publish_state()` (binary
+sensors, text sensors, switches, numbers, selects, ...), and passes several arguments through, for example
+`PUBLISH_STATE(this->version_text_sensor_, buf, len)`. `PUBLISH_STATE` was added in ESPHome 2026.11.0; older code
+writes the `if (this->x_sensor_ != nullptr)` check by hand.
+
+#### Skipping repeated values
+
+A device that streams frames many times a second, such as a presence radar, mostly repeats the last value. Publishing
+each one runs the filters and sends an update for nothing. Declare such a sensor with `SUB_SENSOR_WITH_DEDUP(name, type)`
+from `sensor_with_dedup.h` instead of `SUB_SENSOR(name)`. It keeps the last published value next to the pointer and
+skips a value equal to it:
+
+```cpp
+#include "esphome/components/sensor/sensor_with_dedup.h"
+
+class LD2412Component final : public Component, public uart::UARTDevice {
+  SUB_SENSOR_WITH_DEDUP(light, uint8_t)
+  SUB_SENSOR_WITH_DEDUP(detection_distance, int)
+  ...
+};
+
+// No null check needed: nothing is published when the sensor is not configured
+this->detection_distance_sensor_.publish_state_if_not_dup(new_detect_distance);
+```
+
+The repeats are skipped before the user's filters run, so filters only see changes. Keep `SUB_SENSOR` when a filter
+needs every sample: after a `throttle` drops a change, the following equal values never reach it and the state stays
+stale, and a `timeout` filter reports the sensor as unknown even while equal frames keep arriving.
+
+The member `name##_sensor_` is a `sensor::SensorWithDedup<type>`, and the setter is the same `set_##name##_sensor()`,
+so the Python side does not change. Choose `type` as the type of the raw reading, so the comparison is exact and the
+stored value is small. `publish_state_unknown()` publishes `NAN`; calling it again before a real value arrives does
+nothing. `has_sensor()` tells whether the sensor is configured, and `get_sensor()` returns the `sensor::Sensor *`. In
+`dump_config()` use `LOG_SENSOR_WITH_DEDUP(prefix, type, member)` in place of `LOG_SENSOR`. A `SensorWithDedup` can
+also be used directly, for example in a `std::array` of per-target sensors. `SensorWithDedup` was added in ESPHome
+2026.11.0.
+
+#### Publishing optional readings
+
+A parser that fills a struct of `optional` fields, one per reading it found in a packet, publishes each field only
+when it has a value and the entity is configured. `publish_optional()` from `esphome/core/entity_base.h` does both
+checks, in one call per field. It works for any entity with a matching `publish_state()`, such as a binary sensor
+with an `optional<bool>` field:
+
+```cpp
+// Before
+if (res.temperature.has_value() && this->temperature_sensor_ != nullptr)
+  this->temperature_sensor_->publish_state(*res.temperature);
+
+// After
+publish_optional(this->temperature_sensor_, res.temperature);
+```
+
+It takes an entity pointer, such as a `SUB_SENSOR` or `SUB_BINARY_SENSOR` member. A `SUB_SENSOR_WITH_DEDUP` member is
+not a pointer and already skips an unset sensor, so check only the value:
+`if (res.temperature.has_value()) this->temperature_sensor_.publish_state_if_not_dup(*res.temperature);`. Keep the `if`
+when the value needs changing before it is published. `publish_optional` was added in ESPHome 2026.11.0.
+
+### Choosing between them
+
+Neither pattern is the "modern" one and neither is deprecated. They express different relationships between a device and
+its readings, so let the hardware decide:
+
+- **Sub-configs** fit when the readings are facets of one inseparable measurement cycle. `dht` reads temperature and
+  humidity from a single bus transaction, so a single entry with two optional sub-keys mirrors what the chip actually
+  does. This also keeps one physical device to one YAML block, which is easier to read.
+- **A hub plus `type`** fits when the readings are genuinely independent things that happen to share a connection. If a
+  hub component already exists because the device or transport must be configured once and shared, then each reading
+  being its own entry is the more natural fit - especially when the set is large or open-ended, or when different
+  readings need different C++ classes, polling intervals or update strategies.
+
+If both descriptions fit your device equally well, follow whichever pattern the surrounding component already uses. In a
+new component with no hub, sub-configs are usually the smaller change.
+
+Equivalent `SUB_*` macros exist for the other entity types that are commonly exposed this way:
+`SUB_BINARY_SENSOR`, `SUB_BUTTON`, `SUB_NUMBER`, `SUB_SELECT`, `SUB_SWITCH` and `SUB_TEXT_SENSOR`.
+
+## Following another entity
+
+A sensor that only republishes what another entity or a hub reports needs no C++ class. Create a plain `sensor::Sensor`
+and subscribe it to the source with `sensor.follow_sensor(entity, source)`:
+
+```python
+CONFIG_SCHEMA = sensor.sensor_schema(sensor.Sensor).extend(
+    {
+        cv.Required(CONF_SOURCE_ID): cv.use_id(sensor.Sensor),
+    }
+)
+
+
+async def to_code(config):
+    var = await sensor.new_sensor(config)
+    sensor.follow_sensor(var, await cg.get_variable(config[CONF_SOURCE_ID]))
+```
+
+The generated code registers a lambda that captures nothing on the source's `add_on_state_callback`, so the callback
+is stored inline and the entity keeps no source pointer, no `Component` part and no slot in the component list. The
+callback is registered before any `setup()` runs, so the entity sees every state the source publishes, including the
+first. Any source with the same `float` state callback works, such as a `number::Number`;
+`text_sensor.follow_text_sensor()` does the same for text sensors and any source with a `const std::string &` state
+callback.
+
+For a hub or a source with a different callback, describe the callback with `FollowEntity` from
+`esphome.core.entity_helpers`: the method name, its parameters and the value to publish. Arguments after the source
+are passed before the callback:
+
+```python
+from esphome.core.entity_helpers import FollowEntity
+
+_FOLLOW_DATAPOINT = FollowEntity("register_listener", ((cg.uint16, "x"),), "x * 0.1f")
+_FOLLOW_DATAPOINT(var, hub, config[CONF_DATAPOINT])
+# With datapoint: 7
+# hub->register_listener(7, [](uint16_t x) -> void { ::var->publish_state(x * 0.1f); });
+```
+
+Keep a C++ class when the entity has to act in `setup()`. A state the source already holds before `setup()` runs
+reaches no callback, so copying it needs a `setup()` that runs after the entity's own automations are wired. A binary
+sensor deriving from `BinarySensorInitiallyOff` is one such source. These helpers were added in ESPHome
+2026.11.0.
+
+For everything else, the component implements the usual set of methods
+[as described here](/architecture/components/index#common-methods).

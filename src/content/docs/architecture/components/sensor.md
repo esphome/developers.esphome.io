@@ -95,21 +95,37 @@ set and every other argument are still yours to set.
 | `PRESSURE` | `hPa` | `pressure` | `measurement` | 1 |
 | `ILLUMINANCE` | `lx` | `illuminance` | `measurement` | 0 |
 | `CARBON_DIOXIDE` | `ppm` | `carbon_dioxide` | `measurement` | 0 |
+| `MASS_CONCENTRATION` | `µg/m³` | none | `measurement` | 0 |
 | `PM1` | `µg/m³` | `pm1` | `measurement` | 0 |
 | `PM25` | `µg/m³` | `pm25` | `measurement` | 0 |
 | `PM10` | `µg/m³` | `pm10` | `measurement` | 0 |
 | `SIGNAL_STRENGTH` | `dBm` | `signal_strength` | `measurement` | 0 |
 | `VOLTAGE` | `V` | `voltage` | `measurement` | - |
 | `CURRENT` | `A` | `current` | `measurement` | - |
-| `POWER` | `W` | `power` | `measurement` | - |
-| `APPARENT_POWER` | `VA` | `apparent_power` | `measurement` | - |
-| `REACTIVE_POWER` | `var` | `reactive_power` | `measurement` | - |
 | `FREQUENCY` | `Hz` | `frequency` | `measurement` | - |
-| `ENERGY_KWH` | `kWh` | `energy` | `total_increasing` | 3 |
+| `POWER` | `W` | `power` | `measurement` | - |
+| `POWER_KW` | `kW` | `power` | `measurement` | 3 |
+| `APPARENT_POWER` | `VA` | `apparent_power` | `measurement` | - |
+| `APPARENT_POWER_KVA` | `kVA` | `apparent_power` | `measurement` | 3 |
+| `REACTIVE_POWER` | `var` | `reactive_power` | `measurement` | - |
+| `REACTIVE_POWER_KVAR` | `kvar` | `reactive_power` | `measurement` | 3 |
+| `POWER_FACTOR` | none | `power_factor` | `measurement` | - |
 | `ENERGY_WH` | `Wh` | `energy` | `total_increasing` | - |
+| `ENERGY_KWH` | `kWh` | `energy` | `total_increasing` | 3 |
+| `REACTIVE_ENERGY_KVARH` | `kvarh` | none | `total_increasing` | 3 |
+| `DISTANCE_MM` | `mm` | `distance` | `measurement` | 0 |
+| `DURATION_H` | `h` | `duration` | `measurement` | 0 |
+| `DURATION_MIN` | `min` | `duration` | `measurement` | 0 |
+| `DURATION_S` | `s` | `duration` | `measurement` | 0 |
+| `PERCENT` | `%` | none | `measurement` | 0 |
+| `ANGLE` | `°` | none | `measurement` | - |
+| `LENGTH_M` | `m` | none | `measurement` | 2 |
+| `RESISTANCE` | `Ω` | none | `measurement` | 0 |
 
-`PM1`, `PM25` and `PM10` also set the `mdi:chemical-weapon` icon, the icon nearly every particulate sensor uses. A `-`
-means the preset sets no default decimals, because sensors of that kind vary too much.
+`PM1`, `PM25` and `PM10` also set the `mdi:chemical-weapon` icon, the icon nearly every particulate sensor uses, and
+`DURATION_H` sets `mdi:timer-outline`. A `-` means the preset sets no default decimals, because sensors of that kind
+vary too much. "none" means the preset leaves that value unset; the generic presets at the end are for
+readings Home Assistant has no device class for, so pick a specific preset when one fits.
 
 ### Code generation
 

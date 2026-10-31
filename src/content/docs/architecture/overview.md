@@ -166,7 +166,8 @@ must come before a global emitted earlier, such as `late.global_slot.add` for a 
 
 `cg.Pvariable` and `cg.new_Pvariable` need the object's class up front. Sometimes the class depends on code that is only
 generated afterwards, while that code must already refer to the object. A script, for example, is a `FunctionScript`
-templated on a generated function when all of its actions are inline, and otherwise the class of its mode (such as
+templated on a generated function when all of its actions are inline (a queued one is a `FunctionPointerScript`
+given the function in its constructor), and otherwise the class of its mode (such as
 `SingleScript` or `QueueingScript`) with an `Automation`; which one is only known after its actions are built, and
 those actions can execute or stop the script itself.
 

@@ -106,7 +106,7 @@ hand when your sensor does not match a preset exactly.
 | `ENERGY_KWH` | `kWh` | `energy` | `total_increasing` |
 | `ENERGY_WH` | `Wh` | `energy` | `total_increasing` |
 
-`PM1` and `PM10` also set the `mdi:chemical-weapon` icon, the icon nearly every particulate sensor uses.
+`PM1`, `PM25` and `PM10` also set the `mdi:chemical-weapon` icon, the icon nearly every particulate sensor uses.
 
 ### Code generation
 

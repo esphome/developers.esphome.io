@@ -339,7 +339,8 @@ Equivalent `SUB_*` macros exist for the other entity types that are commonly exp
 A filter that keeps no state between values, such as `offset` or `multiply`, does not need its own C++ class. Register
 it on the domain's `APPLY_FILTER` (`sensor`, `binary_sensor` and `text_sensor` each have one) and codegen emits one
 function per filter, with the config values built in. The filter object is then only the `Filter` base, and filters
-with identical settings share one function:
+with identical constant settings share one function. A filter with a `!lambda` value always gets its own function, so
+any `static` state in the lambda stays separate:
 
 ```python
 from esphome import automation

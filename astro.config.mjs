@@ -93,6 +93,7 @@ export default defineConfig({
                 "architecture/components/ipv4_allow",
                 "architecture/components/tcp_client_link",
                 "architecture/components/tcp_listener",
+                "architecture/components/noise_stream",
                 "architecture/components/mdns",
                 "architecture/components/runtime_image",
                 "architecture/components/deep_sleep",

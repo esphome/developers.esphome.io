@@ -27,6 +27,9 @@ reply and finishes does not need it.
    only once `safe_to_delete()` is true, which waits until the session is gone and no queued server work still
    points at it. The class has no virtual destructor, so delete it through the type it was created as.
 
+The example serves one client at a time and answers any other request with 503 while a stream is open, so a
+second client never replaces a stream that is still in use. `busy_` and `pending_` are `std::atomic` members.
+
 ```cpp
 static constexpr HttpHeader STREAM_HEADERS[] = {
     {"Cache-Control", "no-store"},
@@ -34,6 +37,10 @@ static constexpr HttpHeader STREAM_HEADERS[] = {
 };
 
 void MyStream::handleRequest(AsyncWebServerRequest *request) {  // HTTP server task
+  if (this->busy_.exchange(true)) {  // one client at a time; loop() clears it after the delete
+    request->send(503);
+    return;
+  }
   auto *stream = new AsyncStreamResponse();
   stream->begin(request, HTTPD_200, "application/octet-stream", STREAM_HEADERS);
   this->pending_.store(stream);  // picked up by loop()
@@ -47,12 +54,17 @@ void MyStream::loop() {  // main loop
   this->stream_->loop();
   if (this->stream_->is_attached() && !this->stream_->is_closing()) {
     ssize_t sent = this->stream_->write(this->data_ + this->pos_, this->len_ - this->pos_);
-    if (sent > 0)
+    if (sent > 0) {
       this->pos_ += sent;
+      if (this->pos_ == this->len_)
+        this->stream_->close();  // nothing more to send
+    }
+    // sent < 0: the stream failed and is already closing
   }
   if (this->stream_->safe_to_delete()) {
     delete this->stream_;
     this->stream_ = nullptr;
+    this->busy_.store(false);
   }
 }
 ```

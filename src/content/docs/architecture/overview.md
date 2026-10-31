@@ -148,6 +148,55 @@ Next, there's a special method - `cg.add` - that you will often use. `cg.add()` 
 C++ declared in the parentheses of `cg.add()` will be added to the generated code. Note that, if you do not call
 "add" to insert a piece of code explicitly, it will not be added to the `main.cpp` file!
 
+### Generated functions
+
+`cg.static_function(name, return_type, parameters, body, before=None)` emits
+`static <return_type> <name>(<parameters>) { <body> }` and returns an expression naming the function, for use as a
+template argument or a function pointer. The declaration goes with the other globals, so the function can be named at
+once; the body goes after the user includes, where every id is in scope. `body` is a list of C++ statements.
+
+```python
+fn = cg.static_function("esphome__my_script__fn", cg.void, [(cg.int32, "x")], ["ESP_LOGD(\"main\", \"x=%d\", x);"])
+```
+
+Pass `before`, a global statement emitted earlier, when that statement must already see the function; the declaration
+is then placed ahead of it instead of at the end of the globals.
+
+### Objects whose class is known later
+
+`cg.Pvariable` and `cg.new_Pvariable` need the object's class up front. Sometimes the class depends on code that is only
+generated afterwards, while that code must already refer to the object. A script, for example, is a
+`FunctionScript` templated on a generated function when all of its actions are inline, and a `SingleScript` with an
+`Automation` otherwise; which one is only known after its actions are built, and those actions can execute or stop the
+script itself.
+
+`cg.LatePvariable(id_)` registers the variable at once, so `cg.get_variable()` and lambdas can use it, and reserves its
+place in the globals and in `setup()`. `define(type_, *args)` later creates it there as `type_` with the constructor
+arguments `args`, exactly as `cg.new_Pvariable` would have. `globals` is its reserved place among the globals, for a
+declaration that must come before it. From the script component (esphome/esphome#22037):
+
+```python
+id_ = conf[CONF_ID].copy()
+id_.type = SCRIPT_MODES[conf[CONF_MODE]].template(template)
+late = cg.LatePvariable(id_)
+script = late.var
+cg.add(script.set_name(cg.LogStringLiteral(id_.id)))
+...
+fn = await automation.build_automation_or_run_function(
+    script, func_args, conf, conf[CONF_ID], before=late.globals
+)
+script_class = script.base.type
+if fn is not None:
+    # The mode template on FunctionBody, e.g. script::SingleMode<script::FunctionBody<>>
+    mode_class = MODE_TEMPLATES[conf[CONF_MODE]].template(FunctionBody.template(*types), *types)
+    script_class = FunctionScript.template(mode_class, fn, *types)
+late.define(script_class)
+```
+
+Use `cg.new_Pvariable` whenever the class is known when the object is created; use `cg.LatePvariable` only when it is
+not. Every `LatePvariable` must be defined, and nothing may touch the object in `setup()` before its place there (the
+pointer itself can be passed around).
+
 ## Runtime
 
 At this point, the Python part of the codebase has completed its work. Let's move on and discuss the C++ part of

@@ -159,8 +159,8 @@ once; the body goes after the user includes, where every id is in scope. `body` 
 fn = cg.static_function("esphome__my_script__fn", cg.void, [(cg.int32, "x")], ["ESP_LOGD(\"main\", \"x=%d\", x);"])
 ```
 
-`add_global_` takes the declaration instead of the end of the globals, for a declaration that must come before a
-global emitted earlier, such as a `LatePvariable`'s place (below).
+`add_global_` is a callable that takes the declaration statement in place of `cg.add_global`, for a declaration that
+must come before a global emitted earlier, such as `late.global_slot.add` for a `LatePvariable` (below).
 
 ### Objects whose class is known later
 
@@ -194,6 +194,7 @@ fn = await automation.build_automation_or_run_function(
 script_class = late.id.type  # actions that wait: keep the mode's class
 if fn is not None:
     # All inline: FunctionScript<SingleMode<FunctionBody<int>, int>, fn, int> and so on
+    # (queued scripts use one FunctionPointerScript class, given fn as a constructor argument)
     script_class = FunctionScript.template(
         MODES[conf[CONF_MODE]][1].template(FunctionBody.template(template), *template), fn, *template
     )

@@ -337,6 +337,53 @@ class TurnOnTrigger final : public Trigger<> {
 
 The trigger needs to track mutable state (`last_on_`) across callback invocations. A forwarder struct must contain only a single `Automation*` field -- it cannot store extra state. When the trigger logic requires additional fields, use a `Trigger` subclass instead. The `Trigger` base class manages the connection to the `Automation` object.
 
+#### Triggers that are components
+
+A trigger with no arguments that is also a `Component`, fired from `setup()`, `on_shutdown()` or `loop()` like the core `on_boot`, `on_shutdown` and `on_loop`, is built with `build_component_automation`. It creates and registers `component_class`, templated on a generated function and, when `priority` is given, on the priority's float bit pattern. The function runs the actions directly when they are all inline and no `automation_id` was set by hand, with no `Automation` or action objects; otherwise it triggers their `Automation`. A `trigger_id` set by hand keeps the `CONF_TRIGGER_ID` Trigger, so lambdas can still use it:
+
+```python
+StartupCallback = cg.esphome_ns.class_("StartupCallback", cg.Component)
+
+for conf in config.get(CONF_ON_BOOT, []):
+    await automation.build_component_automation(conf, StartupCallback, conf[CONF_PRIORITY])
+```
+
+`StartupCallback`, `ShutdownCallback` and `LoopCallback` are in `esphome/core/base_automation.h`. Generated:
+
+```cpp
+// on_boot with priority: 800; 0x44480000 is 800.0f
+new(startuptrigger_id) StartupCallback<esphome__startuptrigger_id__fn, 0x44480000u>();
+App.register_component_(startuptrigger_id, 3);
+```
+
+The component is registered before the actions are built, so it keeps its place among components with the same setup priority.
+
+A trigger whose id is under another key, or whose class takes more template arguments, passes `id_key` and `template_args`; they come after the function and the priority bits, and a hand-set id keeps its Trigger without them. `trigger_setup` runs only on that Trigger, for settings the template arguments carry on the generated class. `interval` builds a `PollingComponent` this way, templated on its startup delay (its schema keeps the delay below `UINT32_MAX` ms, so it fits the `uint32_t` template argument):
+
+```python
+from functools import partial
+
+
+def _set_startup_delay(startup_delay: int, trigger: MockObj) -> None:
+    cg.add(trigger.set_startup_delay(startup_delay))
+
+
+for conf in config:
+    if startup_delay := conf[CONF_STARTUP_DELAY].total_milliseconds:
+        component_class, template_args = DelayedIntervalCallback, [startup_delay]
+    else:
+        component_class, template_args = IntervalCallback, []
+    var = await automation.build_component_automation(
+        conf,
+        component_class,
+        id_key=CONF_ID,
+        template_args=template_args,
+        # A hand-set id keeps the IntervalTrigger, which takes the delay at run time
+        trigger_setup=partial(_set_startup_delay, startup_delay) if startup_delay else None,
+    )
+    cg.add(var.set_update_interval(conf[CONF_INTERVAL]))
+```
+
 ### When to use which method
 
 | Scenario | Method | Example |
@@ -347,6 +394,7 @@ The trigger needs to track mutable state (`last_on_`) across callback invocation
 | Different callback arguments or a constant filter | Callback with `params`, `forward`, `when` | [`select on_value`](https://github.com/esphome/esphome/blob/dev/esphome/components/select/__init__.py) -- forwards the option text looked up from the index |
 | Callback carries nothing, automation gets the parent | `build_parent_callback_automation` | [`fan on_state`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/__init__.py) -- forwards `::the_fan` |
 | Registration takes extra arguments | `build_trigger_callback` | [`mqtt on_message`](https://github.com/esphome/esphome/blob/dev/esphome/components/mqtt/__init__.py) -- the component passes the lambda to `subscribe(topic, callback, qos)`, filtered on the configured payload |
+| Trigger with no arguments that is a component | `build_component_automation` | `esphome on_boot` -- `StartupCallback` calls the generated function from `setup()` ([esphome/esphome#21989](https://github.com/esphome/esphome/pull/21989), pending) |
 | Extra state needed | Trigger class | [`fan on_turn_on`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/automation.h) -- `FanTurnOnTrigger` tracks `last_on_` for edge detection (mutable state, can't be a forwarder) |
 | Complex logic (timing, state machine) | Trigger class | [`binary_sensor on_multi_click`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/automation.h) -- `MultiClickTrigger` with timing, cooldown, and multiple state fields |
 

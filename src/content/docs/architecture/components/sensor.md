@@ -62,6 +62,52 @@ Passing your class (`MySensor`) as the first argument tells the helper which cla
 need a separate `cv.GenerateID()`. The `.extend(cv.polling_component_schema("60s"))` call adds the `update_interval`
 option with a default of 60 seconds.
 
+### Measurement presets
+
+Most sensors measure something common, and for those the unit, device class and state class always come together.
+Pass `kind=` with one of the presets in `esphome.components.sensor` instead of writing the three values by hand:
+
+```python
+CONFIG_SCHEMA = cv.Schema(
+    {
+        cv.Optional(CONF_TEMPERATURE): sensor.sensor_schema(
+            kind=sensor.TEMPERATURE, accuracy_decimals=1
+        ),
+        cv.Optional(CONF_HUMIDITY): sensor.sensor_schema(
+            kind=sensor.HUMIDITY, accuracy_decimals=1
+        ),
+    }
+)
+```
+
+This returns exactly the same schema as passing `unit_of_measurement`, `device_class` and `state_class` yourself.
+The accuracy, icon, entity category and every other argument are still yours to set. Passing a value the preset
+already sets (for example `kind=sensor.TEMPERATURE, unit_of_measurement=...`) raises an error; write the values by
+hand when your sensor does not match a preset exactly.
+
+| Preset | Unit | Device class | State class |
+|---|---|---|---|
+| `TEMPERATURE` | `°C` | `temperature` | `measurement` |
+| `HUMIDITY` | `%` | `humidity` | `measurement` |
+| `BATTERY` | `%` | `battery` | `measurement` |
+| `PRESSURE` | `hPa` | `pressure` | `measurement` |
+| `ILLUMINANCE` | `lx` | `illuminance` | `measurement` |
+| `CARBON_DIOXIDE` | `ppm` | `carbon_dioxide` | `measurement` |
+| `PM1` | `µg/m³` | `pm1` | `measurement` |
+| `PM25` | `µg/m³` | `pm25` | `measurement` |
+| `PM10` | `µg/m³` | `pm10` | `measurement` |
+| `SIGNAL_STRENGTH` | `dBm` | `signal_strength` | `measurement` |
+| `VOLTAGE` | `V` | `voltage` | `measurement` |
+| `CURRENT` | `A` | `current` | `measurement` |
+| `POWER` | `W` | `power` | `measurement` |
+| `APPARENT_POWER` | `VA` | `apparent_power` | `measurement` |
+| `REACTIVE_POWER` | `var` | `reactive_power` | `measurement` |
+| `FREQUENCY` | `Hz` | `frequency` | `measurement` |
+| `ENERGY_KWH` | `kWh` | `energy` | `total_increasing` |
+| `ENERGY_WH` | `Wh` | `energy` | `total_increasing` |
+
+`PM1` and `PM10` also set the `mdi:chemical-weapon` icon, the icon nearly every particulate sensor uses.
+
 ### Code generation
 
 In `to_code`, use the `sensor.new_sensor()` helper. It calls `cg.new_Pvariable()` for you *and* generates all the code

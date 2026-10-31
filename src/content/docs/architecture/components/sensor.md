@@ -339,8 +339,8 @@ Equivalent `SUB_*` macros exist for the other entity types that are commonly exp
 Some components take another sensor as an input, such as the temperature and humidity a gas sensor uses for
 compensation. Read it with `sensor::source_value(sensor, min, max)` from `esphome/components/sensor/sensor.h`. It
 returns the sensor's state when it lies in `[min, max]`, and `NAN` when the pointer is null, the sensor has no state
-yet, its state is `NAN` or it is out of range. The caller decides what to do with `NAN`: skip the update or use a
-default, and what to log.
+yet, its state is `NAN` or it is out of range. The caller decides how to handle `NAN` (skip the update or fall back
+to a default) and what to log.
 
 ```cpp
 float humidity = sensor::source_value(this->humidity_sensor_, 0.0f, 100.0f);

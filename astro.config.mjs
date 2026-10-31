@@ -88,6 +88,7 @@ export default defineConfig({
                   ],
                 },
                 "architecture/components/automations",
+                "architecture/components/ethernet",
                 "architecture/components/socket_consumption_api",
                 "architecture/components/esp32_tls",
                 "architecture/components/ipv4_allow",

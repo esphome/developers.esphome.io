@@ -70,6 +70,17 @@ async def to_code(config: ConfigType) -> None:
   `ble_device_base.rename_legacy_hub_id("<component>")` to their `CONFIG_SCHEMA`: it warns on and
   auto-migrates an explicit legacy `esp32_ble_id:` until its removal in 2027.2.0.
 
+A listener that is a plain component rather than an entity (for example a hub whose sensors are platforms) is
+created, registered as a component and attached to the hub in one call with
+`ble_device_base.new_ble_device_component()`:
+
+```python
+var = await ble_device_base.new_ble_device_component(config)
+```
+
+Arguments after `config` go to the constructor. This helper and `ble_client.new_ble_node_component()` below are
+available in ESPHome 2026.11.0 and later (esphome/esphome#21025).
+
 Helpers previously imported from `esp32_ble_tracker` live in the base: `bt_uuid` (plus the
 `BT_UUID16_FORMAT` / `BT_UUID32_FORMAT` / `BT_UUID128_FORMAT` length templates), `as_hex`,
 `as_hex_array` and `as_reversed_hex_array`. The historical lowercase constant names remain
@@ -132,6 +143,47 @@ Without this call, `resolve_irk()` compiles to a stub that returns `false`.
 payload formats that encrypt advertisements (BTHome v2, Xiaomi MiBeacon). Both run on a
 self-contained software AES, so they behave identically on every platform and are covered by host
 unit tests.
+
+### Xiaomi MiBeacon devices
+
+A sensor for a Xiaomi device derives from `xiaomi_ble::XiaomiDevice`, or from `xiaomi_ble::XiaomiEncryptedDevice`
+when the device needs a `bindkey`. The base class implements `parse_device()`: it checks the address, drops repeated
+frames, decrypts and parses the MiBeacon data, then calls `publish_result()` with the result. The device only
+publishes the values it has:
+
+```cpp
+class XiaomiLYWSD03MMC final : public Component, public xiaomi_ble::XiaomiEncryptedDevice {
+ public:
+  void dump_config() override;
+  void set_temperature(sensor::Sensor *temperature) { temperature_ = temperature; }
+
+ protected:
+  void publish_result(const xiaomi_ble::XiaomiParseResult &res) override;
+
+  sensor::Sensor *temperature_{nullptr};
+};
+
+void XiaomiLYWSD03MMC::publish_result(const xiaomi_ble::XiaomiParseResult &res) {
+  if (res.temperature.has_value() && this->temperature_ != nullptr)
+    this->temperature_->publish_state(*res.temperature);
+}
+```
+
+`dump_bindkey_(TAG)` logs the bindkey from `dump_config()`. In Python, add `"xiaomi_ble"` to `AUTO_LOAD` and set the
+address and the bindkey with `xiaomi_ble.setup_xiaomi_device()`, which reads `mac_address` and, when it is set,
+`bindkey`:
+
+```python
+async def to_code(config: ConfigType) -> None:
+    var = await ble_device_base.new_ble_device_component(config)
+    xiaomi_ble.setup_xiaomi_device(var, config)
+
+    sensors = sensor.sub_sensors(config)
+    await sensors(CONF_TEMPERATURE, var.set_temperature)
+```
+
+The codegen class lists the base, for example
+`xiaomi_ble.XiaomiEncryptedDevice, cg.Component`. These classes are available in ESPHome 2026.11.0 and later (esphome/esphome#21481).
 
 ## Implementing a tracker for a new chip
 
@@ -264,3 +316,11 @@ GATT client components (the `ble_client` family) remain esp32-only by component 
 (`DEPENDENCIES = ["esp32_ble_tracker"]`) — they sit outside the neutral layer entirely.
 Separately, `HubCapabilities::gatt` advertises whether the platform has a `bluetooth_connection`
 GATT backend (esp32 and rp2 today), which is what `bluetooth_proxy` active connections build on.
+
+A component on a BLE client is created, registered as a component and attached to the client in one call:
+
+```python
+var = await ble_client.new_ble_node_component(config)
+```
+
+This replaces `cg.new_Pvariable()`, `cg.register_component()` and `ble_client.register_ble_node()`.

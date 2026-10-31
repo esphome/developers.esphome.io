@@ -6,6 +6,11 @@ title: "Contributing to ESPHome"
 
 This is a guide to contributing to the ESPHome codebase.
 
+## Use of AI for contributions
+
+The [Open Home Foundation AI policy](https://contributors.home-assistant.io/start/ai-policy/)
+applies to ESPHome. Please read this before contributing.
+
 ## Codebase standards
 
 ESPHome's maintainers work hard to maintain a high standard for its code. We try our best to adhere to the standards
@@ -260,6 +265,35 @@ Choose containers carefully on embedded systems:
 1. **Avoid `std::deque`**: It allocates in 512-byte blocks regardless of element size, guaranteeing at least 512 bytes
    of RAM usage immediately. This is a major source of crashes on memory-constrained devices.
 
+1. **Queues**: Use a ring buffer from `esphome/core/helpers.h` instead of `std::queue` or `std::deque`.
+   `StaticRingBuffer<T, N>` holds `N` elements inline, and `FixedRingBuffer<T>` allocates its capacity once with
+   `init()`. Both have `push()`, `pop()`, `front()`, `size()`, `empty()`, `clear()` and iteration from oldest to newest;
+   `push()` returns false when the buffer is full.
+
+    ```cpp
+    // Good - one allocation in setup(), none after
+    // In the class:
+    FixedRingBuffer<uint8_t> rx_buffer_;
+
+    // In setup():
+    this->rx_buffer_.init(256);
+    ```
+
+    `FixedRingBuffer` also has `push_overwrite()`, which drops the oldest element when full, `capacity()`, `full()`
+    and `free_space()`. For trivially copyable types it moves many elements at once:
+
+    ```cpp
+    // Store as many bytes as fit; returns how many were stored
+    size_t stored = this->rx_buffer_.push(data, len);
+
+    // Take up to sizeof(out) of the oldest bytes; returns how many were taken
+    uint8_t out[64];
+    size_t taken = this->rx_buffer_.pop(out, sizeof(out));
+    ```
+
+    The bulk `push()`, `pop()` and `free_space()` are available in ESPHome 2026.11.0 and later
+    (esphome/esphome#21474). Neither buffer is thread safe.
+
 1. **Byte buffers**: Avoid `std::vector<uint8_t>` unless the buffer needs to grow. Use `std::unique_ptr<uint8_t[]>`.
 
     ```cpp
@@ -279,6 +313,158 @@ Choose containers carefully on embedded systems:
 
 Note: Avoiding heap allocation after `setup()` is always required regardless of component type. The prioritization above
 is about the effort spent on container optimization (e.g., migrating from `std::vector` to `StaticVector`).
+
+#### Constant data in flash on the ESP8266
+
+On the ESP8266, `const` tables and string literals live in RAM unless they are marked `PROGMEM`; the other platforms
+keep them in flash either way. Mark constant arrays `PROGMEM` and read them with `progmem_memcpy()` or
+`progmem_read_byte()` from `esphome/core/hal.h`, which are a plain `memcpy` and dereference elsewhere, so no `#ifdef`
+is needed.
+
+#### String tables in flash
+
+A fixed set of strings looked up by index, such as mode or state names, goes in a `PROGMEM_STRING_TABLE`. It packs
+the strings into one blob, in flash on ESP8266 and in `.rodata` elsewhere, so nothing is copied to RAM and no pointer
+table is kept:
+
+```cpp
+#include "esphome/core/progmem.h"
+
+PROGMEM_STRING_TABLE(FanModeStrings, "AUTO", "LOW", "MEDIUM", "HIGH", "UNKNOWN");
+
+// An index past the end returns the fallback, so the last entry is the usual "unknown" text
+ESP_LOGD(TAG, "Fan mode: %s", LOG_STR_ARG(FanModeStrings::get_log_str(mode, FanModeStrings::LAST_INDEX)));
+```
+
+`get_log_str()` returns a `const LogString *` for logging and `get_progmem_str()` a `ProgmemStr` for code that reads flash
+strings, such as ArduinoJson. A table holds up to 255 strings. While the strings total 255 bytes or less, each entry
+has a one-byte offset; a larger table has no offset table and is walked at lookup time, which costs less flash than
+wider offsets for the rarely read message tables that get this big.
+`Name::MAX_LENGTH` is the longest string, which sizes a RAM copy on ESP8266 when the text goes to code that expects an
+ordinary `const char *` rather than a flash string:
+
+```cpp
+char message[AlarmMessages::MAX_LENGTH + 1];
+ESPHOME_strncpy_P(message, reinterpret_cast<const char *>(AlarmMessages::get_progmem_str(code, AlarmMessages::LAST_INDEX)),
+                  sizeof(message));
+```
+
+A name that a device or Home Assistant sends arrives in RAM and is matched against the table with
+`progmem_string_table_find()`, which returns the index of the matching string or `-1`:
+
+```cpp
+PROGMEM_STRING_TABLE(ColorModeNames, "onoff", "brightness", "white", "color_temp");
+
+// value is what Home Assistant or the device sent, in RAM
+const int16_t index = progmem_string_table_find<ColorModeNames>(value.c_str(), value.size());
+if (index < 0) {
+  ESP_LOGW(TAG, "Unknown color mode '%s'", value.c_str());
+  return;
+}
+```
+
+The lookup takes a pointer and a length rather than a `StringRef`, because `string_ref.h` includes `progmem.h`. It
+walks the blob once whatever the table size, so it suits a name that arrives now and then, not a hot path.
+
+### Saved settings on the ESP8266
+
+A component that saves large values, or one value per configured entity, reserves them from its `to_code` with
+`preferences.reserve_preferences()`: the count, the size of one value in bytes, and whether the value is saved to
+flash, the same flag the component passes to `make_preference()` (the `storage:` option described under
+[Persisting Component State](/architecture/components/advanced/#persisting-component-state)). Leave the flag out
+for a component that calls `make_preference()` without an `in_flash` argument, which follows `restore_from_flash`.
+On platforms with room to spare the call does nothing.
+
+```python
+from esphome import preferences
+
+ZONE_SAVED_BYTES = 94  # sizeof(Polygon), pinned by a static_assert in polygon.h
+
+
+async def to_code(config):
+    ...
+    preferences.reserve_preferences(
+        len(zones), ZONE_SAVED_BYTES, preferences.is_in_flash(config[CONF_STORAGE])
+    )
+```
+
+After all code generation the esp8266 component adds up every component's reservations, because the space is
+shared and no component can judge its own share. Each value takes its size rounded up to 4-byte words plus one
+checksum word, so a 94-byte value takes 25 words. RTC memory holds 110 words in two regions of 78 and 32 that a
+single value cannot span, and the flash store holds 128 words with `restore_from_flash` or 64 without. The build
+fails when the reserved values cannot fit in any order. It only warns once reservations spill past the first RTC
+region, because the fit then depends on setup order, and saved values that do not reserve, such as a switch's
+restore state, also use that space and are not counted.
+
+### Helpers for raw device data
+
+`esphome/core/helpers.h` has small helpers for the byte work that device protocols need. Use them instead of writing
+the same bit and byte handling again in each component.
+
+#### Checksums
+
+Many serial and I2C devices end a frame with a simple checksum. These helpers cover the common kinds; each takes a
+pointer, a length and an optional starting value:
+
+| Helper | Result |
+| ------ | ------ |
+| `sum_bytes(data, len, sum = 0)` | Sum of the bytes, kept to 8 bits |
+| `sum16_bytes(data, len, sum = 0)` | Sum of the bytes, kept to 16 bits |
+| `xor_bytes(data, len, init = 0)` | XOR of the bytes |
+| `crc8()`, `crc16()`, `crc16be()` | CRCs with a choice of polynomial and bit order |
+
+```cpp
+// Before
+uint8_t checksum = 0;
+for (uint8_t i = 0; i < 5; i++)
+  checksum ^= this->buffer_[i];
+
+// After
+const uint8_t checksum = xor_bytes(this->buffer_, 5);
+```
+
+Other checksums are built from these. An inverted XOR is `static_cast<uint8_t>(~xor_bytes(data, len))`, and
+`dfplayer`'s negated 16-bit sum is `static_cast<uint16_t>(-sum16_bytes(buffer + 1, 6))`. Keep the cast: `~` and `-`
+widen the result to `int`, so comparing it to a received byte without the cast always fails. Pass the starting value
+to include bytes that are not next to the data, such as a header sent separately.
+
+#### Signed values of unusual widths
+
+Sensors often report a signed value in a width that is not a C++ type, such as 12 or 24 bits. `sign_extend<BITS>()`
+turns the low `BITS` bits of a `uint32_t` into an `int32_t`; any higher bits are ignored:
+
+```cpp
+// Before
+int32_t raw = (int32_t) (raw_energy << 8) >> 8; /* Sign-extend */
+
+// After
+int32_t raw = sign_extend<24>(raw_energy);
+```
+
+`sign_extend<24>(0xFFFFFE)` is `-2`. `BITS` can be from 1 to 32, which is checked when the code compiles. It is
+`constexpr`, so it also works in constants.
+
+#### Setting or clearing register bits
+
+`assign_bits(reg, mask, on)` sets the bits of `mask` in `reg` when `on` is true and clears them otherwise. It changes
+`reg` in place:
+
+```cpp
+// Before
+if (value) {
+  this->output_mask_ |= (1 << pin);
+} else {
+  this->output_mask_ &= ~(1 << pin);
+}
+
+// After
+assign_bits(this->output_mask_, 1 << pin, value);
+```
+
+The mask is converted to the register's type first. For a register wider than `int`, use an unsigned mask: a negative
+`int` mask such as `1 << 31` is sign-extended, so it sets or clears the higher bits too. Write `1u << 31`,
+or `1ULL << n` for a 64-bit register. `assign_bits()` is available in ESPHome
+2026.11.0 and later (esphome/esphome#21184).
 
 ### Gating optional features behind conditional compilation
 
@@ -421,6 +607,9 @@ In general, we try to avoid use of external libraries.
   - Many constants used in components are already defined in `esphome/const.py`; no new constants
       should be added there unless used in core code.
   - Create a separate PR if/when you wish to move a constant into `esphome/components/const/__init__.py`.
+- Every component's `__init__.py` **must** define `DOMAIN = "<name>"`, where `<name>` is the component's folder name,
+  or CI checks will fail. Use `DOMAIN` (or `from esphome.components.<name> import DOMAIN as <NAME>_DOMAIN` from another
+  component) instead of repeating the component name as a string, for example `CORE.data[DOMAIN]`.
 - Using `AUTO_LOAD` to load main platform components (`sensor`, `binary_sensor`, `switch`, etc.) is not permitted.
 - Use Python's walrus operator for optional config gathering, except for boolean values. For example:
   `sensor_config := config.get(CONF_SENSOR)`
@@ -459,6 +648,9 @@ In general, we try to avoid use of external libraries.
   - For any [`Component`](https://esphome.io/api/classesphome_1_1_component) (which is nearly everything), the
       well-known `set_timeout` method is also available; this can be a handy alternative to implementing a state
       machine.
+  - ESPHome warns in the log when a component holds the loop for too long; see
+      [The Loop Blocking Warning](/architecture/components/advanced#the-loop-blocking-warning) for how the warning
+      works and the narrow case where `UnavoidableBlockingScope` may be used.
 
 #### Components/platforms and entities
 
@@ -841,6 +1033,8 @@ Unlike C++, most Python code in ESPHome is **internal implementation** unless ex
 > import esphome.config_validation as cv
 > from esphome.const import CONF_ID
 >
+> DOMAIN = "my_component"
+>
 > # PUBLIC - documented configuration schema
 > CONF_CUSTOM_PARAM = "custom_param"
 >
@@ -1077,22 +1271,40 @@ When submitting a PR with breaking changes, structure your description to includ
 
 ## Running CI checks locally
 
-You can run the lint and GitHub Actions checks via a docker image:
+The lint checks run as git hooks on every commit. `script/setup`, from
+[Setting up a development environment](/contributing/development-environment/), installs them using
+[prek](https://prek.j178.dev/). To run the same checks over the whole tree, with the virtual environment activated:
 
 ```bash
-# Full lint+test suite
-docker run --rm -v "${PWD}/":/esphome -it ghcr.io/esphome/esphome-lint script/fulltest
-
-# Run lint only over changed files
-docker run --rm -v "${PWD}/":/esphome -it ghcr.io/esphome/esphome-lint script/quicklint
+prek run --all-files
 ```
 
-If you are using Windows and have docker installed, the syntax is slightly different.
-If you have cloned ESPHome to `c:\edev\esphome` the path will be `c/edev/esphome`
+This covers Ruff, Ruff's formatter, pyupgrade, yamllint, clang-format, pylint and `script/ci-custom.py`, the same
+set the lint jobs in CI run.
+
+The remaining CI jobs are separate commands:
 
 ```bash
-# convert the volume format
-$current_dir=(Get-Location).Path.ToLower().Replace(':','').Replace('\','/')
-# Run lint only over changed files from powershell
-docker run --rm -v "$($current_dir):/esphome" -it ghcr.io/esphome/esphome-lint script/quicklint
+# C++ static analysis over the files you changed, headers included; the first run downloads the toolchains it needs
+script/clang-tidy --changed --all-headers
+
+# Python unit tests
+pytest tests/unit_tests
+
+# Build a component's test configurations; see the component tests page for -e config and the platform options
+script/test_build_components -e compile -c <component>
 ```
+
+The last one is described in more detail under
+[Component/platform test configurations](/architecture/ci/component_tests#running-the-tests).
+
+On Windows, run `script/setup.bat` instead of `script/setup`, and invoke the scripts through Python, since PowerShell
+cannot execute them directly and `script/test_build_components` is a symlink to the `.py` file:
+
+```powershell
+python script/clang-tidy --changed --all-headers
+python script/test_build_components.py -e compile -c <component>
+```
+
+The `ghcr.io/esphome/esphome-lint` Docker image and the `script/quicklint` and `script/fulltest` wrappers it ran
+have been retired. The last image, 2025.4.2, ships Python 3.11, which cannot parse the current scripts.

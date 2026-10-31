@@ -171,6 +171,14 @@ class MyComponent final : public Component {
 // this->firmware_version_text_sensor_->publish_state(version); once null-checked
 ```
 
+In `to_code`, create each configured text sensor and pass it to its setter with `text_sensor.sub_text_sensors()`:
+
+```python
+text_sensors = text_sensor.sub_text_sensors(config)
+await text_sensors(CONF_FIRMWARE_VERSION, var.set_firmware_version_text_sensor)
+await text_sensors(CONF_SERIAL_NUMBER, var.set_serial_number_text_sensor)
+```
+
 See [Exposing multiple sensors from one component](/architecture/components/sensor#exposing-multiple-sensors-from-one-component)
 for a fully worked example of both patterns.
 
@@ -189,6 +197,14 @@ and its strings, so let the hardware decide:
   different strings need different C++ classes or update strategies.
 
 If both descriptions fit your device equally well, follow whichever pattern the surrounding component already uses.
+
+## Following another entity
+
+A text sensor that only republishes another entity's string needs no C++ class: create a plain
+`text_sensor::TextSensor` and call `text_sensor.follow_text_sensor(entity, source)`. It works with any source whose
+state callback takes a `const std::string &`, such as a `text::Text`. See
+[following another entity](/architecture/components/sensor#following-another-entity) for how it works and for
+`FollowEntity`.
 
 For everything else, the component implements the usual set of methods
 [as described here](/architecture/components/index#common-methods).

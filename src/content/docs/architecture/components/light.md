@@ -209,8 +209,9 @@ Two further optional overrides exist for advanced cases:
 
 ### Addressable LED strips
 
-A strip driver derives from `light::AddressableLight` and typically keeps its channel order in a `light::ChannelColors`
-from `esphome/components/light/channel_colors.h`, set from the `channel_colors` option.
+A strip driver derives from `light::AddressableLight`.  It typically describes the order of the strip's RGB(W)
+channels with a `light::ChannelColors` from `esphome/components/light/channel_colors.h` which is set from the
+`channel_colors` option and stored as a member of the driver's color accessor.
 
 The channel colors object provides a helper for implementing the `get_traits()` method.  `traits()` returns a
 `LightTraits` that supports `ColorMode::RGB`, or `ColorMode::RGB_WHITE` and `ColorMode::WHITE` when the order has a

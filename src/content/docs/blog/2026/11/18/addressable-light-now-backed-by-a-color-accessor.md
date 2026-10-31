@@ -8,7 +8,7 @@ Components that implement the `AddressableLight` interface must now provide an `
 
 This is a **developer breaking change** for external components in **ESPHome 2026.11.0 and later**.
 
-The user API remains backwards-compatible except that `ESPColorSettable::set(ESPHSVColor)` and `ESPColorRange::set(ESPHSVColor)` have been deprecated to remove ambiguity from the API.  Use the already existing `set_hsv(ESPHSVColor)` method instead.
+The user API remains backwards-compatible except that `ESPColorSettable::set(ESPHSVColor)` and `ESPRangeView::set(ESPHSVColor)` have been deprecated to remove ambiguity from the API.  Use the already existing `set_hsv(ESPHSVColor)` method instead.
 
 <!-- excerpt -->
 
@@ -40,12 +40,12 @@ When an `AddressableLight` component is constructed, its `accessor_` field initi
 
 Once the `AddressableLight` component is ready to provide access to its LED data, it reassigns `accessor_` to point to the appropriate accessor instance which can be one of the following types:
 
-- `BufferColorAccessor` is the base class for accessors that operate on a linear buffer whose layout is defined by a `ChannelColors` object.
+- `BufferColorAccessor` is the base class for accessors that operate on a linear buffer whose layout is defined by a `ChannelColors` object.  It provides functions for allocating those buffers, clearing effect data, and accessing the contents of the buffers.
 - `CorrectedBufferColorAccessor` applies color correction and uncorrection during each access to the color data.  This is the most commonly used implementation as of the the time of this writing.
 - `RawBufferColorAccessor` gets/sets raw color data without color correction and uncorrection.  It is useful for addressable light components that perform color correction elsewhere in the pipeline and for unit tests.
 - Some other subclass of `ESPColorAccessor` that implements another strategy.  For example, `PartitionLightOutput` has a color accessor that resolves the provided index to an LED within a segment of some other addressable light component.
 
-`AddressableLight` implements `operator[int32_t index]` to return an `ESPColorView` that holds its accessor pointer along with the requested index.  Likewise the component's range access functions, such as `all()`, return an `ESPColorRange` that holds the accessor pointer along with the start and end index of the range.  Thus `ESPColorView` and `ESPColorRange` remain the main user-facing API for LED access whereas `ESPColorAccessor` is hidden from their view and is mainly of interest to component developers.
+`AddressableLight` implements `operator[int32_t index]` to return an `ESPColorView` that holds its accessor pointer along with the requested index.  Likewise the component's range access functions, such as `all()`, return an `ESPRangeView` that holds the accessor pointer along with the start and end index of the range.  Thus `ESPColorView` and `ESPRangeView` remain the main user-facing API for LED access whereas `ESPColorAccessor` is hidden from their view and is mainly of interest to component developers.
 
 This change breaks external addressable light components by removing the `AddressableLight::get_view_internal()` method and removing the `ESPColorView` constructor that those components previously used.  It was not practical to provide a deprecation path because the responsibilities of `ESPColorView` have changed significantly and there's nowhere to put the state that it used to hold (without resorting to some questionable hacks).  This post provides a migration guide.
 
@@ -55,7 +55,7 @@ The user API remains compatible with existing code though some function signatur
 
 - Less copying of objects on the stack:
   - `ESPColorView` is 8 bytes (1 pointer + 1 index) instead of 24 bytes (6 pointers).
-  - `ESPRangeView` is 8 bytes (1 pointer + 1 index) instead of 16 bytes (1 pointer + 3 indices).
+  - `ESPRangeIterator` is 8 bytes (1 pointer + 1 index) instead of 16 bytes (1 pointer + 3 indices).
   - `Color` is passed by value in a register instead of being passed by reference and copied to the stack.
 - Components can implement their own `ESPColorAccessor` subclass when they need to do something special with less impact on the core architecture (as `light_partition` does).
 - Begins to resolve some technical debt related to how `light_partition` applies color correction to a segment of an address light strip by isolating its dependencies.
@@ -65,7 +65,7 @@ The user API remains compatible with existing code though some function signatur
 
 With this new architecture, it becomes possible to implement new kinds of addressable light components that use the color buffer in different ways such as to defer color correction to a later point in the pipeline to improve color fidelity and dynamic range.  It should also be easier to make incremental changes such as perhaps adding support for 5-channel RGB/WW/CW LED strips someday.
 
-### Removed APIs (effective immediately)
+### Removed and conditionally excluded APIs (effective immediately)
 
 `AddressableLight`:
 
@@ -84,11 +84,11 @@ With this new architecture, it becomes possible to implement new kinds of addres
 `Color`:
 
 - Added const to `operator==(const Color&)` and other non-mutating methods.
-- Added `COLOR_CHANNEL_R`/`_G`/`_B`/`_W` that can be used to directly index into `Color::raw` for per-channel access.
+- Added `COLOR_CHANNEL_R`/`_G`/`_B`/`_W` that can be used to directly index into `raw` for per-channel access.
 
 `ChannelColors`:
 
-- Changed to hold a union of `r`/`g`/`b`/`w` offsets as discrete fields and a `ColorChannels::raw` array for per-channel access with the new `COLOR_CHANNEL_*` constants.
+- Changed to hold a union of `r`/`g`/`b`/`w` offsets as discrete fields and a `raw` array for per-channel access with the new `COLOR_CHANNEL_*` constants.
 - Added 0, 3, and 4 argument constructors to initialize the new union members properly.  **This change breaks designated initializers.**
 - Added `get`, `get_channel()`, `set()`, and `set_channel()` methods to access LED data at a specific index within a buffer.
 - Added `RESERVED_WHITE` to specify a 4 byte encoding without an actual white channel (as used by some SPI LED strips).
@@ -96,15 +96,15 @@ With this new architecture, it becomes possible to implement new kinds of addres
 `ESPColorAccessor`:
 
 - Defined the abstract base class and documented its invariants.
-- Defined three concrete subclasses: `NullColorAccessor`, `CorrectedBufferColorAccessor`, and `RawBufferColorAccessor` as described earlier in this post.
+- Defined the subclasses `NullColorAccessor`, `BufferColorAccessor`, `RawBufferColorAccessor`, and `CorrectedBufferColorAccessor` as described earlier in this post.
 
 `ESPColorSettable`:
 
 - Pass `Color` and `ESPHSVColor` by value instead of by reference because they fit in a register and it results in smaller code.
 - Added `set_channel()` to set an individual color channel and redirected the other accessors through it.
-- Deprecated set(ESPHSVColor) in favor of the existing set_hsv(HSVColor) method to reduce API confusion among the subclasses:
-  - ESPColorView hides the set(ESPHSVColor) overload, exposing it now would break callers of set(Color) passing brace-initialized value
-  - ESPColorRange exposes set(Color) and set(ESPHSVColor)
+- Deprecated `set(ESPHSVColor)` in favor of the existing `set_hsv(ESPHSVColor)` method to reduce API confusion among the subclasses:
+  - `ESPColorView` previously hid the `set(ESPHSVColor)` overload, exposing it now would break callers of `set(Color)` passing brace-initialized value
+  - `ESPRangeView` previously exposed `set(Color)` and `set(ESPHSVColor)`, so `set(ESPHSVColor)` is now deprecated
 
 `ESPColorView`:
 
@@ -149,7 +149,7 @@ Miscellaneous changes:
 
     The color accessor will be doing the work that was previously done by your component's implementation of `AddressableLight::get_view_internal(int32_t)`.  If, as in most cases, your buffer is a linear array of RGB or RGBW pixels packed into 3 or 4 bytes per pixel, then you can use `CorrectedBufferColorAccessor` and initialize it with a `ChannelColors` object that describes the layout.
 
-    If `CorrectedBufferColorAccessor` isn't compatible with your buffer's layout or you need to do something special when accessing pixels then you can implement a new subclass of `ESPColorAccessor` (as was done for [`PartitionLightOutput`](https://github.com/esphome/esphome/blob/dev/esphome/components/partition/light_partition.h).
+    If `CorrectedBufferColorAccessor` isn't compatible with your buffer's layout or you need to do something special when accessing pixels then you can implement a new subclass of `ESPColorAccessor` (as was done for [`PartitionLightOutput`](https://github.com/esphome/esphome/blob/dev/esphome/components/partition/light_partition.h)).
 
     Refer to the API documentation in [esp_color_view.h](https://github.com/esphome/esphome/blob/dev/esphome/components/light/esp_color_view.h) and [channel_colors.h](https://github.com/esphome/esphome/blob/dev/esphome/components/light/channel_colors.h) for details.
 
@@ -171,10 +171,10 @@ Miscellaneous changes:
     Use [`ChannelColors`](https://github.com/esphome/esphome/blob/dev/esphome/components/light/channel_colors.h) to describe the layout of the R, G, B, W channels.  The constructor arguments specify the offset of the R, G, B, and (optionally) W channels.  Here are some examples:
 
     ```cpp
-    constexpr ChannelColors RGB(0, 1, 2); // 3-arg constructor implies NO_WHITE
-    constexpr ChannelColors BGR(2, 1, 0, ChannelColors::NO_WHITE);
-    constexpr ChannelColors WRGB(1, 2, 3, 0);
-    constexpr ChannelColors GRBX(1, 0, 2, ChannelColors::RESERVED_WHITE);
+    constexpr esphome::light::ChannelColors RGB(0, 1, 2); // 3-arg constructor implies NO_WHITE
+    constexpr esphome::light::ChannelColors BGR(2, 1, 0, esphome::light::ChannelColors::NO_WHITE);
+    constexpr esphome::light::ChannelColors WRGB(1, 2, 3, 0);
+    constexpr esphome::light::ChannelColors GRBX(1, 0, 2, esphome::light::ChannelColors::RESERVED_WHITE);
     ```
 
 4. Initialize the color accessor and assign `this->accessor_`.
@@ -186,9 +186,12 @@ Miscellaneous changes:
         : internal_accessor_{nullptr, nullptr, RGB, &this->correction_} {}
 
     void MyComponent::setup() {
-      // Initialize the color accessor
-      this->internal_accessor_.color_data = ...; // allocate 3 or 4 bytes per LED depending on the layout
-      this->internal_accessor_.effect_data = ...; // allocate 1 byte per LED
+      // Allocate the color data and effect data buffers using the new helper on `CorrectedBufferColorAccessor`.
+      if (!this->internal_accessor_.allocate(allocator, this->num_leds_)) {
+        this->mark_failed(LOG_STR("Allocation failed"));
+        return;
+      }
+      // Begin using the accessor now that it has been fully initialized
       this->accessor_ = &this->internal_accessor_;
     }
     ```
@@ -204,10 +207,10 @@ Miscellaneous changes:
 Before migration, the component implements `AddressableLight::get_view_internal()`.
 
 ```cpp
-class MyComponent final : public light::AddressableLight {
+class MyComponent final : public esphome::light::AddressableLight {
   // ...
 
-  void set_channel_colors(light::ChannelColors channel_colors) {
+  void set_channel_colors(esphome::light::ChannelColors channel_colors) {
     this->channel_colors_ = channel_colors;
   }
 
@@ -217,21 +220,22 @@ class MyComponent final : public light::AddressableLight {
   }
 
  protected:
-  light::ESPColorView get_view_internal(int32_t index) const override;
+  esphome::light::ESPColorView get_view_internal(int32_t index) const override;
 
   uint8_t *color_data_{nullptr};
   uint8_t *effect_data_{nullptr};
-  light::ChannelColors channel_colors_{0, 1, 2, light::ChannelColors::NO_WHITE};
+  esphome::light::ChannelColors channel_colors_{0, 1, 2, esphome::light::ChannelColors::NO_WHITE};
+  size_t num_leds_{0};
 };
 
 void MyComponent::setup() {
   esphome::RAMAllocator<uint8_t> allocator;
-  this->color_data_ = allocator.allocate(this->num_leds_ * this->channel_colors_.bytes_per_channel());
+  this->color_data_ = allocator.allocate(this->num_leds_ * this->channel_colors_.bytes_per_led());
   this->effect_data_ = allocator.allocate(this->num_leds_);
 }
 
-light::ESPColorView MyComponent::get_view_internal(int32_t index) const {
-  const light::ChannelColors &colors = this->channel_colors_;
+esphome::light::ESPColorView MyComponent::get_view_internal(int32_t index) const {
+  const esphome::light::ChannelColors &colors = this->channel_colors_;
   uint8_t *led = this->color_data_ + (index * colors.bytes_per_led());
   return {led + colors.r,
           led + colors.g,
@@ -247,7 +251,7 @@ light::ESPColorView MyComponent::get_view_internal(int32_t index) const {
 After migration, the component incrementally initializes a color accessor in `internal_accessor_` then assigns `accessor_` to point to it.
 
 ```cpp
-class MyComponent final : public light::AddressableLight {
+class MyComponent final : public esphome::light::AddressableLight {
   // ...
 
   void set_channel_colors(light::ChannelColors channel_colors) {
@@ -255,18 +259,20 @@ class MyComponent final : public light::AddressableLight {
   }
 
   void clear_effect_data() override {
-    if (this->internal_accessor_.effect_data != nullptr)
-      memset(this->internal_accessor_.effect_data, 0, this->num_leds_);
+    this->internal_accessor_.clear_effect_data(this->num_leds_);
   }
 
  protected:
-  light::CorrectedBufferColorAccessor internal_accessor_{nullptr, nullptr, {0, 1, 2}, &this->correction_};
-}
+  esphome::light::CorrectedBufferColorAccessor internal_accessor_{nullptr, nullptr, {0, 1, 2}, &this->correction_};
+  size_t num_leds_{0};
+};
 
 void MyComponent::setup() {
-  RAMAllocator<uint8_t> allocator;
-  this->internal_accessor_.color_data = allocator.allocate(this->num_leds_ * this->channel_colors_.bytes_per_channel());
-  this->internal_accessor_.effect_data = allocator.allocate(this->num_leds_);
+  esphome::RAMAllocator<uint8_t> allocator;
+  if (!this->internal_accessor_.allocate(allocator, this->num_leds_)) {
+    this->mark_failed(LOG_STR("Allocation failed"));
+    return;
+  }
   this->accessor_ = &this->internal_accessor_;
 }
 ```
@@ -278,10 +284,10 @@ This example shows how to support older and newer versions of ESPHome, when desi
 ```cpp
 #include "esphome/core/version.h"
 
-class MyComponent final : public light::AddressableLight {
+class MyComponent final : public esphome::light::AddressableLight {
   // ...
 
-  void set_channel_colors(light::ChannelColors channel_colors) {
+  void set_channel_colors(esphome::light::ChannelColors channel_colors) {
 #if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 11, 0)
     this->internal_accessor_.channel_colors = channel_colors;
 #else
@@ -291,8 +297,7 @@ class MyComponent final : public light::AddressableLight {
 
   void clear_effect_data() override {
 #if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 11, 0)
-    if (this->internal_accessor_.effect_data != nullptr)
-      memset(this->internal_accessor_.effect_data, 0, this->num_leds_);
+    this->internal_accessor_.clear_effect_data(this->num_leds_);
 #else
     if (this->effect_data_ != nullptr)
       memset(this->effect_data_, 0, this->num_leds_);
@@ -301,33 +306,40 @@ class MyComponent final : public light::AddressableLight {
 
  protected:
 #if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 11, 0)
-  light::CorrectedBufferColorAccessor internal_accessor_{nullptr, nullptr, {0, 1, 2}, &this->correction_};
+  esphome::light::CorrectedBufferColorAccessor internal_accessor_{nullptr, nullptr, {0, 1, 2}, &this->correction_};
 #else
-  light::ESPColorView get_view_internal(int32_t index) const override;
+  esphome::light::ESPColorView get_view_internal(int32_t index) const override;
 
   uint8_t *color_data_{nullptr};
   uint8_t *effect_data_{nullptr};
-  light::ChannelColors channel_colors_{0, 1, 2, light::ChannelColors::NO_WHITE};
+  esphome::light::ChannelColors channel_colors_{0, 1, 2, esphome::light::ChannelColors::NO_WHITE};
 #endif
+  size_t num_leds_{0};
 };
 
 void MyComponent::setup() {
   esphome::RAMAllocator<uint8_t> allocator;
-  uint8_t* color_data = allocator.allocate(this->num_leds_ * this->channel_colors_.bytes_per_channel());
-  uint8_t* effect_data = allocator.allocate(this->num_leds_);
 #if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 11, 0)
-  this->internal_accessor_.color_data = color_data;
-  this->internal_accessor_.effect_data = effect_data;
+  if (!this->internal_accessor_.allocate(allocator, this->num_leds_)) {
+    this->mark_failed(LOG_STR("Allocation failed"));
+    return;
+  }
   this->accessor_ = &this->internal_accessor_;
 #else
-  this->color_data_ = color_data;
-  this->effect_data_ = effect_data;
+  const size_t color_data_bytes = this->num_leds_ * this->channel_colors_.bytes_per_led();
+  const size_t effect_data_bytes = this->num_leds_;
+  this->color_data_ = allocator.allocate(color_data_bytes + effect_data_bytes);
+  if (this->color_data_ == nullptr) {
+    this->mark_failed(LOG_STR("Allocation failed"));
+    return;
+  }
+  this->effect_data_ = this->color_data_ + color_data_bytes;
 #endif
 }
 
 #if ESPHOME_VERSION_CODE < VERSION_CODE(2026, 11, 0)
-light::ESPColorView MyComponent::get_view_internal(int32_t index) const {
-  const light::ChannelColors &colors = this->channel_colors_;
+esphome::light::ESPColorView MyComponent::get_view_internal(int32_t index) const {
+  const esphome::light::ChannelColors &colors = this->channel_colors_;
   uint8_t *led = this->color_data_ + (index * colors.bytes_per_led());
   return {led + colors.r,
           led + colors.g,

@@ -34,26 +34,9 @@ This guide will walk you through the steps to set up an environment you can use 
 
 ## Set up the local repository
 
-First you will need a "Fork" of the ESPHome repository. You can do this by visiting the
-[ESPHome repository](https://github.com/esphome/esphome), clicking the **Fork** button and following the instructions
-on GitHub to complete the fork.
-
-Note that forks created from GitHub organization accounts will protect branches involved in
-pull requests, preventing ESPHome maintainers from making any changes to your branch.
-
-If there is a small change required to a PR to enable it to be approved, a maintainer may well choose to
-make that change directly rather than leaving a review (this applies particularly to PRs in
-the docs where a simple formatting fix is needed.)
-
-It is therefore recommended that you use a personal account for forking ESPHome and raising PRs.
-
-Once the fork is created, you can clone the repository to your local machine:
-
-```bash
-git clone https://github.com/YOUR_GITHUB_USERNAME/NAME_OF_FORK.git
-cd NAME_OF_FORK
-git remote add upstream https://github.com/esphome/esphome.git
-```
+Before you start, you need your own fork of the ESPHome repository cloned to your computer. Follow
+[Creating a pull request from a fork](/contributing/forks-and-pull-requests) to create the fork, clone it and add the
+`upstream` remote, then come back here.
 
 ## Run the `setup` script
 
@@ -111,37 +94,10 @@ configurations in this directory.
 
 This folder is conveniently listed in the ESPHome `.gitignore` file, so it will not be added to git.
 
-## Create your own working branch
+## Make your changes
 
-Always do your work in a new branch created from the latest ESPHome upstream `dev` branch; do not commit changes
-directly to the `dev` branch.
-
-```bash
-git fetch upstream
-git checkout -b my-new-feature upstream/dev
-```
-
-This branch should contain your work for this new feature.
-
-After you've run the above commands, you're ready to make (and test!) your changes!
-
-## Commit and push your work
-
-Once you're satisfied with your changes, it's time to stage and commit them:
-
-```bash
-git add .
-git commit -m "Look mom, I'm contributing to ESPHome!"
-```
-
-After you've committed your changes, you can push your branch up to your fork in GitHub:
-
-```bash
-git push -u origin my-new-feature
-```
-
-Once you've pushed your branch, if you wish, you can
-[submit your work for integration into ESPHome](/contributing/submitting-your-work).
+You're now ready to make (and test!) your changes. Do your work on a new branch, then commit it, push it to your fork
+and open a PR, as described in [Creating a pull request from a fork](/contributing/forks-and-pull-requests).
 
 <details open>
 <summary>Windows</summary>

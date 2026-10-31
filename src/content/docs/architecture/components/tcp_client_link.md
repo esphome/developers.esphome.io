@@ -13,6 +13,8 @@ write error closes the link, logs it and schedules the next attempt; the caller 
 - `begin(tag)` from `setup()`; `set_host`, `set_port`, `set_reconnect_interval` and `set_idle_timeout` from
   codegen setters.
 - `poll()` once per loop while acting as a client. It is an inline no-op while connected or backing off.
+- `connected()` is true while the stream is up, `connecting()` while an attempt is still pending, and
+  `in_backoff()` while the link waits before the next attempt.
 - `adopt(sock)` takes over an accepted socket; the [TCP listener](/architecture/components/tcp_listener/)
   is the usual caller.
 - `read(buf, len)` returns bytes, 0 when nothing can move now, and -1 when the link dropped.
@@ -24,20 +26,20 @@ write error closes the link, logs it and schedules the next attempt; the caller 
   `idle_timeout()` ms since the link came up or the last byte, and is an inline no-op while the link is down or
   `idle_timeout()` is `0` (the default). An idle close is logged at info level and otherwise works like a drop:
   `connected()` turns false and a client waits the reconnect interval before the next attempt.
-- `note_io()` restarts the idle clock. A caller that skips a read because it cannot take more bytes (`tcp_uart`
-  with a full receive buffer, `uart_tcp` with no room in the UART) calls it, so a busy link is not taken for a
-  quiet one.
+- `note_io()` restarts the idle clock. A caller that skips a read because it cannot take more bytes (a full
+  receive buffer, no room in the UART) calls it, so a busy link is not taken for a quiet one.
 
 `consume_role_sockets(component)` in `socket/__init__.py` does the socket accounting for a role keyed
 schema: one stream socket always, plus one listen socket when `role` is `server`.
 
 `final_validate_idle_timeout` in `socket/__init__.py` is a `FINAL_VALIDATE_SCHEMA` for a schema with a `timeout`
-key that has a default: `0s` passes, and any other value shorter than one main loop pass is rejected, because the
-link would close between two polls. Assign it as `FINAL_VALIDATE_SCHEMA` or inside `cv.All(...)`; it reads the key
-without a fallback.
+key that has a default: `0s` passes, and any other value shorter than one main loop pass is rejected.
+Assign it as `FINAL_VALIDATE_SCHEMA` or inside `cv.All(...)`; it reads the key
+without a fallback. The key must be validated as a time period, for example with
+`cv.positive_time_period_milliseconds`, because the check reads its `total_milliseconds`.
 
 `get_loop_interval()` in `esphome/core/config.py` returns `loop_interval` from the `esphome:` block, or
 `DEFAULT_LOOP_INTERVAL` (16 ms) when it is not set. It reads the full configuration, so call it only from a
 `FINAL_VALIDATE_SCHEMA`.
 
-`uart_tcp` and `tcp_uart` use the link, `consume_role_sockets` and `final_validate_idle_timeout`.
+`uart_tcp` is the first caller; `tcp_uart` follows in esphome#20026.

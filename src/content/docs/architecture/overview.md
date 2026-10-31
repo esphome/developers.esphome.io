@@ -150,7 +150,7 @@ C++ declared in the parentheses of `cg.add()` will be added to the generated cod
 
 ### Generated functions
 
-`cg.static_function(name, return_type, parameters, body, before=None)` emits
+`cg.static_function(name, return_type, parameters, body, add_global_=None)` emits
 `static <return_type> <name>(<parameters>) { <body> }` and returns an expression naming the function, for use as a
 template argument or a function pointer. The declaration goes with the other globals, so the function can be named at
 once; the body goes after the user includes, where every id is in scope. `body` is a list of C++ statements.
@@ -159,43 +159,50 @@ once; the body goes after the user includes, where every id is in scope. `body` 
 fn = cg.static_function("esphome__my_script__fn", cg.void, [(cg.int32, "x")], ["ESP_LOGD(\"main\", \"x=%d\", x);"])
 ```
 
-Pass `before`, a global statement emitted earlier, when that statement must already see the function; the declaration
-is then placed ahead of it instead of at the end of the globals.
+`add_global_` takes the declaration instead of the end of the globals, for a declaration that must come before a
+global emitted earlier, such as a `LatePvariable`'s place (below).
 
 ### Objects whose class is known later
 
 `cg.Pvariable` and `cg.new_Pvariable` need the object's class up front. Sometimes the class depends on code that is only
-generated afterwards, while that code must already refer to the object. A script, for example, is a
-`FunctionScript` templated on a generated function when all of its actions are inline, and a `SingleScript` with an
-`Automation` otherwise; which one is only known after its actions are built, and those actions can execute or stop the
-script itself.
+generated afterwards, while that code must already refer to the object. A script, for example, is a `FunctionScript`
+templated on a generated function when all of its actions are inline, and otherwise the class of its mode (such as
+`SingleScript` or `QueueingScript`) with an `Automation`; which one is only known after its actions are built, and
+those actions can execute or stop the script itself.
 
-`cg.LatePvariable(id_)` registers the variable at once, so `cg.get_variable()` and lambdas can use it, and reserves its
-place in the globals and in `setup()`. `define(type_, *args)` later creates it there as `type_` with the constructor
-arguments `args`, exactly as `cg.new_Pvariable` would have. `globals` is its reserved place among the globals, for a
-declaration that must come before it. From the script component (esphome/esphome#22037):
+`cg.LatePvariable(id_)` registers the variable at once and reserves its place in the globals and in `setup()`:
+
+- `var` is the variable, used like the result of `cg.new_Pvariable` (method calls, `cg.get_variable()` elsewhere,
+  lambdas) before the class is known.
+- `id` is the ID; its `type` is the class so far, and the final one after `define()`.
+- `global_slot.add(statement)` puts a global declaration in its place, ahead of the variable.
+- `define(type_, *args)` creates it in its place as `type_`, with the same arguments as `cg.new_Pvariable` (optional
+  `TemplateArguments` first, then the constructor arguments).
+
+Abridged from the script component (esphome/esphome#22037), where `template` holds the script's parameter types:
 
 ```python
 id_ = conf[CONF_ID].copy()
-id_.type = SCRIPT_MODES[conf[CONF_MODE]].template(template)
+id_.type = id_.type.template(template)  # e.g. script::SingleScript<int>
 late = cg.LatePvariable(id_)
-script = late.var
-cg.add(script.set_name(cg.LogStringLiteral(id_.id)))
+cg.add(late.var.set_name(cg.LogStringLiteral(id_.id)))
 ...
+# The function is declared in the script's place, so the class can name it
 fn = await automation.build_automation_or_run_function(
-    script, func_args, conf, conf[CONF_ID], before=late.globals
+    late.var, func_args, conf, late.global_slot.add
 )
-script_class = script.base.type
+script_class = late.id.type  # actions that wait: keep the mode's class
 if fn is not None:
-    # The mode template on FunctionBody, e.g. script::SingleMode<script::FunctionBody<>>
-    mode_class = MODE_TEMPLATES[conf[CONF_MODE]].template(FunctionBody.template(*types), *types)
-    script_class = FunctionScript.template(mode_class, fn, *types)
+    # All inline: FunctionScript<SingleMode<FunctionBody<int>, int>, fn, int> and so on
+    script_class = FunctionScript.template(
+        MODES[conf[CONF_MODE]][1].template(FunctionBody.template(template), *template), fn, *template
+    )
 late.define(script_class)
 ```
 
 Use `cg.new_Pvariable` whenever the class is known when the object is created; use `cg.LatePvariable` only when it is
-not. Every `LatePvariable` must be defined, and nothing may touch the object in `setup()` before its place there (the
-pointer itself can be passed around).
+not. Every `LatePvariable` must be defined, and code in `setup()` may only use its pointer, not the object, before its
+place there.
 
 ## Runtime
 

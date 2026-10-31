@@ -420,6 +420,26 @@ The action is the core `ApplyAction<Ts...>`, which stores one function pointer. 
 
 `cover.control` and `cover.template.publish` in the ESPHome repository are in-tree examples; `sx127x.send_packet` and `uart.write` show `ApplyBytes`. The hand-written class below is for actions whose `play()` has logic beyond forwarding values.
 
+A hand-written action whose `play()` takes a byte payload declares `TEMPLATABLE_BYTES(data)` and fills it with `automation.templatable_bytes(config[CONF_DATA], args, var.set_data_template, var.set_data_static, "my_data")`; in `play()`, `this->data_.visit([&](const uint8_t *data, size_t len) { ... }, x...)` passes the payload. A user lambda returns `std::vector<uint8_t>`, so it allocates. When the payload has a fixed maximum size, declare `TEMPLATABLE_BUFFER(data, Type)` instead, where `Type` is a fixed-size container with `data()`, `size()` and `resize()`, and pass `return_type=` with the same type, so the lambda returns it on the stack. Cap a constant payload at the container's capacity in the schema. `canbus.send` does this with its `StaticVector`-based `CanPayload` ([esphome/esphome#22043](https://github.com/esphome/esphome/pull/22043)):
+
+```cpp
+template<typename... Ts> class CanbusSendAction final : public Action<Ts...>, public Parented<Canbus> {
+  TEMPLATABLE_BUFFER(data, CanPayload)
+  // ...
+};
+```
+
+```python
+await automation.templatable_bytes(
+    config[CONF_DATA],
+    args,
+    var.set_data_template,
+    var.set_data_static,
+    "canbus_data",
+    return_type=CanPayload,
+)
+```
+
 ### Python
 
 When `play()` has its own logic but the builder only needs to look up the parent component and construct the C++ object, register the action with one call and no builder function:

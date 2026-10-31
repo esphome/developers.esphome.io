@@ -329,3 +329,7 @@ frame. Call it only right after `feed()` returned the frame, and use `reset()` o
 forgets the partial frame, for example after sending a new command or after a timeout. Besides the buffer the reader
 keeps one byte for its position, or two bytes when `N` is more than 255. It is available in ESPHome 2026.11.0 and
 later (esphome/esphome#21446).
+
+## See Also
+
+- [Virtual UART](/architecture/components/uart_virtual/)

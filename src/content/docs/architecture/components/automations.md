@@ -357,7 +357,7 @@ App.register_component_(startuptrigger_id, 3);
 
 The component is registered before the actions are built, so it keeps its place among components with the same setup priority.
 
-A trigger whose id is under another key, or whose class takes more template arguments, passes `id_key` and `template_args`; they come after the function and the priority bits, and a hand-set id keeps its Trigger without them. `interval` builds a `PollingComponent` this way, templated on its startup delay:
+A trigger whose id is under another key, or whose class takes more template arguments, passes `id_key` and `template_args`; they come after the function and the priority bits, and a hand-set id keeps its Trigger without them. `trigger_setup` runs only on that Trigger, for settings the template arguments carry on the generated class. `interval` builds a `PollingComponent` this way, templated on its startup delay:
 
 ```python
 for conf in config:
@@ -366,7 +366,12 @@ for conf in config:
     else:
         component_class, template_args = IntervalCallback, []
     var = await automation.build_component_automation(
-        conf, component_class, id_key=CONF_ID, template_args=template_args
+        conf,
+        component_class,
+        id_key=CONF_ID,
+        template_args=template_args,
+        # A hand-set id keeps the IntervalTrigger, which takes the delay at run time
+        trigger_setup=partial(_set_startup_delay, startup_delay) if startup_delay else None,
     )
     cg.add(var.set_update_interval(conf[CONF_INTERVAL]))
 ```

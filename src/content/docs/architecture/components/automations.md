@@ -351,6 +351,7 @@ for conf in config.get(CONF_ON_BOOT, []):
 `StartupCallback`, `ShutdownCallback` and `LoopCallback` are in `esphome/core/base_automation.h`. Generated:
 
 ```cpp
+// on_boot with priority: 800; 0x44480000 is 800.0f
 new(startuptrigger_id) StartupCallback<esphome__startuptrigger_id__fn, 0x44480000u>();
 App.register_component_(startuptrigger_id, 3);
 ```

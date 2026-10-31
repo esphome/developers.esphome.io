@@ -175,7 +175,8 @@ those actions can execute or stop the script itself.
 - `var` is the variable, used like the result of `cg.new_Pvariable` (method calls, `cg.get_variable()` elsewhere,
   lambdas) before the class is known.
 - `id` is the ID; its `type` is the class so far, and the final one after `define()`.
-- `global_slot.add(statement)` puts a global declaration in its place, ahead of the variable.
+- `global_slot.add(statement)` puts a global declaration in its place. The place is filled in order and `define()`
+  adds the variable to it, so call `global_slot.add()` before `define()` for a declaration the variable needs.
 - `define(type_, *args)` creates it in its place as `type_`, with the same arguments as `cg.new_Pvariable` (optional
   `TemplateArguments` first, then the constructor arguments).
 
@@ -192,13 +193,17 @@ fn = await automation.build_automation_or_run_function(
     late.var, func_args, conf, late.global_slot.add
 )
 script_class = late.id.type  # actions that wait: keep the mode's class
+ctor_args = []
 if fn is not None:
-    # All inline: FunctionScript<SingleMode<FunctionBody<int>, int>, fn, int> and so on
-    # (queued scripts use one FunctionPointerScript class, given fn as a constructor argument)
-    script_class = FunctionScript.template(
-        MODES[conf[CONF_MODE]][1].template(FunctionBody.template(template), *template), fn, *template
-    )
-late.define(script_class)
+    # All inline, e.g. SingleMode<FunctionBody<int>, int>
+    mode_class = MODES[conf[CONF_MODE]][1].template(FunctionBody.template(template), *template)
+    if conf[CONF_MODE] == CONF_QUEUED:
+        # One class for all queued scripts, given fn as a constructor argument
+        script_class = FunctionPointerScript.template(mode_class, *template)
+        ctor_args = [fn]
+    else:
+        script_class = FunctionScript.template(mode_class, fn, *template)
+late.define(script_class, *ctor_args)
 ```
 
 Use `cg.new_Pvariable` whenever the class is known when the object is created; use `cg.LatePvariable` only when it is

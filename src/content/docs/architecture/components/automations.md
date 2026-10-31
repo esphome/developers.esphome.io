@@ -339,7 +339,7 @@ The trigger needs to track mutable state (`last_on_`) across callback invocation
 
 #### Triggers that are components
 
-A trigger with no arguments that is also a `Component`, fired from `setup()`, `on_shutdown()` or `loop()` like the core `on_boot`, `on_shutdown` and `on_loop`, is built with `build_component_automation`. It creates and registers `component_class`, templated on a generated function and, when `priority` is given, on the priority's float bit pattern. The function runs the actions directly when they are all inline, with no `Automation` or action objects; otherwise it triggers their `Automation`. A `trigger_id` set by hand keeps the `CONF_TRIGGER_ID` Trigger, so lambdas can still use it:
+A trigger with no arguments that is also a `Component`, fired from `setup()`, `on_shutdown()` or `loop()` like the core `on_boot`, `on_shutdown` and `on_loop`, is built with `build_component_automation`. It creates and registers `component_class`, templated on a generated function and, when `priority` is given, on the priority's float bit pattern. The function runs the actions directly when they are all inline and no `automation_id` was set by hand, with no `Automation` or action objects; otherwise it triggers their `Automation`. A `trigger_id` set by hand keeps the `CONF_TRIGGER_ID` Trigger, so lambdas can still use it:
 
 ```python
 StartupCallback = cg.esphome_ns.class_("StartupCallback", cg.Component)
@@ -357,9 +357,16 @@ App.register_component_(startuptrigger_id, 3);
 
 The component is registered before the actions are built, so it keeps its place among components with the same setup priority.
 
-A trigger whose id is under another key, or whose class takes more template arguments, passes `id_key` and `template_args`; they come after the function and the priority bits, and a hand-set id keeps its Trigger without them. `trigger_setup` runs only on that Trigger, for settings the template arguments carry on the generated class. `interval` builds a `PollingComponent` this way, templated on its startup delay:
+A trigger whose id is under another key, or whose class takes more template arguments, passes `id_key` and `template_args`; they come after the function and the priority bits, and a hand-set id keeps its Trigger without them. `trigger_setup` runs only on that Trigger, for settings the template arguments carry on the generated class. `interval` builds a `PollingComponent` this way, templated on its startup delay (its schema keeps the delay below `UINT32_MAX` ms, so it fits the `uint32_t` template argument):
 
 ```python
+from functools import partial
+
+
+def _set_startup_delay(startup_delay: int, trigger: MockObj) -> None:
+    cg.add(trigger.set_startup_delay(startup_delay))
+
+
 for conf in config:
     if startup_delay := conf[CONF_STARTUP_DELAY].total_milliseconds:
         component_class, template_args = DelayedIntervalCallback, [startup_delay]

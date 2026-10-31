@@ -331,7 +331,9 @@ if (res.temperature.has_value() && this->temperature_sensor_ != nullptr)
 publish_optional(this->temperature_sensor_, res.temperature);
 ```
 
-The helper is defined `inline` in the header, so the compiler decides at each call whether to inline it. Keep the `if`
+It takes an entity pointer, such as a `SUB_SENSOR` or `SUB_BINARY_SENSOR` member. A `SUB_SENSOR_WITH_DEDUP` member is
+not a pointer and already skips an unset sensor, so check only the value:
+`if (res.temperature.has_value()) this->temperature_sensor_.publish_state_if_not_dup(*res.temperature);`. Keep the `if`
 when the value needs changing before it is published. `publish_optional` was added in ESPHome 2026.11.0.
 
 ### Choosing between them

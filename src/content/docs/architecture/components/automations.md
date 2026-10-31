@@ -348,7 +348,6 @@ List each event once with its count define and trigger arguments, then call `bui
 ```python
 _AUTOMATION_LISTS = (
     automation.AutomationList(CONF_ON_KEY, "MY_HUB_ON_KEY_COUNT", [(cg.uint8, "x")]),
-    automation.AutomationList(CONF_ON_TAG, "MY_HUB_ON_TAG_COUNT", [(cg.std_string, "x")]),
 )
 
 

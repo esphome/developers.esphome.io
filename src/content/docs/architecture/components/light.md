@@ -218,7 +218,7 @@ The channel colors object provides a helper for implementing the `get_traits()` 
 white channel.
 
 ```cpp
-light::LightTraits get_traits() override { return this->channel_colors_.traits(); }
+light::LightTraits get_traits() override { return this->internal_accessor_.channel_colors.traits(); }
 ```
 
 When an `AddressableLight` component is constructed, its `accessor_` field initially points to the singleton

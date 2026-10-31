@@ -18,7 +18,7 @@ The user API remains backwards-compatible except that `ESPColorSettable::set(ESP
 
 This change aims to improve the architecture of `AddressableLight` to better support current and future use-cases.
 
-For example, fixing a possible null-pointer dereference for unallocated LED buffers previously required adding a comparison in `ESPColorView` on every LED access as well as code in every subclass of `AddressableLight` that implemented `get_view_internal()` to check whether the the buffer was allocated and skip the indexing calculations which was inefficient.  Moving common code out to a function in [PR #21447](https://github.com/esphome/esphome/pull/21447) helped a bit but it didn't resolve the underlying design issues.
+For example, fixing a possible null-pointer dereference for unallocated LED buffers previously required adding a comparison in `ESPColorView` on every LED access as well as code in every subclass of `AddressableLight` that implemented `get_view_internal()` to check whether the buffer was allocated and skip the indexing calculations which was inefficient.  Moving common code out to a function in [PR #21447](https://github.com/esphome/esphome/pull/21447) helped a bit but it didn't resolve the underlying design issues.
 
 Decoupling buffer access from the `AddressableLight` class enables further opportunities for code reuse and long term evolution.
 
@@ -41,7 +41,7 @@ When an `AddressableLight` component is constructed, its `accessor_` field initi
 Once the `AddressableLight` component is ready to provide access to its LED data, it reassigns `accessor_` to point to the appropriate accessor instance which can be one of the following types:
 
 - `BufferColorAccessor` is the base class for accessors that operate on a linear buffer whose layout is defined by a `ChannelColors` object.  It provides functions for allocating those buffers, clearing effect data, and accessing the contents of the buffers.
-- `CorrectedBufferColorAccessor` applies color correction and uncorrection during each access to the color data.  This is the most commonly used implementation as of the the time of this writing.
+- `CorrectedBufferColorAccessor` applies color correction and uncorrection during each access to the color data.  This is the most commonly used implementation as of the time of this writing.
 - `RawBufferColorAccessor` gets/sets raw color data without color correction and uncorrection.  It is useful for addressable light components that perform color correction elsewhere in the pipeline and for unit tests.
 - Some other subclass of `ESPColorAccessor` that implements another strategy.  For example, `PartitionLightOutput` has a color accessor that resolves the provided index to an LED within a segment of some other addressable light component.
 
@@ -58,7 +58,7 @@ The user API remains compatible with existing code though some function signatur
   - `ESPRangeIterator` is 8 bytes (1 pointer + 1 index) instead of 16 bytes (1 pointer + 3 indices).
   - `Color` is passed by value in a register instead of being passed by reference and copied to the stack.
 - Components can implement their own `ESPColorAccessor` subclass when they need to do something special with less impact on the core architecture (as `light_partition` does).
-- Begins to resolve some technical debt related to how `light_partition` applies color correction to a segment of an address light strip by isolating its dependencies.
+- Begins to resolve some technical debt related to how `light_partition` applies color correction to a segment of an addressable light strip by isolating its dependencies.
 - Cleans up the code a lot!
 
 ### Long-term benefits
@@ -90,13 +90,14 @@ With this new architecture, it becomes possible to implement new kinds of addres
 
 - Changed to hold a union of `r`/`g`/`b`/`w` offsets as discrete fields and a `raw` array for per-channel access with the new `COLOR_CHANNEL_*` constants.
 - Added 0, 3, and 4 argument constructors to initialize the new union members properly.  **This change breaks designated initializers.**
-- Added `get`, `get_channel()`, `set()`, and `set_channel()` methods to access LED data at a specific index within a buffer.
+- Added `get()`, `get_channel()`, `set()`, and `set_channel()` methods to access LED data at a specific index within a buffer.
 - Added `RESERVED_WHITE` to specify a 4 byte encoding without an actual white channel (as used by some SPI LED strips).
 
 `ESPColorAccessor`:
 
 - Defined the abstract base class and documented its invariants.
 - Defined the subclasses `NullColorAccessor`, `BufferColorAccessor`, `RawBufferColorAccessor`, and `CorrectedBufferColorAccessor` as described earlier in this post.
+- Added `allocate()` and `clear_effect_data()` helpers to `BufferColorAccessor` to simplify common implementation tasks for lights.
 
 `ESPColorSettable`:
 
@@ -187,6 +188,7 @@ Miscellaneous changes:
 
     void MyComponent::setup() {
       // Allocate the color data and effect data buffers using the new helper on `CorrectedBufferColorAccessor`.
+      esphome::RAMAllocator<uint8_t> allocator;
       if (!this->internal_accessor_.allocate(allocator, this->num_leds_)) {
         this->mark_failed(LOG_STR("Allocation failed"));
         return;
@@ -254,7 +256,7 @@ After migration, the component incrementally initializes a color accessor in `in
 class MyComponent final : public esphome::light::AddressableLight {
   // ...
 
-  void set_channel_colors(light::ChannelColors channel_colors) {
+  void set_channel_colors(esphome::light::ChannelColors channel_colors) {
     this->internal_accessor_.channel_colors = channel_colors;
   }
 
@@ -339,6 +341,12 @@ void MyComponent::setup() {
 
 #if ESPHOME_VERSION_CODE < VERSION_CODE(2026, 11, 0)
 esphome::light::ESPColorView MyComponent::get_view_internal(int32_t index) const {
+  // ESPColorView checks whether white or effect_data are nullptr during access but it doesn't check the
+  // red, green, or blue pointers, so return pointers to scratch memory if allocation failed.
+  static uint8_t scratch[3];
+  if (this->color_data_ == nullptr)
+    return {&scratch[0], &scratch[1], &scratch[2], nullptr, nullptr, &this->correction_};
+
   const esphome::light::ChannelColors &colors = this->channel_colors_;
   uint8_t *led = this->color_data_ + (index * colors.bytes_per_led());
   return {led + colors.r,

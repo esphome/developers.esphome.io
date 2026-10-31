@@ -171,6 +171,29 @@ is the number of pins. The component
 implements `digital_read_hw()`, which reads the bank into a member, `digital_read_cache()`, which returns one pin from
 that member, and `digital_write_hw()`.
 
+A chip that reads one bank at a time, like `mcp23017` or `pca6416a`, can derive from
+`gpio_expander::BankedGpioExpanderComponent<T, N>` instead. It keeps the last value read from each bank in `input_`,
+one entry per bank, and provides `digital_read_cache()`. `digital_read_hw()` then only reads the bank and stores it.
+Store the value only when the read succeeds, so the other pins of that bank keep their cached state:
+
+```cpp
+class MCP23X17Base : public gpio_expander::BankedGpioExpanderComponent<uint8_t, 16> {
+  ...
+};
+
+bool MCP23X17Base::digital_read_hw(uint8_t pin) {
+  uint8_t data;
+  if (!this->read_reg(pin < 8 ? MCP23X17_GPIOA : MCP23X17_GPIOB, &data)) {
+    this->status_set_warning(LOG_STR(ESP_LOG_MSG_COMM_FAIL));
+    return false;
+  }
+  this->input_[pin / 8] = data;
+  return true;
+}
+```
+
+`BankedGpioExpanderComponent` is available in ESPHome 2026.11.0 and later (esphome/esphome#22056).
+
 The base class also handles an optional active-low interrupt line from the chip. Add
 `gpio_expander.INTERRUPT_EXPANDER_SCHEMA` to the schema, which is `cv.COMPONENT_SCHEMA` with an optional
 `interrupt_pin`, and set the pin in `to_code`. `pcf8574` is the example here:

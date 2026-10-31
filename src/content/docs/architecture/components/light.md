@@ -232,7 +232,7 @@ to the appropriate accessor instance which can be one of the following types:
 - `BufferColorAccessor` is the base class for accessors that operate on a linear buffer whose layout is defined
   by a `ChannelColors` object.
 - `CorrectedBufferColorAccessor` applies color correction and uncorrection during each access to the color data.
-  This is the most commonly used implementation as of the the time of this writing.
+  This is the most commonly used implementation as of the time of this writing.
 - `RawBufferColorAccessor` gets/sets raw color data without color correction and uncorrection.  It is useful for
   addressable light components that perform color correction elsewhere in the pipeline and for unit tests.
 - Some other subclass of `ESPColorAccessor` that implements another strategy.  For example, `PartitionLightOutput`

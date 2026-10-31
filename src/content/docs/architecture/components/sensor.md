@@ -80,8 +80,9 @@ CONFIG_SCHEMA = cv.Schema(
 )
 ```
 
-This returns exactly the same schema as passing `unit_of_measurement`, `device_class` and `state_class` yourself.
-The accuracy, icon, entity category and every other argument are still yours to set. Passing a value the preset
+Every preset sets the unit, device class and state class, and some also set an icon (see below). This returns
+exactly the same schema as passing those values yourself. The accuracy, entity category, any icon the preset does
+not set and every other argument are still yours to set. Passing a value the preset
 already sets (for example `kind=sensor.TEMPERATURE, unit_of_measurement=...`) raises an error; write the values by
 hand when your sensor does not match a preset exactly.
 

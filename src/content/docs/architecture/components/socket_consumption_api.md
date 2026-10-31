@@ -72,21 +72,22 @@ Count all sockets your component uses:
 
 ```python
 # Web server with one listener
-socket.consume_sockets(1, "my_server")
+socket.consume_sockets(1, "my_server", socket.SocketType.TCP_LISTEN)
 ```
 
 **Client connections:** Add expected concurrent connections:
 
 ```python
 # API: 1 listener + 3 typical concurrent clients
-socket.consume_sockets(4, "api")
+socket.consume_sockets(1, "api", socket.SocketType.TCP_LISTEN)
+socket.consume_sockets(3, "api", socket.SocketType.TCP)
 ```
 
 **Multicast sockets:** Count IPv4 and IPv6 separately:
 
 ```python
 # mDNS: separate sockets for IPv4 and IPv6
-socket.consume_sockets(2, "mdns")
+socket.consume_sockets(2, "mdns", socket.SocketType.UDP)
 ```
 
 **Multiple instances:** Register per-instance if `MULTI_CONF` is enabled:
@@ -94,7 +95,9 @@ socket.consume_sockets(2, "mdns")
 ```python
 def _consume_camera_sockets(config):
     # Each camera instance needs 3 sockets (1 listener + 2 clients)
-    socket.consume_sockets(3, f"esp32_camera_web_server_{config[CONF_ID]}")(config)
+    name = f"esp32_camera_web_server_{config[CONF_ID]}"
+    socket.consume_sockets(1, name, socket.SocketType.TCP_LISTEN)(config)
+    socket.consume_sockets(2, name, socket.SocketType.TCP)(config)
     return config
 ```
 
@@ -106,7 +109,7 @@ def _consume_camera_sockets(config):
 def _consume_mqtt_sockets(config):
     """MQTT needs one socket for broker connection."""
     from esphome.components import socket
-    socket.consume_sockets(1, "mqtt")(config)
+    socket.consume_sockets(1, "mqtt", socket.SocketType.TCP)(config)
     return config
 
 CONFIG_SCHEMA = cv.All(
@@ -123,7 +126,8 @@ CONFIG_SCHEMA = cv.All(
 def _consume_web_server_sockets(config):
     """Web server needs 1 listener + 2 concurrent clients."""
     from esphome.components import socket
-    socket.consume_sockets(3, "web_server")(config)
+    socket.consume_sockets(1, "web_server", socket.SocketType.TCP_LISTEN)(config)
+    socket.consume_sockets(2, "web_server", socket.SocketType.TCP)(config)
     return config
 
 CONFIG_SCHEMA = cv.All(
@@ -141,7 +145,9 @@ def _consume_camera_sockets(config):
     """Each camera web server needs 3 sockets."""
     from esphome.components import socket
     # Use unique consumer name per instance
-    socket.consume_sockets(3, f"camera_{config[CONF_ID]}")(config)
+    name = f"camera_{config[CONF_ID]}"
+    socket.consume_sockets(1, name, socket.SocketType.TCP_LISTEN)(config)
+    socket.consume_sockets(2, name, socket.SocketType.TCP)(config)
     return config
 
 CONFIG_SCHEMA = cv.All(
@@ -155,7 +161,7 @@ CONFIG_SCHEMA = cv.All(
 
 ## How It Works
 
-1. **Registration Phase:** During configuration validation, each component calls `socket.consume_sockets(count, name)` to register its socket needs.
+1. **Registration Phase:** During configuration validation, each component calls `socket.consume_sockets(count, name, type)` to register its socket needs. `type` is optional and defaults to `SocketType.TCP`.
 
 1. **Accumulation:** ESPHome stores these registrations in `CORE.data[KEY_SOCKET_CONSUMERS]`, accumulating the total across all components.
 

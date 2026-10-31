@@ -78,8 +78,8 @@ CONFIG_SCHEMA = cv.Schema(
 )
 ```
 
-Every preset sets the unit, device class and state class, and some also set an icon and a default
-`accuracy_decimals` (see below). This returns exactly the same schema as passing those values yourself.
+Each preset sets the unit, device class and state class shown in its row of the table below, and some also set an
+icon and a default `accuracy_decimals`. This returns exactly the same schema as passing those values yourself.
 
 The default decimals are the precision most sensors of that kind use. Pass `accuracy_decimals=` to override it when
 your chip reports more or less precision, as the humidity sensor above does. Every other value the preset sets is
@@ -124,8 +124,9 @@ set and every other argument are still yours to set.
 
 `PM1`, `PM25` and `PM10` also set the `mdi:chemical-weapon` icon, the icon nearly every particulate sensor uses, and
 `DURATION_H` sets `mdi:timer-outline`. A `-` means the preset sets no default decimals, because sensors of that kind
-vary too much. "none" means the preset leaves that value unset; the generic presets at the end are for
-readings Home Assistant has no device class for, so pick a specific preset when one fits.
+vary too much. "none" means the preset leaves that value unset. The presets with no device class
+(`MASS_CONCENTRATION`, `REACTIVE_ENERGY_KVARH`, `PERCENT`, `ANGLE`, `LENGTH_M` and `RESISTANCE`) match how those
+readings are configured today; pick a preset with a device class when one fits.
 
 ### Code generation
 

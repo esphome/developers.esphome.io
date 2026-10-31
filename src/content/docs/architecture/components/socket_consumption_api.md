@@ -140,10 +140,16 @@ default of 7, so a component that keeps long-lived connections (for example a st
 server runs out of slots and purges the oldest connection. Call `add_httpd_clients()` during config validation, and
 do not register the same clients again with `socket.consume_sockets()`.
 
+If the user sets `CONFIG_LWIP_MAX_SOCKETS` in `sdkconfig_options`, the limit is capped at that value minus three
+(the listening socket and the two UDP control sockets), even when that is below 7. For example, a value of 9 allows
+6 clients.
+
 `web_server_idf` registers the two UDP control sockets that the ESP-IDF HTTP server opens, so components never count
 those.
 
-Short requests that close right away, like a Prometheus scrape, need no registration.
+Short requests that close right away, like a Prometheus scrape, need no registration, but each one holds a client
+slot while it is served. If registered long-lived connections fill every slot, such a request makes the server purge
+one of them, so register one more client when short requests must not interrupt them.
 
 ### Multi-Instance Component (Camera)
 
@@ -193,9 +199,11 @@ esp32:
     sdkconfig_options:
       CONFIG_LWIP_MAX_SOCKETS: "8"  # Too low!
 
-# Warning: CONFIG_LWIP_MAX_SOCKETS is set to 8 but components need 16 sockets:
+# Warning: CONFIG_LWIP_MAX_SOCKETS is set to 8 but components need 22 sockets:
 #   - api: 4
-#   - web_server: 3
+#   - web_server: 5
+#   - web_server_base: 1
+#   - web_server_idf: 2
 #   - mdns: 2
 #   - ota: 1
 #   - mqtt: 1

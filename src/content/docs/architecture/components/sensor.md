@@ -318,6 +318,27 @@ nothing. `has_sensor()` tells whether the sensor is configured, and `get_sensor(
 also be used directly, for example in a `std::array` of per-target sensors. `SensorWithDedup` was added in ESPHome
 2026.11.0.
 
+#### Publishing optional readings
+
+A parser that fills a struct of `optional` fields, one per reading it found in a packet, publishes each field only
+when it has a value and the entity is configured. `publish_optional()` from `esphome/core/entity_base.h` does both
+checks, in one call per field. It works for any entity with a matching `publish_state()`, such as a binary sensor
+with an `optional<bool>` field:
+
+```cpp
+// Before
+if (res.temperature.has_value() && this->temperature_sensor_ != nullptr)
+  this->temperature_sensor_->publish_state(*res.temperature);
+
+// After
+publish_optional(this->temperature_sensor_, res.temperature);
+```
+
+It takes an entity pointer, such as a `SUB_SENSOR` or `SUB_BINARY_SENSOR` member. A `SUB_SENSOR_WITH_DEDUP` member is
+not a pointer and already skips an unset sensor, so check only the value:
+`if (res.temperature.has_value()) this->temperature_sensor_.publish_state_if_not_dup(*res.temperature);`. Keep the `if`
+when the value needs changing before it is published. `publish_optional` was added in ESPHome 2026.11.0.
+
 ### Choosing between them
 
 Neither pattern is the "modern" one and neither is deprecated. They express different relationships between a device and

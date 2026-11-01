@@ -233,3 +233,29 @@ async def to_code(config: ConfigType) -> None:
 
 In C++, call `start()` and `stop()` on the `MicrophoneSource` rather than on the microphone; both are safe to call more
 than once. Use `get_audio_stream_info()` for the format of the converted audio.
+
+### Voice assistant buffer space
+
+`voice_assistant` copies microphone audio into one ring buffer per configured microphone source and drains the rings
+from its main loop. A microphone that delivers audio faster than real time (for example, one that replays audio captured
+before the wake word) can overwrite samples in these rings if it does not know how much space is left.
+`VoiceAssistant::get_microphone_buffer_free()` reports that space:
+
+```cpp
+#ifdef USE_VOICE_ASSISTANT_MICROPHONE_BUFFER_STATE
+const size_t free_bytes = this->voice_assistant_->get_microphone_buffer_free();
+#endif
+```
+
+- The result is the minimum free bytes across the configured microphone rings. It is per ring, not a sum; each ring
+  holds mono 16-bit samples, so divide by 2 for samples.
+- It returns 0 when the assistant is not in `STREAMING_MICROPHONE` or a configured ring is missing.
+- Call it from the main loop. It does not reserve space: check it immediately before you publish each block, and keep
+  some space free, because the assistant stops draining the rings while its API connection cannot send.
+- It reports local buffer space only, not that Home Assistant has received the audio.
+
+The getter is compiled only when a component requests it. Add the define in your component's `to_code()`:
+
+```python
+cg.add_define("USE_VOICE_ASSISTANT_MICROPHONE_BUFFER_STATE")
+```

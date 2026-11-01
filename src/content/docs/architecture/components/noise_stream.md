@@ -26,6 +26,8 @@ Nothing is virtual.
 
 - The constructor takes the key, a pointer to 32 bytes that outlive the stream, and whether this end speaks
   first. The TCP client is the initiator.
+- `set_log_tag(tag)` from `setup()` sets the tag of the stream's log lines, normally the component's own `TAG`. The
+  stream keeps the pointer. Without the call the tag is `noise`.
 - `up(link)` once per loop, also while the link is down. It returns true once both Hellos are through, and it is
   inline then and while the link is down. While the link is up and the session is not, it runs the handshake; a
   failed handshake, or one not finished 60 seconds after the connection came up, closes the link and calls
@@ -45,6 +47,9 @@ Nothing is virtual.
   its MAC and sends. Bytes written between two flushes go into frames of at most 480 plaintext bytes; a longer write
   is split, so the stream keeps only a receive buffer of about 500 bytes. When the link was closed under an open
   frame, `flush()` drops the frame, resets the session and returns false.
+- `reset()` forgets the session. `up()` does this when it finds the link closed, and `flush()` when the link was closed
+  under an open frame. A component that closes the link itself and may reopen it before its next `up()` calls `reset()`,
+  as `up()` would not see the link down.
 - A responder takes the spare ephemeral key when one is ready, as the API server does. With the API in the build,
   the API server refills the slot; without it, a responder prepares a new key while its link is down. An initiator
   leaves the slot alone.
@@ -151,6 +156,8 @@ void loop() override {
     this->rx_pending_ = count == static_cast<ssize_t>(sizeof(buf));
   }
   this->flush_();
+  // After the handshake, only this component checks the idle timeout
+  this->link_.check_idle();
 }
 
 bool link_up_() {

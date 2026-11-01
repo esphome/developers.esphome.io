@@ -374,6 +374,45 @@ if (std::isnan(humidity))
 
 This helper was added in ESPHome 2026.11.0.
 
+## Filters that only compute a value
+
+A filter that keeps no state between values, such as `offset` or `multiply`, does not need its own C++ class. Register
+it on the domain's `APPLY_FILTER` (`sensor`, `binary_sensor` and `text_sensor` each define one in their `__init__.py`) and codegen emits one
+function per filter, with the config values built in. The filter object is then only the `Filter` base, and filters
+with identical constant settings share one function. A filter with a `!lambda` value always gets its own function, so
+any `static` state in the lambda stays separate:
+
+```python
+from esphome import automation
+import esphome.codegen as cg
+from esphome.components.sensor import APPLY_FILTER
+import esphome.config_validation as cv
+
+APPLY_FILTER.register(
+    "multiply",
+    cv.templatable(cv.float_),
+    automation.ApplyCall("return x * {};", ((automation.WHOLE_CONFIG, cg.float_),)),
+)
+```
+
+```cpp
+// generated for `multiply: 0.1`
+static std::optional<float> esphome__sensor_applyfilter_id__fn(float x) { return x * 0.1f; }
+```
+
+- Each `ApplyCall` is one statement whose `{}` take config values. A constant is built in, and a `!lambda` value
+  becomes its own function, so an id named like the filter's `x` still means that entity. `WHOLE_CONFIG` is the key for
+  a filter whose schema is a single value. A statement whose keys are all missing is skipped.
+- The function receives `x` and returns what the domain's filters return: `optional<float>` for sensors,
+  `optional<bool>` for binary sensors (which also receive the filter, to schedule a delayed output), and `bool` after
+  changing `x` in place for text sensors.
+- When the statements depend on the shape of the config (a shorthand value or a mapping, for example), pick them in
+  the filter's `to_code` and call `await APPLY_FILTER.build(name, config, filter_id, *statements)`.
+- Keep a C++ filter class when the filter remembers anything between values (windows, throttling, the last value) or
+  uses the scheduler on its own.
+
+These helpers were added in ESPHome 2026.11.0.
+
 ## Following another entity
 
 A sensor that only republishes what another entity or a hub reports needs no C++ class. Create a plain `sensor::Sensor`

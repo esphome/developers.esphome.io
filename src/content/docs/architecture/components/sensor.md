@@ -62,6 +62,72 @@ Passing your class (`MySensor`) as the first argument tells the helper which cla
 need a separate `cv.GenerateID()`. The `.extend(cv.polling_component_schema("60s"))` call adds the `update_interval`
 option with a default of 60 seconds.
 
+### Measurement presets
+
+Most sensors measure something common, and for those the unit, device class and state class always come together.
+Pass `kind=` with one of the presets in `esphome.components.sensor` instead of writing the three values by hand:
+
+```python
+CONFIG_SCHEMA = cv.Schema(
+    {
+        cv.Optional(CONF_TEMPERATURE): sensor.sensor_schema(kind=sensor.TEMPERATURE),
+        cv.Optional(CONF_HUMIDITY): sensor.sensor_schema(
+            kind=sensor.HUMIDITY, accuracy_decimals=2
+        ),
+    }
+)
+```
+
+Each preset sets the unit, device class and state class shown in its row of the table below, and some also set an
+icon and a default `accuracy_decimals`. This returns exactly the same schema as passing those values yourself.
+
+The default decimals are the precision most sensors of that kind use. Pass `accuracy_decimals=` to override it when
+your chip reports more or less precision, as the humidity sensor above does. Every other value the preset sets is
+fixed: passing it as well (for example `kind=sensor.TEMPERATURE, unit_of_measurement=...`) raises an error, so write
+the values by hand when your sensor does not match a preset exactly. The entity category, any icon the preset does not
+set and every other argument are still yours to set.
+
+| Preset | Unit | Device class | State class | Default decimals |
+|---|---|---|---|---|
+| `TEMPERATURE` | `°C` | `temperature` | `measurement` | 1 |
+| `HUMIDITY` | `%` | `humidity` | `measurement` | 1 |
+| `BATTERY` | `%` | `battery` | `measurement` | 0 |
+| `PRESSURE` | `hPa` | `pressure` | `measurement` | 1 |
+| `ILLUMINANCE` | `lx` | `illuminance` | `measurement` | 0 |
+| `CARBON_DIOXIDE` | `ppm` | `carbon_dioxide` | `measurement` | 0 |
+| `MASS_CONCENTRATION` | `µg/m³` | none | `measurement` | 0 |
+| `PM1` | `µg/m³` | `pm1` | `measurement` | 0 |
+| `PM25` | `µg/m³` | `pm25` | `measurement` | 0 |
+| `PM10` | `µg/m³` | `pm10` | `measurement` | 0 |
+| `SIGNAL_STRENGTH` | `dBm` | `signal_strength` | `measurement` | 0 |
+| `VOLTAGE` | `V` | `voltage` | `measurement` | - |
+| `CURRENT` | `A` | `current` | `measurement` | - |
+| `FREQUENCY` | `Hz` | `frequency` | `measurement` | - |
+| `POWER` | `W` | `power` | `measurement` | - |
+| `POWER_KW` | `kW` | `power` | `measurement` | 3 |
+| `APPARENT_POWER` | `VA` | `apparent_power` | `measurement` | - |
+| `APPARENT_POWER_KVA` | `kVA` | `apparent_power` | `measurement` | 3 |
+| `REACTIVE_POWER` | `var` | `reactive_power` | `measurement` | - |
+| `REACTIVE_POWER_KVAR` | `kvar` | `reactive_power` | `measurement` | 3 |
+| `POWER_FACTOR` | none | `power_factor` | `measurement` | - |
+| `ENERGY_WH` | `Wh` | `energy` | `total_increasing` | - |
+| `ENERGY_KWH` | `kWh` | `energy` | `total_increasing` | 3 |
+| `REACTIVE_ENERGY_KVARH` | `kvarh` | none | `total_increasing` | 3 |
+| `DISTANCE_MM` | `mm` | `distance` | `measurement` | 0 |
+| `DURATION_H` | `h` | `duration` | `measurement` | 0 |
+| `DURATION_MIN` | `min` | `duration` | `measurement` | 0 |
+| `DURATION_S` | `s` | `duration` | `measurement` | 0 |
+| `PERCENT` | `%` | none | `measurement` | 0 |
+| `ANGLE` | `°` | none | `measurement` | - |
+| `LENGTH_M` | `m` | none | `measurement` | 2 |
+| `RESISTANCE` | `Ω` | none | `measurement` | 0 |
+
+`PM1`, `PM25` and `PM10` also set the `mdi:chemical-weapon` icon, the icon nearly every particulate sensor uses, and
+`DURATION_H` sets `mdi:timer-outline`. A `-` means the preset sets no default decimals, because sensors of that kind
+vary too much. "none" means the preset leaves that value unset. The presets with no device class
+(`MASS_CONCENTRATION`, `REACTIVE_ENERGY_KVARH`, `PERCENT`, `ANGLE`, `LENGTH_M` and `RESISTANCE`) match how those
+readings are configured today; pick a preset with a device class when one fits.
+
 ### Code generation
 
 In `to_code`, use the `sensor.new_sensor()` helper. It calls `cg.new_Pvariable()` for you *and* generates all the code

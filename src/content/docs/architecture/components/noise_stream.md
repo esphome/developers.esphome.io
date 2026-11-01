@@ -204,8 +204,11 @@ has its key in YAML compile none of this.
 - `load_key()` from `setup()`, after `set_log_tag()`, reads the saved key and returns whether the stream has one; a
   key from YAML counts. The key is kept in flash and survives a restart. A saved key that has since become the API
   or OTA key does not count. `load_key()` creates the flash record, never later, because ESP8266 places flash
-  records in the order they are created; until it ran, `set_key()` refuses every key with a warning, as for an
-  `on_boot` action at or above the owner's setup priority.
+  records in the order they are created; until it ran, `set_key()` refuses every key with a warning.
+- `<domain>.set_encryption_key` in `on_boot` needs a `priority` below the owner's setup priority. At or above it, the
+  action runs before `load_key()`, and `set_key()` refuses the key with a warning. `final_validate_stream_key()` assumes
+  that the owner sets up at `setup_priority::AFTER_WIFI` (200) and rejects the action in an `on_boot` automation whose
+  `priority` is 200 or more, the default of 600 included.
 - `set_key(link, key)` takes a base64 key. It refuses, with a warning, a key that does not decode to 32 bytes, the
   all-zeros key, and a key equal to the API key, also one the API got at runtime, or an `esphome` OTA key from YAML.
   The same key again changes nothing. Otherwise it saves the key, resets the session and the retry wait of earlier
@@ -240,3 +243,9 @@ void set_encryption_key(const std::string &key) {
 }
 #endif
 ```
+
+`set_encryption_key()` sits under `USE_NOISE_STREAM_RUNTIME_KEY` because it calls `set_key()`, which exists only with
+that define. `register_set_key_action()` needs no condition: registering an action generates no C++, and a build
+contains a call to `set_encryption_key()` only when its configuration uses the action. `final_validate_stream_key()`
+accepts the action only on an entry with `encryption:` and no `key`, and `new_stream()` defines
+`USE_NOISE_STREAM_RUNTIME_KEY` for such an entry, so the method exists wherever it is called.

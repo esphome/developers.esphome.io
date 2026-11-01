@@ -516,6 +516,24 @@ Same imports as the earlier Python snippets on this page apply (`cg`, `cv`, `aut
 
 Passing a raw value such as `cg.add(var.set_state(config[CONF_STATE]))` worked on 2026.3.x and earlier for literal constants but fails to compile on 2026.4.0 and later, because trivially copyable types use `TemplatableFn` (pointer-sized function-pointer storage, 4 bytes on 32-bit platforms), for which implicit conversion from raw values is not possible. See the [TemplatableFn blog post](/blog/2026/04/09/templatablefn-4-byte-templatable-storage-for-trivially-copyable-types/) for details.
 
+### Sharing generated functions
+
+Codegen that emits one function per instance and templates a class on it (`ApplyAction<fn>`, a filter templated on
+its function) gets one class, vtable and method per instance, even when two instances generate the same body. GCC
+already folds identical plain functions, but not the template instantiations built on them. Pass `share=True` to
+`automation.apply_static_function(id_, return_type, params, body, share=True)`, or call
+`cg.shared_static_function(name, return_type, params, body)` directly, to emit one function per distinct return type,
+parameter list and body and reuse it for every instance that asks for the same one:
+
+```python
+fn = automation.apply_static_function(
+    filter_id, cg.bool_, [(float, "x")], ["return x > 0.5f;"], share=True
+)
+```
+
+Do not share a body that contains user lambda code: a `static` local in it would then be shared between the
+instances. Names are made unique the same way as other globals, so two instances may pass the same name.
+
 ## Conditions
 
 Conditions are template classes that return a boolean to control automation flow.

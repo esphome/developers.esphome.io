@@ -358,6 +358,22 @@ new component with no hub, sub-configs are usually the smaller change.
 Equivalent `SUB_*` macros exist for the other entity types that are commonly exposed this way:
 `SUB_BINARY_SENSOR`, `SUB_BUTTON`, `SUB_NUMBER`, `SUB_SELECT`, `SUB_SWITCH` and `SUB_TEXT_SENSOR`.
 
+## Reading another sensor as an input
+
+Some components take another sensor as an input, such as the temperature and humidity a gas sensor uses for
+compensation. Read it with `sensor::source_value(sensor, min, max)` from `esphome/components/sensor/sensor.h`. It
+returns the sensor's state when it lies in `[min, max]`, and `NAN` when the pointer is null, the sensor has no state
+yet, its state is `NAN` or it is out of range. The caller decides how to handle `NAN` (skip the update or fall back
+to a default) and what to log.
+
+```cpp
+float humidity = sensor::source_value(this->humidity_sensor_, 0.0f, 100.0f);
+if (std::isnan(humidity))
+  humidity = 50;  // the chip's default
+```
+
+This helper was added in ESPHome 2026.11.0.
+
 ## Following another entity
 
 A sensor that only republishes what another entity or a hub reports needs no C++ class. Create a plain `sensor::Sensor`

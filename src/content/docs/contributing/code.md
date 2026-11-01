@@ -233,6 +233,42 @@ Choose containers carefully on embedded systems:
     services.push_back(record1);
     ```
 
+    A hub's list of child entities, listeners or triggers is the most common case: every `register_*()` call
+    comes from code generation, so the count is known at build time. Declare the list with `SLOT_LIST` from
+    `esphome/core/helpers.h` and register each item through `cg.slot_list()`. Each call reserves one slot for
+    that hub and returns the register call; once every `to_code` has run, the define holds the largest count
+    any one hub needs, so every instance of a `MULTI_CONF` hub fits. When nothing registers, no define is
+    emitted and the list and its register method compile out.
+
+    ```python
+    _register_channel = cg.slot_list("MY_HUB_CHANNEL_COUNT", "register_channel")
+
+
+    async def to_code(config: ConfigType) -> None:
+        var = await binary_sensor.new_binary_sensor(config)
+        hub = await cg.get_variable(config[CONF_MY_HUB_ID])
+        cg.add(_register_channel(hub, var))
+    ```
+
+    ```cpp
+    class MyHub : public Component {
+     public:
+    #ifdef MY_HUB_CHANNEL_COUNT
+      SLOT_LIST(MyHubChannel, channels_, register_channel, MY_HUB_CHANNEL_COUNT)
+    #else
+      SLOT_LIST_EMPTY(MyHubChannel, channels_)
+    #endif
+    ```
+
+    `SLOT_LIST` declares the protected `StaticVector<MyHubChannel *, MY_HUB_CHANNEL_COUNT> channels_` and a
+    public `register_channel()` that appends to it; both macros go in a public section. `SLOT_LIST_EMPTY`
+    declares an always-empty `channels_` that takes no space, so code that walks the list needs no `#ifdef` of
+    its own. Bound to its hub with `partial(_register_channel, hub)`, the helper is also a setter for
+    `sensor.sub_sensors()` and the other `sub_*` helpers. When registering takes more than a `push_back`, keep
+    a hand-written method and `StaticVector`, still registered through `cg.slot_list()`. Use
+    `cg.slot_counter()` with the hub as the key only when the C++ side adds itself to the list, so code
+    generation emits no register call.
+
 1. **Runtime-known sizes**: Use `FixedVector` from `esphome/core/helpers.h` when the size is only known at runtime.
 
     ```cpp

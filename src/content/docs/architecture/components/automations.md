@@ -420,6 +420,8 @@ The action is the core `ApplyAction<Ts...>`, which stores one function pointer. 
 
 `cover.control` and `cover.template.publish` in the ESPHome repository are in-tree examples; `sx127x.send_packet` and `uart.write` show `ApplyBytes`. The hand-written class below is for actions whose `play()` has logic beyond forwarding values.
 
+For a hand-written action with a byte payload, see [Byte payloads](#byte-payloads) below.
+
 ### Python
 
 When `play()` has its own logic but the builder only needs to look up the parent component and construct the C++ object, register the action with one call and no builder function:
@@ -515,6 +517,40 @@ async def set_state_to_code(
 Same imports as the earlier Python snippets on this page apply (`cg`, `cv`, `automation`, constants, typing aliases); `CONF_STATE` and `SetValueAction` are defined by the component itself.
 
 Passing a raw value such as `cg.add(var.set_state(config[CONF_STATE]))` worked on 2026.3.x and earlier for literal constants but fails to compile on 2026.4.0 and later, because trivially copyable types use `TemplatableFn` (pointer-sized function-pointer storage, 4 bytes on 32-bit platforms), for which implicit conversion from raw values is not possible. See the [TemplatableFn blog post](/blog/2026/04/09/templatablefn-4-byte-templatable-storage-for-trivially-copyable-types/) for details.
+
+### Byte payloads
+
+A hand-written action takes a byte payload with `TEMPLATABLE_BYTES(data)`:
+
+- In the builder, `await automation.templatable_bytes(config[CONF_DATA], args, var.set_data_template, var.set_data_static, "my_data")` sets either the user lambda or a shared constant table.
+- In `play()`, `visit()` passes the payload as a pointer and length:
+
+  ```cpp
+  void play(const Ts &...x) override {
+    this->data_.visit([this](const uint8_t *data, size_t len) { this->parent_->send(data, len); }, x...);
+  }
+  ```
+
+- A user lambda returns `std::vector<uint8_t>`, so each run allocates.
+
+When the payload has a fixed maximum size, declare `TEMPLATABLE_BUFFER(data, Type)` instead and pass the same type as `return_type=`. The lambda then returns `Type` on the stack. `Type` needs `data()`, `size()` and `resize()`, such as a `StaticVector`; a constant payload longer than its capacity is cut, so cap it in the schema. `canbus.send` does this with its `CanPayload`:
+
+```cpp
+template<typename... Ts> class CanbusSendAction final : public Action<Ts...>, public Parented<Canbus> {
+ public:
+  TEMPLATABLE_BUFFER(data, CanPayload)
+  // ...
+};
+```
+
+```python
+await automation.templatable_bytes(
+    config[CONF_DATA], args, var.set_data_template, var.set_data_static, "canbus_data",
+    return_type=CanPayload,
+)
+```
+
+`TEMPLATABLE_BUFFER` and `return_type=` are available in ESPHome 2026.11.0 and later ([esphome/esphome#22043](https://github.com/esphome/esphome/pull/22043)).
 
 ## Conditions
 

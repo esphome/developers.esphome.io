@@ -337,6 +337,33 @@ class TurnOnTrigger final : public Trigger<> {
 
 The trigger needs to track mutable state (`last_on_`) across callback invocations. A forwarder struct must contain only a single `Automation*` field -- it cannot store extra state. When the trigger logic requires additional fields, use a `Trigger` subclass instead. The `Trigger` base class manages the connection to the `Automation` object.
 
+### Triggers on a value range
+
+An `on_value_range` style trigger (fire when a float state enters `above`/`below`) does not need its own bound members.
+`automation.new_value_range_trigger(trigger_id, parent, config)` creates the trigger with one generated function that
+returns both bounds as an `esphome::ValueRange` for the current value:
+
+```python
+async def to_code(config: ConfigType) -> None:
+    ...
+    for conf in config.get(CONF_ON_VALUE_RANGE, []):
+        trigger = await automation.new_value_range_trigger(conf[CONF_TRIGGER_ID], var, conf)
+        await cg.register_component(trigger, conf)
+        await automation.build_automation(trigger, [(float, "x")], conf)
+```
+
+```cpp
+// generated for `above: 10` / `below: 90`
+static ValueRange esphome__range_trigger__fn(const float x) { return ValueRange{10.0f, 90.0f}; }
+```
+
+The trigger class takes `ValueRange (*)(float x)` in its constructor and calls
+`range_(state).contains(state, previous)`, where `previous` is the trigger's last in-range result; it fires only when
+that goes from false to true. A missing bound is `NAN` and is not checked; with both bounds `NAN` the previous result
+is kept. Constant bounds are written as literals in the generated function, as above. A `!lambda` bound is called with
+the state as `x` (which is `const`, so one bound cannot change what the other sees), and the trigger is declared before
+its bounds, so a bound may refer to its own trigger id.
+
 ### When to use which method
 
 | Scenario | Method | Example |
@@ -347,6 +374,7 @@ The trigger needs to track mutable state (`last_on_`) across callback invocation
 | Different callback arguments or a constant filter | Callback with `params`, `forward`, `when` | [`select on_value`](https://github.com/esphome/esphome/blob/dev/esphome/components/select/__init__.py) -- forwards the option text looked up from the index |
 | Callback carries nothing, automation gets the parent | `build_parent_callback_automation` | [`fan on_state`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/__init__.py) -- forwards `::the_fan` |
 | Registration takes extra arguments | `build_trigger_callback` | [`mqtt on_message`](https://github.com/esphome/esphome/blob/dev/esphome/components/mqtt/__init__.py) -- the component passes the lambda to `subscribe(topic, callback, qos)`, filtered on the configured payload |
+| Fire when a float enters `above`/`below` | `new_value_range_trigger` | `sensor on_value_range` -- the trigger keeps `previous`, the bounds come from one generated `ValueRange` function ([esphome/esphome#21817](https://github.com/esphome/esphome/pull/21817), pending) |
 | Extra state needed | Trigger class | [`fan on_turn_on`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/automation.h) -- `FanTurnOnTrigger` tracks `last_on_` for edge detection (mutable state, can't be a forwarder) |
 | Complex logic (timing, state machine) | Trigger class | [`binary_sensor on_multi_click`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/automation.h) -- `MultiClickTrigger` with timing, cooldown, and multiple state fields |
 

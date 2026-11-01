@@ -96,6 +96,7 @@ export default defineConfig({
                 "architecture/components/mdns",
                 "architecture/components/runtime_image",
                 "architecture/components/deep_sleep",
+                "architecture/components/esp32_hosted",
                 "architecture/components/advanced",
                 {
                   label: "Entity base classes",

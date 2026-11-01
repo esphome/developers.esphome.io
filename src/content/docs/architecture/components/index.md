@@ -743,7 +743,8 @@ starts as `nullptr` and is checked before each call.
 
 - One hub can have several hub functions, such as one for key presses and one for releases.
 - With a `bool` return type each item is a `bool` expression; every item runs and the function returns whether any
-  was `true`, for a hub that logs data no child claimed.
+  was `true`, for a hub that logs data no child claimed. The hub then declares `HUB_PUBLISHER_RETURNING(bool, name, ...)`.
+- `HUB_PUBLISHER` ends on `public:`, so put it in a public section.
 - A child that loses its `Component` base still needs its `dump_config` lines. Give the hub a second hub function
   (`"dump"`, with a `const char *` tag parameter) whose items call a small dump helper per child, and call it from
   the hub's `dump_config()` with the hub's `TAG`.

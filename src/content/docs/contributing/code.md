@@ -263,8 +263,9 @@ Choose containers carefully on embedded systems:
     `SLOT_LIST` goes in a public section and declares a protected `channels_` list and a public
     `register_channel()` that appends to it. Bound to its hub with `partial(register_channel, hub)`, the helper
     is also a setter for `sensor.sub_sensors()` and the other `sub_*` helpers. When registering takes more than
-    a `push_back`, keep a hand-written method over a `SlotList<Entry, MY_HUB_CHANNEL_COUNT>` member, still
-    registered through `cg.slot_list()`. Keep an `#if MY_HUB_CHANNEL_COUNT` only around code that needs a
+    a `push_back`, put `SLOT_LIST_REQUIRES(MY_HUB_CHANNEL_COUNT)` before a hand-written method over a
+    `[[no_unique_address]] SlotList<Entry, MY_HUB_CHANNEL_COUNT>` member, still registered through
+    `cg.slot_list()`. Keep an `#if MY_HUB_CHANNEL_COUNT` only around code that needs a
     registered child's own component, such as its entity type. Use `cg.slot_counter()` instead when the C++
     side adds itself to the list, or when the define gates more than the list: that define is absent when
     nothing requested a slot.

@@ -701,16 +701,16 @@ Keep a C++ class when the entity has state or logic of its own beyond that one c
 The other direction is a hub that reads the device and publishes to its child entities: a status register decoded into
 binary sensors, a key matrix that presses binary sensors, an IMU that feeds axis sensors. Rather than a listener
 subclass per child kept in a list, declare a `cg.HubFunction` once in the hub's `__init__.py`. Each child platform adds
-one item to it, and code generation writes one function per hub with every item in config order, so the children stay
-plain entities and the hub stores a single function pointer:
+one item to it, and code generation writes one function per hub (`esphome__<hub>__status_fn`) with every item in config order and
+passes it to `set_status_publisher()`, so the children stay plain entities and the hub stores a single function
+pointer:
 
 ```python
 # my_hub/__init__.py
 STATUS_PUBLISHER = cg.HubFunction(
-    "status_fn",
+    "status",
     cg.void,
     [(MyHubRegisters.const_ref(), "status")],
-    setter="set_status_publisher",
     define="USE_MY_HUB_STATUS_PUBLISHER",
 )
 STATUS = STATUS_PUBLISHER.param("status")
@@ -725,13 +725,9 @@ async def to_code(config: ConfigType) -> None:
 ```
 
 ```cpp
-// my_hub.h
+// my_hub.h, in the class: declares status_publisher_ (nullptr) and set_status_publisher()
 #ifdef USE_MY_HUB_STATUS_PUBLISHER
-  void set_status_publisher(void (*publisher)(const MyHubRegisters &)) { this->status_publisher_ = publisher; }
-#endif
- protected:
-#ifdef USE_MY_HUB_STATUS_PUBLISHER
-  void (*status_publisher_)(const MyHubRegisters &){nullptr};
+  HUB_PUBLISHER(status, const MyHubRegisters &)
 #endif
 
 // my_hub.cpp, after each read
@@ -749,8 +745,8 @@ starts as `nullptr` and is checked before each call.
 - With a `bool` return type each item is a `bool` expression; every item runs and the function returns whether any
   was `true`, for a hub that logs data no child claimed.
 - A child that loses its `Component` base still needs its `dump_config` lines. Give the hub a second hub function
-  with a `const char *TAG` parameter, add a `LOG_SENSOR("  ", "Voltage", var)`-style item per child, and call it
-  from the hub's `dump_config()` with the hub's `TAG`.
+  (`"dump"`, with a `const char *` tag parameter) whose items call a small dump helper per child, and call it from
+  the hub's `dump_config()` with the hub's `TAG`.
 
 Keep a listener class when a child has its own state or timing beyond publishing what the hub passes in.
 

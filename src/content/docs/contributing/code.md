@@ -233,6 +233,43 @@ Choose containers carefully on embedded systems:
     services.push_back(record1);
     ```
 
+    A hub's list of child entities, listeners or triggers is the most common case: every `register_*()` call
+    comes from code generation, so the count is known at build time. Declare the list with `SLOT_LIST` from
+    `esphome/core/helpers.h`, and create its registration helper with `cg.slot_list()`, passing the hub
+    component's `DOMAIN`. Each call of the helper reserves one slot for that hub and returns the register call;
+    once every `to_code` has run, the define holds the largest count any one hub needs, so every instance of a
+    `MULTI_CONF` hub fits. Whenever that domain is in the build the define exists, as 0 when nothing
+    registered, so neither the list nor the code that walks it needs an `#ifdef`: a list of 0 takes no space,
+    loops over it compile to nothing, and a registration that code generation did not count fails to compile.
+
+    ```python
+    # my_hub/__init__.py
+    register_channel = cg.slot_list("MY_HUB_CHANNEL_COUNT", "register_channel", DOMAIN)
+
+
+    # my_hub/binary_sensor.py
+    async def to_code(config: ConfigType) -> None:
+        var = await binary_sensor.new_binary_sensor(config)
+        hub = await cg.get_variable(config[CONF_MY_HUB_ID])
+        cg.add(register_channel(hub, var))
+    ```
+
+    ```cpp
+    class MyHub : public Component {
+     public:
+      SLOT_LIST(MyHubChannel, channels_, register_channel, MY_HUB_CHANNEL_COUNT)
+    ```
+
+    `SLOT_LIST` goes in a public section and declares a protected `channels_` list and a public
+    `register_channel()` that appends to it. Bound to its hub with `partial(register_channel, hub)`, the helper
+    is also a setter for `sensor.sub_sensors()` and the other `sub_*` helpers. When registering takes more than
+    a `push_back`, put `SLOT_LIST_REQUIRES(MY_HUB_CHANNEL_COUNT)` before a hand-written method over a
+    `[[no_unique_address]] SlotList<Entry, MY_HUB_CHANNEL_COUNT>` member, still registered through
+    `cg.slot_list()`. Keep an `#if MY_HUB_CHANNEL_COUNT` only around code that needs a
+    registered child's own component, such as its entity type. Use `cg.slot_counter()` instead when the C++
+    side adds itself to the list, or when the define gates more than the list: that define is absent when
+    nothing requested a slot.
+
 1. **Runtime-known sizes**: Use `FixedVector` from `esphome/core/helpers.h` when the size is only known at runtime.
 
     ```cpp

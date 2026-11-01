@@ -146,6 +146,9 @@ void MyEvent::loop() {
   const int32_t steps = this->read_steps_();
   if (steps > 0) {
     this->trigger("rotate_right", {{DIMMER_STEPS, steps}});
+  } else if (steps < 0) {
+    // The event type gives the direction, so the variable holds the number of steps
+    this->trigger("rotate_left", {{DIMMER_STEPS, -steps}});
   }
 }
 ```
@@ -158,26 +161,27 @@ void MyEvent::loop() {
   the others: an error for an unknown index, a variable the event type does not carry or a wrong type, a warning for
   a text longer than `max_length`. A text is never cut. The event fires with the values that fit.
 - A variable without a value is missing from the event. An event keeps the values of its last trigger only, and
-  `set_event_types()` clears them; on an event with variables it rejects a list of more than 127 types: it logs an
-  error and keeps the old list and values. The
-  `event_types` of a variable are matched by name: after `set_event_types()` the variable still goes with the types
+  `set_event_types()` clears them.
+- On an event with variables, `set_event_types()` rejects a list of more than 127 types: it logs an error and keeps the
+  old list and values.
+- The `event_types` of a variable are matched by name: after `set_event_types()` the variable still goes with the types
   of those names, in any order, and no other type carries it.
 - `get_last_event_data()` returns an `event::EventData`: `size()` is the number of variables, `has(i)` whether the
   last event set variable `i`, and `get_bool(i)`, `get_int(i)`, `get_float(i)` and `get_string(i)` read it as
-  `false`, `0`, `NAN` or an empty `StringRef` when it is missing or has another type.
-  The `StringRef` points into the event's data and
-  changes with the next trigger. `variable(i)` (for `i` below `size()`; not checked) returns the declaration with its
-  `name` and `type`; on ESP8266 the name is in flash, so use `LOG_STR_ARG()` and the `_P` functions such as
-  `ESPHOME_strlen_P()`.
-- Both calls exist only under `USE_EVENT_DATA`, which codegen defines when at least one event of the build declares
-  variables. Call them directly only if every build of your component creates such an event; if the event or its
-  variables are optional, guard the calls with `#ifdef USE_EVENT_DATA`.
+  `false`, `0`, `NAN` or an empty `StringRef` when it is missing or has another type. The `StringRef` points into the
+  event's data and changes with the next trigger. `variable(i)` (for `i` below `size()`; not checked) returns the
+  declaration with its `name` and `type`; on ESP8266 the name is in flash, so use `LOG_STR_ARG()` and the `_P` functions
+  such as `ESPHOME_strlen_P()`.
+- `trigger()` with values and `get_last_event_data()` exist only under `USE_EVENT_DATA`, which codegen defines when at
+  least one event of the build declares variables. Call them directly only if every build of your component creates such
+  an event; if the event or its variables are optional, guard the calls with `#ifdef USE_EVENT_DATA`.
 
 ### Useful members
 
 - `trigger(const std::string &event_type)`: fires the named event, notifying the front-end.
-- `trigger(const char *event_type, std::initializer_list<EventArg> args)`: fires the named event with values.
-- `get_last_event_data()`: the values of the last event.
+- `trigger(const char *event_type, std::initializer_list<EventArg> args)`: fires the named event with values. Exists
+  only under `USE_EVENT_DATA`.
+- `get_last_event_data()`: the values of the last event. Exists only under `USE_EVENT_DATA`.
 - `get_last_event_type()`: returns the most recently triggered event type as a `StringRef`, or an empty one if
   nothing has fired yet.
 - `has_event()`: whether any event has been triggered since boot.

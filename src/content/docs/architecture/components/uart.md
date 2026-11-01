@@ -156,6 +156,8 @@ config key: the check skips that domain and keeps the claims per `conf_key` in `
 Grouped CI builds share one bus between components, so in testing mode other components are not checked. `uart_tcp`
 uses it.
 
+Finding other components is best effort: bare `id:` references, such as a `uart.write` action, and lambdas are missed.
+
 For other messages or rules, check by hand with `subtree_references_uart()`:
 
 ```python
@@ -187,7 +189,7 @@ def _final_validate(config: ConfigType) -> ConfigType:
 FINAL_VALIDATE_SCHEMA = _final_validate
 ```
 
-The check is best effort: the third argument, `conf_key`, finds the UART under another key than `uart_id`, but bare
+The manual check is best effort: its `conf_key` argument finds the UART under another key than `uart_id`, but bare
 `id:` references, such as a `uart.write` action, and lambdas are not found. The loop above skips the component's own
 domain, which fits a top-level, single-instance component; a platform (whose config sits under `sensor:` and the like)
 or a `MULTI_CONF` component must skip its own config node instead, or it rejects itself and misses a second instance

@@ -235,16 +235,16 @@ Choose containers carefully on embedded systems:
 
     A hub's list of child entities, listeners or triggers is the most common case: every `register_*()` call
     comes from code generation, so the count is known at build time. Declare the list with `SLOT_LIST` from
-    `esphome/core/helpers.h`, and create its registration helper with `cg.slot_list()` in the hub component's
-    `__init__.py`. Each call of the helper reserves one slot for that hub and returns the register call; once
-    every `to_code` has run, the define holds the largest count any one hub needs, so every instance of a
-    `MULTI_CONF` hub fits. Whenever the hub is in the build the define exists, as 0 when nothing registered,
-    so neither the list nor the code that walks it needs an `#ifdef`: a list of 0 takes no space and loops over
-    it compile to nothing.
+    `esphome/core/helpers.h`, and create its registration helper with `cg.slot_list()`, passing the hub
+    component's `DOMAIN`. Each call of the helper reserves one slot for that hub and returns the register call;
+    once every `to_code` has run, the define holds the largest count any one hub needs, so every instance of a
+    `MULTI_CONF` hub fits. Whenever that domain is in the build the define exists, as 0 when nothing
+    registered, so neither the list nor the code that walks it needs an `#ifdef`: a list of 0 takes no space,
+    loops over it compile to nothing, and a registration that code generation did not count fails to compile.
 
     ```python
     # my_hub/__init__.py
-    register_channel = cg.slot_list("MY_HUB_CHANNEL_COUNT", "register_channel")
+    register_channel = cg.slot_list("MY_HUB_CHANNEL_COUNT", "register_channel", DOMAIN)
 
 
     # my_hub/binary_sensor.py

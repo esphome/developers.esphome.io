@@ -88,7 +88,7 @@ the values by hand when your sensor does not match a preset exactly. The entity 
 set and every other argument are still yours to set.
 
 | Preset | Unit | Device class | State class | Default decimals |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | `TEMPERATURE` | `°C` | `temperature` | `measurement` | 1 |
 | `HUMIDITY` | `%` | `humidity` | `measurement` | 1 |
 | `BATTERY` | `%` | `battery` | `measurement` | 0 |

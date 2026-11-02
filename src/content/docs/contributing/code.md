@@ -240,7 +240,8 @@ Choose containers carefully on embedded systems:
     once every `to_code` has run, the define holds the largest count any one hub needs, so every instance of a
     `MULTI_CONF` hub fits. Whenever that domain is in the build the define exists, as 0 when nothing
     registered, so neither the list nor the code that walks it needs an `#ifdef`: a list of 0 takes no space,
-    loops over it compile to nothing, and a registration that code generation did not count fails to compile.
+    loops over it compile to nothing, and registering into a list of 0 fails to compile. Registrations past the
+    count are dropped, so every registration must go through the helper.
 
     ```python
     # my_hub/__init__.py

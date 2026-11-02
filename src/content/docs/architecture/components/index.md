@@ -851,9 +851,26 @@ if (!this->status_comm_result(this->read_bytes(REG_RED_DATA_LSB, buffer, sizeof(
 Without a message the warning says "Communication failed" (`ESP_LOG_MSG_COMM_FAIL`). Pass a `LOG_STR("...")` as the
 second argument for another text, for example
 `this->status_comm_result(ok, LOG_STR("Failed to read one or more registers"))`. Use it for failures after `setup()`;
-a device that cannot be set up at all still calls `mark_failed()`. A component has one warning flag, so a success
-clears a warning set by any other check too; do not mix it with other `status_set_warning()` conditions in the same
-update.
+in `setup()` use `setup_comm_result()` (below). A component has one warning flag, so a success clears a warning set by
+any other check too; do not mix it with other `status_set_warning()` conditions in the same update.
+
+In `setup()`, a failed read or write usually means the device cannot work at all. `setup_comm_result(ok)` marks the
+component failed when `ok` is false and returns `ok`:
+
+```cpp
+// Before
+if (!this->write_byte(REG_RESET, 0)) {
+  this->mark_failed(LOG_STR(ESP_LOG_MSG_COMM_FAIL));
+  return;
+}
+
+// After
+if (!this->setup_comm_result(this->write_byte(REG_RESET, 0)))
+  return;
+```
+
+The failure reason is "Communication failed" (`ESP_LOG_MSG_COMM_FAIL`), or the `LOG_STR("...")` passed as the second
+argument. A success changes nothing, so it is safe to call for each step of `setup()`.
 
 ### Component-specific methods
 

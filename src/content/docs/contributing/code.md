@@ -258,17 +258,28 @@ Choose containers carefully on embedded systems:
     class MyHub : public Component {
      public:
       SLOT_LIST(MyHubChannel, channels_, register_channel, MY_HUB_CHANNEL_COUNT)
+
+      void loop() override {
+        for (auto *channel : this->channels_)
+          channel->update();
+      }
+    };
     ```
 
-    `SLOT_LIST` goes in a public section and declares a protected `channels_` list and a public
-    `register_channel()` that appends to it. Bound to its hub with `partial(register_channel, hub)`, the helper
-    is also a setter for `sensor.sub_sensors()` and the other `sub_*` helpers. When registering takes more than
-    a `push_back`, put `SLOT_LIST_REQUIRES(MY_HUB_CHANNEL_COUNT)` before a hand-written method over a
-    `[[no_unique_address]] SlotList<Entry, MY_HUB_CHANNEL_COUNT>` member, still registered through
-    `cg.slot_list()`. Keep an `#if MY_HUB_CHANNEL_COUNT` only around code that needs a
-    registered child's own component, such as its entity type. Use `cg.slot_counter()` instead when the C++
-    side adds itself to the list, or when the define gates more than the list: that define is absent when
-    nothing requested a slot.
+    `SLOT_LIST` goes in a public section. It declares a protected `channels_` list and a public
+    `register_channel()` that appends to it. The list is a `SlotList<T, N>`: a `StaticVector<T, N>`, or an empty
+    list that takes no space when `N` is 0.
+
+    - **`sub_*` helpers:** bind the helper to its hub to use it as their setter, for example
+      `await sensors(CONF_TEMPERATURE, partial(register_channel, hub))` with `sensors = sensor.sub_sensors(config)`.
+    - **Hand-written register method:** when registering takes more than a `push_back`, put
+      `SLOT_LIST_REQUIRES(MY_HUB_CHANNEL_COUNT)` before the method and store the entries in a
+      `[[no_unique_address]] SlotList<Entry, MY_HUB_CHANNEL_COUNT>` member. Keep the attribute, or an empty list
+      still takes space. Register through `cg.slot_list()` as before.
+    - **`#if` guards:** keep an `#if MY_HUB_CHANNEL_COUNT` only around code that needs a registered child's own
+      component, such as its entity type.
+    - **`cg.slot_counter()`:** use it instead when the C++ side adds itself to the list, or when the define
+      gates more than the list. Its define is absent when nothing requested a slot.
 
 1. **Runtime-known sizes**: Use `FixedVector` from `esphome/core/helpers.h` when the size is only known at runtime.
 

@@ -358,28 +358,24 @@ App.register_component_(startuptrigger_id, 3);
 
 The component is registered before the actions are built, so it keeps its place among components with the same setup priority.
 
-A trigger whose id is under another key, or whose class takes more template arguments, passes `id_key` and `template_args`; they come after the function and the priority bits, and a hand-set id keeps its Trigger without them. `trigger_setup` runs only on that Trigger, for settings the template arguments carry on the generated class. `interval` builds a `PollingComponent` this way, templated on its startup delay (its schema keeps the delay below `UINT32_MAX` ms, so it fits the `uint32_t` template argument):
+A trigger whose id is under another key, or whose class takes more template arguments, passes `id_key` and `template_args`; they come after the function and the priority bits. A hand-set id keeps its Trigger without them, or is built as `trigger_class` with `trigger_args` as its constructor arguments when those are given. `interval` builds a `PollingComponent` this way, templated on its startup delay (its schema keeps the delay below `UINT32_MAX` ms, so it fits the `uint32_t` template argument), and a hand-set id with a delay becomes a `DelayedIntervalTrigger` that takes the delay in its constructor:
 
 ```python
-from functools import partial
-
-
-def _set_startup_delay(startup_delay: int, trigger: MockObj) -> None:
-    cg.add(trigger.set_startup_delay(startup_delay))
-
-
 for conf in config:
     if startup_delay := conf[CONF_STARTUP_DELAY].total_milliseconds:
         component_class, template_args = DelayedIntervalCallback, [startup_delay]
+        trigger_class = DelayedIntervalTrigger
     else:
         component_class, template_args = IntervalCallback, []
+        trigger_class = None
     var = await automation.build_component_automation(
         conf,
         component_class,
         id_key=CONF_ID,
         template_args=template_args,
-        # A hand-set id keeps the IntervalTrigger, which takes the delay at run time
-        trigger_setup=partial(_set_startup_delay, startup_delay) if startup_delay else None,
+        # A hand-set id keeps a trigger, which takes the delay as a constructor argument
+        trigger_class=trigger_class,
+        trigger_args=template_args,
     )
     cg.add(var.set_update_interval(conf[CONF_INTERVAL]))
 ```

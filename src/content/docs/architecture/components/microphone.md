@@ -242,9 +242,7 @@ before the wake word) can overwrite samples in these rings if it does not know h
 `VoiceAssistant::get_microphone_buffer_free()` reports that space:
 
 ```cpp
-#ifdef USE_VOICE_ASSISTANT_MICROPHONE_BUFFER_STATE
 const size_t free_bytes = this->voice_assistant_->get_microphone_buffer_free();
-#endif
 ```
 
 - The result is the minimum free bytes across the configured microphone rings. It is per ring, not a sum; each ring
@@ -253,9 +251,3 @@ const size_t free_bytes = this->voice_assistant_->get_microphone_buffer_free();
 - Call it from the main loop. It does not reserve space: check it immediately before you publish each block, and keep
   some space free, because the assistant stops draining the rings while its API connection cannot send.
 - It reports local buffer space only, not that Home Assistant has received the audio.
-
-The getter is compiled only when a component requests it. Add the define in your component's `to_code()`:
-
-```python
-cg.add_define("USE_VOICE_ASSISTANT_MICROPHONE_BUFFER_STATE")
-```

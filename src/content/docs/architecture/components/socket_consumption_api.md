@@ -218,8 +218,8 @@ esp32:
    def _consume_sockets(config):
        from esphome.components import socket
        # 1 listener + configured max_clients
-       count = 1 + config.get(CONF_MAX_CLIENTS, 5)
-       socket.consume_sockets(count, "my_component")(config)
+       socket.consume_sockets(1, "my_component", socket.SocketType.TCP_LISTEN)(config)
+       socket.consume_sockets(config.get(CONF_MAX_CLIENTS, 5), "my_component", socket.SocketType.TCP)(config)
        return config
    ```
 

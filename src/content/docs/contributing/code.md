@@ -428,6 +428,31 @@ Other checksums are built from these. An inverted XOR is `static_cast<uint8_t>(~
 widen the result to `int`, so comparing it to a received byte without the cast always fails. Pass the starting value
 to include bytes that are not next to the data, such as a header sent separately.
 
+#### Writing integers into a buffer
+
+Commands and frames often carry a register address, a length or a value as 2, 3 or 4 bytes. `put_be16()`,
+`put_be24()` and `put_be32()` write the value most significant byte first, `put_le16()` and `put_le32()` least
+significant byte first. Each takes a pointer into an existing buffer and returns the pointer just past the bytes it
+wrote:
+
+```cpp
+// Before
+address[1] = (addr >> 8) & 0xFF;
+address[2] = addr & 0xFF;
+address[3] = (reg_cnt >> 8) & 0xFF;
+address[4] = reg_cnt & 0xFF;
+
+// After
+put_be16(address + 1, addr);
+put_be16(address + 3, reg_cnt);
+```
+
+The return value lets a frame be written in order without counting offsets, as in `p = put_be16(p, length);`. The
+width is part of the name, not taken from the argument, so `x >> 8` or another `int` expression still writes exactly
+2 bytes into a 2-byte field; a signed value is written as two's complement. The functions are plain byte stores, so
+the buffer does not need to be aligned. To go the other way, from bytes to a value, use `encode_uint16()`,
+`encode_value<T>()` and `encode_value_le<T>()`.
+
 #### Signed values of unusual widths
 
 Sensors often report a signed value in a width that is not a C++ type, such as 12 or 24 bits. `sign_extend<BITS>()`

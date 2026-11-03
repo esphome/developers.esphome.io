@@ -2,13 +2,13 @@
 title: "HTTPS for the Web Server (ESP32)"
 ---
 
-On ESP32, the HTTP server shared by `web_server_base` can serve HTTPS. Users can set a fixed certificate in YAML
-(`web_server_idf: ssl:`). A component can also supply the certificate and key at runtime, for example one the user
-uploaded, and switch between HTTP and HTTPS without a restart.
+On ESP32, the HTTP server shared by `web_server_base` can serve HTTPS. A component supplies the certificate and key at
+run time, for example one the user uploaded, and can switch between HTTP and HTTPS without a restart.
 
 HTTPS can't be combined with `web_server`, `captive_portal` or `prometheus` yet: `web_server` writes its event streams to
 the socket directly, which would bypass TLS, and `prometheus` is advertised over mDNS as plain HTTP. A component that
-uses HTTPS must serve its own pages through handlers added with `add_handler()`.
+uses HTTPS must serve its own pages through handlers added with `add_handler()`, and start the listener itself with
+`init()`, since none of those components will.
 
 ## Python
 
@@ -46,6 +46,7 @@ Use `WebServerBase` (`esphome/components/web_server_base/web_server_base.h`):
 auto *base = web_server_base::global_web_server_base;
 base->set_port(443);
 base->set_ssl_credentials(certificate, key);
+base->init();  // once, in setup(): starts the listener
 
 // Back to plain HTTP:
 base->set_port(80);

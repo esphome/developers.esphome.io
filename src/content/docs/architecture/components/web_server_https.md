@@ -6,13 +6,14 @@ On ESP32, the HTTP server shared by `web_server_base` can serve HTTPS. Users can
 (`web_server_idf: ssl:`). A component can also supply the certificate and key at runtime, for example one the user
 uploaded, and switch between HTTP and HTTPS without a restart.
 
-HTTPS can't be combined with `web_server` or `captive_portal` yet: `web_server` writes its event streams to the socket
-directly, which would bypass TLS. A component that uses HTTPS must serve its own pages through handlers added with
-`add_handler()`.
+HTTPS can't be combined with `web_server`, `captive_portal` or `prometheus` yet: `web_server` writes its event streams to
+the socket directly, which would bypass TLS, and `prometheus` is advertised over mDNS as plain HTTP. A component that
+uses HTTPS must serve its own pages through handlers added with `add_handler()`.
 
 ## Python
 
-Register the HTTPS server's client sockets in the component's schema, and compile HTTPS in from `to_code`:
+Register the HTTPS server's client sockets in the component's schema, which also rejects the components above, and
+compile HTTPS in from `to_code`:
 
 ```python
 import esphome.config_validation as cv
@@ -56,9 +57,10 @@ base->set_ssl_credentials(nullptr, nullptr);
 - Call them from the main loop, not from an HTTP request handler: the restart would wait for the handler's own task.
   To act on a request (for example, a certificate upload), defer the change to the main loop.
 - `is_ssl()` is true while the listener is serving HTTPS.
-- The certificate and key are checked before the server starts. If either is invalid, or the key doesn't belong to
-  the certificate, the server logs an error and stays off. It doesn't fall back to plain HTTP by
+- The certificate and key are checked before the server starts. The key must be unencrypted. If either is invalid,
+  or the key doesn't belong to the certificate, the server logs an error and stays off. It doesn't fall back to plain HTTP by
   itself; if your component wants that, check `is_ssl()` after setting the credentials.
 
-The server allows 4 open HTTPS connections, ESP-IDF's HTTPS default. Each uses about 26 KB of RAM for its TLS session,
+The server allows 4 open HTTPS connections, ESP-IDF's HTTPS default. When HTTPS is compiled in, plain HTTP is held to
+the same 4 connections. Each uses about 26 KB of RAM for its TLS session,
 or PSRAM when `CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC` is set.

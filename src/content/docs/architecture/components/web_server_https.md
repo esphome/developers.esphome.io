@@ -38,7 +38,7 @@ Use `WebServerBase` (`esphome/components/web_server_base/web_server_base.h`):
 // certificate and key are PEM strings. They are not copied and must stay valid while the server runs.
 auto *base = web_server_base::global_web_server_base;
 base->set_port(443);
-base->set_ssl_credentials(certificate, key);  // restarts the listener if it is running
+base->set_ssl_credentials(certificate, key);
 
 // Back to plain HTTP:
 base->set_port(80);
@@ -46,9 +46,9 @@ base->set_ssl_credentials(nullptr, nullptr);
 #endif
 ```
 
-- `set_port()` takes effect when the listener next starts. `set_ssl_credentials()` restarts it, so call `set_port()`
-  first.
-- Restarting the listener closes open connections.
+- `set_port()` and `set_ssl_credentials()` each restart a running listener, which closes open connections.
+- Call them from the main loop, not from an HTTP request handler: the restart would wait for the handler's own task.
+  To act on a request (for example, a certificate upload), defer the change to the main loop.
 - `is_ssl()` is true while the listener is serving HTTPS.
 - If the certificate or key is invalid, the server logs an error and stays off. It doesn't fall back to plain HTTP by
   itself; if your component wants that, check `is_ssl()` after setting the credentials.

@@ -819,7 +819,8 @@ state:
   says "unspecified". `status_comm_result()` (below) sets or clears the warning from a read or write result.
 - `status_momentary_warning()` / `status_momentary_error()` set the flag and clear it again after a timeout (5000 ms by
   default). Use them for one-off failures, such as a single failed read. A new call restarts the timeout.
-- `mark_failed()` marks the component as failed when it cannot work at all, typically from `setup()`.
+- `mark_failed()` marks the component as failed when it cannot work at all, typically from `setup()`. `setup_check()`
+  (below) calls it from a read or write result.
 
 ```cpp
 this->status_momentary_warning();                          // cleared after 5000 ms

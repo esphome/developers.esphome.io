@@ -430,11 +430,11 @@ to include bytes that are not next to the data, such as a header sent separately
 
 #### Writing integers into a buffer
 
-Byte order is the most common mistake in device code: the datasheet says big-endian or little-endian, and a hand-
-written row of shifts splits the value the other way round. Use the helper whose name matches the datasheet instead.
-`put_be16()`, `put_be24()` and `put_be32()` write a value most significant byte first (big-endian), `put_le16()` and
-`put_le32()` least significant byte first (little-endian). Each takes a pointer into an existing buffer and returns
-the pointer just past the bytes it wrote:
+Byte order is the most common mistake in device code: the datasheet says big-endian or little-endian, and a
+hand-written row of shifts splits the value the other way round. Use the helper whose name matches the datasheet
+instead. `put_be16()`, `put_be24()` and `put_be32()` write a value most significant byte first (big-endian),
+`put_le16()` and `put_le32()` least significant byte first (little-endian). Each takes a pointer into an existing
+buffer and returns the pointer just past the bytes it wrote:
 
 ```cpp
 // Before

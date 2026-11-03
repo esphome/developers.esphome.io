@@ -518,21 +518,15 @@ Passing a raw value such as `cg.add(var.set_state(config[CONF_STATE]))` worked o
 
 ### Sharing generated functions
 
-Codegen that emits one function per instance and templates a class on it (`ApplyAction<fn>`, a filter templated on
-its function) gets one class, vtable and method per instance, even when two instances generate the same body. GCC
-already folds identical plain functions, but not the template instantiations built on them. Pass `share=True` to
-`automation.apply_static_function(id_, return_type, params, body, share=True)`, or call
-`cg.shared_static_function(name, return_type, params, body)` directly, to emit one function per distinct return type,
-parameter list and body and reuse it for every instance that asks for the same one:
+Codegen that emits one function per instance and templates a class on it (`ApplyAction<fn>`, a filter templated on its function) gets one class, vtable and method per instance, even when two instances generate the same body. GCC already folds identical plain functions, but not the template instantiations built on them. Pass `share=True` to `automation.apply_static_function(id_, return_type, params, body, share=True)`, or call `cg.shared_static_function(name, return_type, params, body)` directly, to emit one function per distinct return type, parameter list and body and reuse it for every instance that asks for the same one:
 
 ```python
 fn = automation.apply_static_function(
-    filter_id, cg.bool_, [(float, "x")], ["return x > 0.5f;"], share=True
+    filter_id, cg.bool_, [(cg.float_, "x")], ["return x > 0.5f;"], share=True
 )
 ```
 
-Do not share a body that contains user lambda code: a `static` local in it would then be shared between the
-instances. Names are made unique the same way as other globals, so two instances may pass the same name.
+Do not share a body that contains user lambda code: a `static` local in it would then be shared between the instances. Names are made unique the same way as other globals, so two instances may pass the same name. These helpers are available in ESPHome 2026.11.0 and later ([esphome/esphome#21837](https://github.com/esphome/esphome/pull/21837)).
 
 ## Conditions
 

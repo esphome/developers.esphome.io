@@ -12,12 +12,18 @@ directly, which would bypass TLS. A component that uses HTTPS must serve its own
 
 ## Python
 
-In the component's `to_code`, compile HTTPS in:
+Register the HTTPS server's client sockets in the component's schema, and compile HTTPS in from `to_code`:
 
 ```python
+import esphome.config_validation as cv
 from esphome.components import web_server_idf
 from esphome.core import CORE
 from esphome.types import ConfigType
+
+CONFIG_SCHEMA = cv.All(
+    cv.Schema({...}),
+    web_server_idf.consume_ssl_sockets,
+)
 
 
 async def to_code(config: ConfigType) -> None:
@@ -50,8 +56,9 @@ base->set_ssl_credentials(nullptr, nullptr);
 - Call them from the main loop, not from an HTTP request handler: the restart would wait for the handler's own task.
   To act on a request (for example, a certificate upload), defer the change to the main loop.
 - `is_ssl()` is true while the listener is serving HTTPS.
-- If the certificate or key is invalid, the server logs an error and stays off. It doesn't fall back to plain HTTP by
+- The certificate and key are checked before the server starts. If either is invalid, or the key doesn't belong to
+  the certificate, the server logs an error and stays off. It doesn't fall back to plain HTTP by
   itself; if your component wants that, check `is_ssl()` after setting the credentials.
 
-Each HTTPS connection uses about 26 KB of RAM for its TLS session, or PSRAM when `CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC`
-is set. On boards without PSRAM, keep the number of connections small.
+The server allows 4 open HTTPS connections, ESP-IDF's HTTPS default. Each uses about 26 KB of RAM for its TLS session,
+or PSRAM when `CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC` is set.

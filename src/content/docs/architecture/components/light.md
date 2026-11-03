@@ -96,8 +96,7 @@ registers the `LightState` that wraps it:
 ```python
 async def to_code(config):
     var = await light.new_light(config)
-    red = await cg.get_variable(config[CONF_RED])
-    cg.add(var.set_red(red))
+    await cg.add_variable(var.set_red, config[CONF_RED])
     ...
 ```
 
@@ -208,6 +207,58 @@ Two further optional overrides exist for advanced cases:
   own without a following `write_state()` - useful for cheap bookkeeping that should track every change, separate from
   the (potentially more expensive) actual hardware write.
 
+### Addressable LED strips
+
+A strip driver derives from `light::AddressableLight`.  It typically describes the order of the strip's RGB(W)
+channels with a `light::ChannelColors` from `esphome/components/light/channel_colors.h` which is set from the
+`channel_colors` option and stored as a member of the driver's color accessor.
+
+The channel colors object provides a helper for implementing the `get_traits()` method.  `traits()` returns a
+`LightTraits` that supports `ColorMode::RGB`, or `ColorMode::RGB_WHITE` and `ColorMode::WHITE` when the order has a
+white channel.
+
+```cpp
+light::LightTraits get_traits() override { return this->internal_accessor_.channel_colors.traits(); }
+```
+
+When an `AddressableLight` component is constructed, its `accessor_` field initially points to the singleton
+`NullColorAccessor` that simply returns zero on every access until the component sets up the real accessor.
+Thus the component is shielded from potential issues if the user attempts to get/set LEDs before the component has
+been setup or in case setup failed and the buffers were not allocated.
+
+Once the `AddressableLight` component is ready to provide access to its LED data, it reassigns `accessor_` to point
+to the appropriate accessor instance which can be one of the following types:
+
+- `BufferColorAccessor` is the base class for accessors that operate on a linear buffer whose layout is defined
+  by a `ChannelColors` object.
+- `CorrectedBufferColorAccessor` applies color correction and uncorrection during each access to the color data.
+  This is the most commonly used implementation as of the time of this writing.
+- `RawBufferColorAccessor` gets/sets raw color data without color correction and uncorrection.  It is useful for
+  addressable light components that perform color correction elsewhere in the pipeline and for unit tests.
+- Some other subclass of `ESPColorAccessor` that implements another strategy.  For example, `PartitionLightOutput`
+  has a color accessor that resolves the provided index to an LED within a segment of some other addressable
+  light component.
+
+Refer to [this blog post](/blog/2026/11/18/addressable-light-now-backed-by-a-color-accessor/) for
+more information about color accessors.
+
+A driver with a maximum refresh rate calls `throttle_show_()`, a protected helper on `AddressableLight`, at the start of
+`write_state()`. It returns true, with the frame queued for the next loop, until the interval has passed. An interval
+of 0 never holds a frame back, and the check stays correct when `micros()` wraps:
+
+```cpp
+// max_refresh_rate_ is a uint32_t in µs, 0 for no limit
+void MyStripLightOutput::write_state(light::LightState *state) {
+  uint32_t now = micros();
+  if (this->throttle_show_(now, this->last_refresh_, this->max_refresh_rate_))
+    return;
+  this->last_refresh_ = now;
+  ...
+}
+```
+
+These helpers are available in ESPHome 2026.11.0 and later (esphome/esphome#21445).
+
 ### Useful members
 
 - `ColorMode` / `ColorCapability`: the color-mode and capability enums described above.
@@ -216,6 +267,40 @@ Two further optional overrides exist for advanced cases:
 - `create_default_transition()`: override to provide a custom `LightTransformer` for transitions; the default uses a
   smooth (gamma-aware) transition.
 - `state->get_effect_name()`: the name of the currently active effect, or `"None"`.
+
+### Mirroring a light that lives elsewhere
+
+Some outputs do not drive hardware but stand in for a light that is controlled somewhere else, for example the
+`homeassistant` light platform, which follows a Home Assistant light entity and sends every local change back as an
+action. Such an output learns the light's state from outside, and that state must not go through a `LightCall`: a
+call validates against the traits, may start a transition, and ends in a `write_state()` the output would then send
+back to where the state came from.
+
+`LightState::set_external_state()` takes the reported values over directly:
+
+```cpp
+LightColorValues values = this->state_->remote_values;  // attributes not reported keep what the light has
+values.set_state(true);
+values.set_brightness(reported_brightness / 255.0f);
+if (!this->state_->set_external_state(values)) {
+  // A local change still waits to be written, or a transition or flash runs: that change is
+  // newer than the report, and a fresh report follows once it has reached the other side
+  return;
+}
+```
+
+The values become the light's current and target values at once and are published to the API and the other
+listeners, including the `on_turn_on` and `on_turn_off` triggers; nothing is written to the output and nothing is
+saved. Nothing is published when the values did not change, unless an effect was running: that is published so
+clients drop the effect name.
+
+The call returns `false` and changes nothing while a local change still waits for the next `write_state()` or while a
+transition or flash runs. The output decides what to do then: drop the report when the other side will report again
+after the local change reaches it, or try again from its next `write_state()`. A running effect does not end by itself,
+so the call stops it and takes the report over.
+
+Since reported state never reaches `write_state()`, every write the output sees is a local change, except the very
+first one, which carries the initial state the light core sets up at boot.
 
 ## Exposing multiple lights from one component
 

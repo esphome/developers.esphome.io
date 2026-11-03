@@ -49,6 +49,24 @@ await i2c.register_i2c_device(var, config)
 
 Since this is an I2C device, we must register it as such so it is handled appropriately by ESPHome.
 
+Most I2C components create the object, register it as a component and register it on the bus, in that order.
+`i2c.new_i2c_component()` does the three steps in one call and returns the new object:
+
+```python
+# Before
+var = cg.new_Pvariable(config[CONF_ID])
+await cg.register_component(var, config)
+await i2c.register_i2c_device(var, config)
+
+# After
+var = await i2c.new_i2c_component(config)
+```
+
+Any further arguments go to the constructor, for example `await i2c.new_i2c_component(config, interrupt_pin)`.
+[`uart.new_uart_component()`](/architecture/components/uart#python) and
+[`spi.new_spi_component()`](/architecture/components/spi#python) do the same for the other buses. A component that is
+created another way, such as a sensor created with `sensor.new_sensor()`, still calls `register_i2c_device()` itself.
+
 ## C++
 
 The C++ class for this example component is quite simple.
@@ -63,3 +81,132 @@ As mentioned in the [codebase standards](/contributing/code/#c), all components/
 
 Finally, the component implements the usual set of methods [as described here](/architecture/components/index#common-methods). This is all
 that's required for our minimal I2C component!
+
+## Checking the chip ID
+
+Most chips have a register that holds a fixed ID. Reading it in `setup()` shows that the right chip answers at the
+address. `check_chip_id()` reads the register, compares it, and marks the component failed when it does not match:
+
+```cpp
+// Before
+uint8_t id;
+if (!this->read_byte(APDS9930_ID | APDS9930_CMD, &id)) {
+  this->mark_failed(LOG_STR("Communication failed"));
+  return;
+}
+if (id != APDS9930_CHIP_ID) {
+  ESP_LOGE(TAG, "Wrong ID 0x%02X (expected 0x%02X)", id, APDS9930_CHIP_ID);
+  this->mark_failed(LOG_STR("Wrong chip ID"));
+  return;
+}
+
+// After
+if (!this->check_chip_id(this, APDS9930_ID | APDS9930_CMD, APDS9930_CHIP_ID))
+  return;
+```
+
+The first argument is the component to mark failed, since `I2CDevice` is not a component itself. The failure reason is
+"Communication failed" when the read fails and "Wrong chip ID" when the ID does not match. An optional fourth argument
+is a mask, for an ID register that also holds other bits or for a family of chips whose IDs differ in a few bits:
+
+```cpp
+// 0xB1 for APDS9306, 0xB3 for APDS9306-065; they differ only in bit 1
+if (!this->check_chip_id(this, APDS9306_PART_ID, 0xB1, 0xFD))
+  return;
+```
+
+The ID is accepted when `(id & mask) == (expected & mask)`. Keep your own code when the chip needs more than one
+register read to identify, or when a wrong ID should only warn.
+
+## Changing some bits of a register
+
+Many chips pack several settings into one register byte. To change only some of the bits, read the register, replace
+those bits and write it back. `update_register()` on `I2CDevice` does all three steps:
+
+```cpp
+// Before
+uint8_t data;
+this->read_byte(address, &data);  // a failed read leaves data unset, and it is written anyway
+data |= (1 << bit_position);
+return this->write_byte(address, data);
+
+// After
+return this->update_register(address, 1 << bit_position, 1 << bit_position);
+
+// Clearing the same bit
+return this->update_register(address, 1 << bit_position, 0);
+```
+
+`update_register(reg, mask, value)` keeps the bits outside `mask` and takes the bits inside `mask` from `value`; bits
+of `value` outside `mask` are ignored, so pass `0` as the value to clear bits. It returns `false` when the read or the
+write fails. After a failed read it writes nothing, so a bus error never leads to a wrong value being written. The
+write happens even when the value does not change. The old and new values are logged at the `VERBOSE` level.
+
+## Multi-byte values
+
+`read_byte_16()` and `write_byte_16()` on `I2CDevice` treat the first byte on the wire as the most significant byte.
+Many chips store 16-bit registers the other way round, least significant byte first. Use `read_byte_16_le()` and
+`write_byte_16_le()` for those instead of swapping the bytes yourself:
+
+```cpp
+// Before
+uint16_t data;
+this->read_byte_16(AS7341_ASTEP, &data);
+return this->swap_bytes(data);
+
+// After
+uint16_t data;
+if (!this->read_byte_16_le(AS7341_ASTEP, &data))
+  return 0;
+return data;
+```
+
+`read_byte_16_le()` and `write_byte_16_le()` return `false` when the transfer fails.
+`read_bytes_16_le(reg, words, count)` reads `count` consecutive little-endian words into a `uint16_t` or `int16_t`
+array, such as an accelerometer's X, Y and Z registers. As with `read_bytes_16()`, a failed read can leave the
+destination partly written.
+
+To decode values from a block read in one go, use the helpers in `esphome/core/helpers.h`: `encode_value<T>(bytes)`
+reads `sizeof(T)` bytes most significant first, and `encode_value_le<T>(bytes)` reads them least significant first.
+Both work for signed types too, so a signed reading needs no cast:
+
+```cpp
+// Before
+const uint16_t ch0 = encode_uint16(raw[2], raw[1]);
+data.acceleration[motion::X_AXIS] = static_cast<int16_t>(encode_uint16(raw_data[0], raw_data[1])) * accel_factor;
+
+// After
+const uint16_t ch0 = encode_value_le<uint16_t>(&raw[1]);
+data.acceleration[motion::X_AXIS] = encode_value<int16_t>(raw_data) * accel_factor;
+```
+
+## Writing a list of registers
+
+Chips such as audio codecs are set up by writing a long, fixed list of registers. Keep the list as a table of
+`i2c::I2CRegValue` entries, one register and one value each, and send it with `write_registers()`:
+
+```cpp
+static constexpr i2c::I2CRegValue ES8156_INIT[] PROGMEM = {
+    // REG02 MODE CONFIG 1: Enable software mode for I2C control of volume/mute
+    {ES8156_REG02_SCLK_MODE, 0x04},
+    // REG20 ANALOG SYSTEM: Configure analog signal path
+    {ES8156_REG20_ANALOG_SYS1, 0x2A},
+    ...
+    {ES8156_REG25_ANALOG_SYS5, 0x20},
+};
+
+void ES8156::setup() {
+  if (!this->write_registers(ES8156_INIT)) {
+    this->mark_failed(LOG_STR("Failed to initialize"));
+    return;
+  }
+  // Writes that depend on the configuration follow here as separate calls
+}
+```
+
+The entries are written in order, each as its own transfer, and `write_registers()` stops and returns `false` at the
+first one that fails. Mark the table `PROGMEM` so it stays in flash on ESP8266; `write_registers()` copies one entry at
+a time out of flash. The same register may appear more than once, for steps such as a reset sequence. Passing the
+array itself lets `write_registers()` work out the entry count; with only a pointer, such as a table picked at run
+time, call `write_registers(table, count)`. Writes that depend on the configuration or need a delay between them stay
+as separate calls around the tables.

@@ -41,8 +41,8 @@ Note that `MySwitch` inherits from both `switch.Switch` and a component base (`c
 ### Configuration schema
 
 Use the `switch.switch_schema()` helper. It returns a schema pre-populated with all of the options common to every
-switch - `name`, `id`, `icon`, `inverted`, `restore_mode`, `device_class`, `entity_category`, the `on_turn_on` /
-`on_turn_off` automations, and so on - and lets you pass defaults for your device:
+switch - `name`, `id`, `icon`, `inverted`, `restore_mode`, `initial_state`, `restore_state`, `device_class`,
+`entity_category`, the `on_turn_on` / `on_turn_off` automations, and so on - and lets you pass defaults for your device:
 
 ```python
 CONFIG_SCHEMA = switch.switch_schema(MySwitch).extend(cv.COMPONENT_SCHEMA)
@@ -116,8 +116,16 @@ A few important details:
 - If your switch cannot read back the real hardware state (so the reported state is only what ESPHome last wrote),
   override `assumed_state()` to return `true`. The front-end will then show separate ON and OFF buttons rather than a
   single toggle.
-- The base class handles the user's `restore_mode:` option (restoring the previous state from flash on boot). At the end
-  of `setup()`, you can consult `get_initial_state_with_restore_mode()` to decide what state to apply.
+- The base class handles the user's `restore_mode:`, `initial_state:` and `restore_state:` options, including the
+  `storage: flash | rtc` choice. `switch_schema(default_restore_mode=...)` applies when the user set neither
+  `restore_mode:` nor `restore_state:`. With only `initial_state:`, a restoring default keeps restoring the saved
+  state, and `initial_state:` sets the state used when nothing is saved.
+- At the end of `setup()`, call `restore()`. It drives `control()` with the state the restore mode yields, so
+  `inverted:` and your `write_state()` apply, and it does nothing for `restore_mode: DISABLED`; `restore(default)`
+  starts a disabled switch in `default` instead. A hub that owns several switches calls it on each one once the
+  hardware is ready.
+- `get_initial_state_with_restore_mode()` is for the rare case where the state must be folded into something else
+  before it is written; it returns the logical state, so apply `is_inverted()` yourself.
 
 ### Useful members
 
@@ -221,6 +229,9 @@ switches = switch.sub_switches(config, parent=hub)
 await switches(CONF_ENGINEERING_MODE, hub.set_engineering_mode_switch)
 await switches(CONF_BLUETOOTH, hub.set_bluetooth_switch)
 ```
+
+A switch that only passes its new state to the hub needs no class of its own: declare it with `switch.ApplySwitch` and pass
+`apply=` to the call. See [Entities that only call the hub](/architecture/components/index#entities-that-only-call-the-hub).
 
 ### Choosing between them
 

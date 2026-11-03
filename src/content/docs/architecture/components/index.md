@@ -819,7 +819,8 @@ state:
   says "unspecified". `status_comm_result()` (below) sets or clears the warning from a read or write result.
 - `status_momentary_warning()` / `status_momentary_error()` set the flag and clear it again after a timeout (5000 ms by
   default). Use them for one-off failures, such as a single failed read. A new call restarts the timeout.
-- `mark_failed()` marks the component as failed when it cannot work at all, typically from `setup()`.
+- `mark_failed()` marks the component as failed when it cannot work at all, typically from `setup()`. `setup_check()`
+  (below) calls it from a read or write result.
 
 ```cpp
 this->status_momentary_warning();                          // cleared after 5000 ms
@@ -851,9 +852,26 @@ if (!this->status_comm_result(this->read_bytes(REG_RED_DATA_LSB, buffer, sizeof(
 Without a message the warning says "Communication failed" (`ESP_LOG_MSG_COMM_FAIL`). Pass a `LOG_STR("...")` as the
 second argument for another text, for example
 `this->status_comm_result(ok, LOG_STR("Failed to read one or more registers"))`. Use it for failures after `setup()`;
-a device that cannot be set up at all still calls `mark_failed()`. A component has one warning flag, so a success
-clears a warning set by any other check too; do not mix it with other `status_set_warning()` conditions in the same
-update.
+in `setup()` use `setup_check()` (below). A component has one warning flag, so a success clears a warning set by
+any other check too; do not mix it with other `status_set_warning()` conditions in the same update.
+
+In `setup()`, a failed read or write usually means the device cannot work at all. `setup_check(ok)` marks the
+component failed when `ok` is false and returns `ok`:
+
+```cpp
+// Before
+if (!this->write_byte(REG_RESET, 0)) {
+  this->mark_failed(LOG_STR(ESP_LOG_MSG_COMM_FAIL));
+  return;
+}
+
+// After
+if (!this->setup_check(this->write_byte(REG_RESET, 0)))
+  return;
+```
+
+The failure reason is "Communication failed" (`ESP_LOG_MSG_COMM_FAIL`), or the `LOG_STR("...")` passed as the second
+argument. A success changes nothing, so it is safe to call for each step of `setup()`.
 
 ### Component-specific methods
 

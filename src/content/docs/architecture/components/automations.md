@@ -339,7 +339,7 @@ The trigger needs to track mutable state (`last_on_`) across callback invocation
 
 ### Hub that fires its own automations
 
-Use this when the component itself decides when an event fires and passes the values, for example a keypad hub that fires `on_key` with the key code, and nothing else listens for that event. The hub keeps an `AutomationList` sized at build time and triggers it directly: each automation costs one 4-byte slot, there is no `Trigger` object and no heap vector, and an unused list compiles out.
+Use this when the component itself decides when an event fires and passes the values, for example a keypad hub that fires `on_key` with the key code, and nothing else listens for that event. The hub keeps an `AutomationList` sized at build time and triggers it directly: each automation costs one pointer-sized slot (4 bytes on 32-bit chips), there is no `Trigger` object and no heap vector, and an unused list compiles out.
 
 #### Python
 

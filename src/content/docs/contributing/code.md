@@ -449,8 +449,9 @@ put_be16(address + 3, reg_cnt);
 ```
 
 The return value lets a frame be written in order without counting offsets, as in `p = put_be16(p, length);`. The
-width is part of the name, not taken from the argument, so `x >> 8` or another `int` expression still writes exactly
-2 bytes into a 2-byte field; a signed value is written as two's complement. The functions are plain byte stores, so
+width is part of the name, not taken from the argument: each helper writes exactly that many bytes and drops any
+higher bits, so `put_be16(p, x >> 8)` writes 2 bytes even when `x >> 8` is an `int`, and `put_be24()` drops the top
+byte of its `uint32_t`. A signed value is written as two's complement. The functions are plain byte stores, so
 the buffer does not need to be aligned. To go the other way, from bytes to a value, use `encode_uint16()`,
 `encode_value<T>()` and `encode_value_le<T>()`.
 

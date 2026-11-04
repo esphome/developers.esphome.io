@@ -2,8 +2,8 @@
 title: "HTTPS for the Web Server (ESP32)"
 ---
 
-On ESP32, the HTTP server shared by `web_server_base` can serve HTTPS. A component supplies the certificate and key
-before it starts the listener.
+On ESP32 with ESP-IDF 5.5 or later, the HTTP server shared by `web_server_base` can serve HTTPS. A component supplies
+the certificate and key before it starts the listener.
 
 HTTPS can't be combined with `web_server`, `captive_portal` or `prometheus` yet: `web_server` writes its event streams to
 the socket directly, which would bypass TLS, and `prometheus` is advertised over mDNS as plain HTTP. A component that

@@ -358,9 +358,16 @@ App.register_component_(startuptrigger_id, 3);
 
 The component is registered before the actions are built, so it keeps its place among components with the same setup priority.
 
-A trigger whose id is under another key, or whose class takes more template arguments, passes `id_key` and `template_args`; they come after the function and the priority bits. A hand-set id keeps its Trigger without them, or is built as `trigger_class` with `trigger_args` as its constructor arguments when those are given. `interval` builds a `PollingComponent` this way, templated on its startup delay (its schema keeps the delay below `UINT32_MAX` ms, so it fits the `uint32_t` template argument), and a hand-set id with a delay becomes a `DelayedIntervalTrigger` that takes the delay in its constructor:
+A trigger whose id is under another key, or whose class takes more template arguments, passes `id_key` and `template_args`; they come after the function and the priority bits. A hand-set id keeps its declared Trigger, or becomes `trigger_class` when that is given, and is built with `trigger_args` as its constructor arguments instead of `template_args`. `interval` builds a `PollingComponent` this way, templated on its startup delay (its schema keeps the delay below `UINT32_MAX` ms, so it fits the `uint32_t` template argument), and a hand-set id with a delay becomes a `DelayedIntervalTrigger` that takes the delay in its constructor:
 
 ```python
+IntervalTrigger = interval_ns.class_(
+    "IntervalTrigger", automation.Trigger.template(), cg.PollingComponent
+)
+DelayedIntervalTrigger = interval_ns.class_("DelayedIntervalTrigger", IntervalTrigger)
+IntervalCallback = interval_ns.class_("IntervalCallback", cg.PollingComponent)
+DelayedIntervalCallback = interval_ns.class_("DelayedIntervalCallback", IntervalCallback)
+
 for conf in config:
     if startup_delay := conf[CONF_STARTUP_DELAY].total_milliseconds:
         component_class, template_args = DelayedIntervalCallback, [startup_delay]

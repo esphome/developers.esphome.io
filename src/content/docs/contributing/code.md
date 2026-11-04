@@ -268,7 +268,8 @@ Choose containers carefully on embedded systems:
 1. **Queues**: Use a ring buffer from `esphome/core/helpers.h` instead of `std::queue` or `std::deque`.
    `StaticRingBuffer<T, N>` holds `N` elements inline, and `FixedRingBuffer<T>` allocates its capacity once with
    `init()`. Both have `push()`, `pop()`, `front()`, `size()`, `empty()`, `clear()` and iteration from oldest to newest;
-   `push()` returns false when the buffer is full.
+   `push()` returns false when the buffer is full. `StaticRingBuffer` also has `push_front()`, for a queue that puts
+   work back to run next (ESPHome 2026.12.0 and later, esphome/esphome#22262).
 
     ```cpp
     // Good - one allocation in setup(), none after

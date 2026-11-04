@@ -38,17 +38,16 @@ Use `WebServerBase` (`esphome/components/web_server_base/web_server_base.h`):
 #ifdef USE_WEBSERVER_SSL
 // certificate and key are PEM strings. They are not copied and must stay valid while the server runs.
 auto *base = web_server_base::global_web_server_base;
-base->set_port(443);
-base->set_ssl_credentials(certificate, key);
+base->set_ssl_credentials(certificate, key, 443);  // the port is optional
 base->init();  // once, in setup(): starts the listener
 
 // Back to plain HTTP:
-base->set_port(80);
-base->set_ssl_credentials(nullptr, nullptr);
+base->set_ssl_credentials(nullptr, nullptr, 80);
 #endif
 ```
 
-- `set_port()` and `set_ssl_credentials()` each restart a running listener, which closes open connections.
+- `set_port()` and `set_ssl_credentials()` each restart a running listener, which closes open connections. Pass the
+  port to `set_ssl_credentials()` to switch both with one restart.
 - Call them from the main loop, not from an HTTP request handler: the restart would wait for the handler's own task.
   To act on a request (for example, a certificate upload), defer the change to the main loop.
 - The certificate and key are checked before the server starts. The key must be unencrypted. If either is invalid,

@@ -211,7 +211,8 @@ FINAL_VALIDATE_SCHEMA = _final_validate
 `uart.claim_exclusive(config, owner, conf_key="uart_id")` is a plain function, not a coroutine. It claims the UART
 that `config[conf_key]` names and rejects a second `my_bridge` entry on that UART, any other component that names it
 by `uart_id` or `conf_key`, and a `dummy_receiver` in the UART's `debug`. `owner` is the component's top-level
-config key: the check skips that domain and keeps the claims per `conf_key` in `fv.full_config.get().data[owner]`.
+config key: the check skips that domain and keeps the claims per `(owner, conf_key)` in
+`fv.full_config.get().data["uart_exclusive"]`.
 Grouped CI builds share one bus between components, so in testing mode other components are not checked. `uart_tcp`
 uses it.
 
@@ -248,7 +249,8 @@ def _final_validate(config: ConfigType) -> ConfigType:
 FINAL_VALIDATE_SCHEMA = _final_validate
 ```
 
-The manual check is best effort: its `conf_key` argument finds the UART under another key than `uart_id`, but bare
+The manual check is best effort: its `conf_keys` argument, a collection of key names such as
+`(CONF_UART_ID, "bridge_uart_id")`, also finds the UART under keys other than `uart_id`, but bare
 `id:` references, such as a `uart.write` action, and lambdas are not found. The loop above skips the component's own
 domain, which fits a top-level, single-instance component; a platform (whose config sits under `sensor:` and the like)
 or a `MULTI_CONF` component must skip its own config node instead, or it rejects itself and misses a second instance

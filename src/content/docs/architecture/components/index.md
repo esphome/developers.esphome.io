@@ -707,6 +707,7 @@ pointer:
 
 ```python
 # my_hub/__init__.py
+MyHubRegisters = my_hub_ns.struct("MyHubRegisters")  # std::array<uint8_t, 4> in C++
 STATUS_PUBLISHER = cg.HubFunction(
     "status",
     cg.void,
@@ -717,11 +718,14 @@ STATUS = STATUS_PUBLISHER.param("status")
 
 
 # my_hub/binary_sensor.py
+from esphome import automation
+
+
 async def to_code(config: ConfigType) -> None:
     hub = await cg.get_variable(config[CONF_MY_HUB_ID])
     sensors = binary_sensor.sub_binary_sensors(config)
     if (var := await sensors(CONF_CHARGING, None)) is not None:
-        STATUS_PUBLISHER.add(hub, parent_ref(var).publish_state((STATUS[0] >> 5) & 0x01))
+        STATUS_PUBLISHER.add(hub, automation.parent_ref(var).publish_state((STATUS[0] >> 5) & 0x01))
 ```
 
 ```cpp
@@ -738,8 +742,10 @@ async def to_code(config: ConfigType) -> None:
 ```
 
 Build the items from code generation expressions, not C++ text. A decode that needs more than one expression goes in a
-small free function in the hub's header that the item calls. A hub without children gets no function, so the pointer
-starts as `nullptr` and is checked before each call.
+small free function in the hub's header that the item calls. `automation.parent_ref()` names the entity from global
+scope, so a parameter of the generated function cannot shadow it. The define is set for the whole build once any hub
+has an item, so a second hub without children still compiles the call with a `nullptr` pointer; check it before each
+call.
 
 - One hub can have several hub functions, such as one for key presses and one for releases.
 - With a `bool` return type each item is a `bool` expression; every item runs and the function returns whether any

@@ -361,7 +361,7 @@ The trigger class takes `ValueRange (*)(float x)` in its constructor and calls
 `range_(state).contains(state, previous)`, where `previous` is the trigger's last in-range result; it fires only when
 that goes from false to true. A missing bound is `NAN` and is not checked; with both bounds `NAN` the previous result
 is kept. Constant bounds are written as literals in the generated function, as above. A `!lambda` bound is called with
-the state as `x` (which is `const`, so one bound cannot change what the other sees), and the trigger is declared before
+its own copy of the state as `x`, so one bound cannot change what the other sees, and the trigger is declared before
 its bounds, so a bound may refer to its own trigger id.
 
 ### Hub that fires its own automations

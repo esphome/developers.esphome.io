@@ -43,6 +43,7 @@ FINAL_VALIDATE_SCHEMA = esp32_rmt.final_validate_rmt_channels
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     cg.add(var.set_rmt_symbols(config[CONF_RMT_SYMBOLS]))
+    cg.add_optional(var.set_with_dma, config.get(CONF_USE_DMA))
     await cg.register_component(var, config)
     esp32_rmt.register_rmt_channel(config)
 ```
@@ -50,5 +51,8 @@ async def to_code(config):
 A component with its own final validation calls `esp32_rmt.final_validate_rmt_channels(config)` from it instead.
 
 The combined checks are skipped in `--testing-mode`, where component test grouping merges the RMT components of many
-test configs into one build. `esp32_rmt.validate_rmt_not_supported(keys)` rejects RMT-only keys on variants without
-RMT (`esp32_rmt.VARIANTS_NO_RMT`).
+test configs into one build.
+
+On variants without RMT (`esp32_rmt.VARIANTS_NO_RMT`), reject the RMT-only keys by adding
+`.add_extra(esp32_rmt.validate_rmt_not_supported([CONF_RMT_SYMBOLS, CONF_USE_DMA]))` to
+`CONFIG_SCHEMA`.

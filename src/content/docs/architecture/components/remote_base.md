@@ -34,6 +34,24 @@ bool MyClimate::on_receive(remote_base::RemoteReceiveData data) {
 }
 ```
 
+`data.get_raw_data()` gives the whole frame as a `remote_base::RawTimingsView` (`std::span<const int32_t>`). It
+views the receiver's buffer, so copy what you need to keep: `remote_base::RawTimings(raw.begin(), raw.end())`.
+
+## Receiver platforms
+
+A platform deriving from `RemoteReceiverBase` hands each received frame to the listeners and dumpers. One that fills
+`temp_` calls `call_listeners_dumpers_()`. One that captures into its own buffer passes the frame directly, without
+copying it into `temp_`:
+
+```cpp
+this->call_listeners_dumpers_({this->frame_, this->frame_count_});
+```
+
+The buffer must hold the frame until the call returns. Passing a vector to this overload does not compile; fill
+`temp_` and call `call_listeners_dumpers_()` instead, so `on_raw` can pass it on without a copy.
+
+Receiver platforms dispatching from their own buffer and `RawTimingsView` were added in ESPHome 2026.12.0.
+
 ## Frame bytes
 
 Most IR frames send each byte as eight bits, each a fixed mark followed by a long space for 1 or a short space

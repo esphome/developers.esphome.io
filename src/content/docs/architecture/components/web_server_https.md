@@ -2,8 +2,8 @@
 title: "HTTPS for the Web Server (ESP32)"
 ---
 
-On ESP32, the HTTP server shared by `web_server_base` can serve HTTPS. A component supplies the certificate and key at
-run time, for example one the user uploaded, and can switch between HTTP and HTTPS without a restart.
+On ESP32, the HTTP server shared by `web_server_base` can serve HTTPS. A component supplies the certificate and key
+before it starts the listener.
 
 HTTPS can't be combined with `web_server`, `captive_portal` or `prometheus` yet: `web_server` writes its event streams to
 the socket directly, which would bypass TLS, and `prometheus` is advertised over mDNS as plain HTTP. A component that
@@ -38,18 +38,13 @@ Use `WebServerBase` (`esphome/components/web_server_base/web_server_base.h`):
 #ifdef USE_WEBSERVER_SSL
 // certificate and key are PEM strings. They are not copied and must stay valid while the server runs.
 auto *base = web_server_base::global_web_server_base;
-base->set_ssl_credentials(certificate, key, 443);  // the port is optional
+base->set_port(443);
+base->set_ssl_credentials(certificate, key);
 base->init();  // once, in setup(): starts the listener
-
-// Back to plain HTTP:
-base->set_ssl_credentials(nullptr, nullptr, 80);
 #endif
 ```
 
-- `set_port()` and `set_ssl_credentials()` each restart a running listener, which closes open connections. Pass the
-  port to `set_ssl_credentials()` to switch both with one restart.
-- Call them from the main loop, not from an HTTP request handler: the restart would wait for the handler's own task.
-  To act on a request (for example, a certificate upload), defer the change to the main loop.
+- Set the port and the credentials before `init()`. Changing them while the server runs is not supported yet.
 - The certificate and key are checked before the server starts. The key must be unencrypted. If either is invalid,
   or the key doesn't belong to the certificate, the server logs an error and stays off. It doesn't fall back to plain
   HTTP by itself.

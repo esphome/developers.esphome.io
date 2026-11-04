@@ -1271,22 +1271,40 @@ When submitting a PR with breaking changes, structure your description to includ
 
 ## Running CI checks locally
 
-You can run the lint and GitHub Actions checks via a docker image:
+The lint checks run as git hooks on every commit. `script/setup`, from
+[Setting up a development environment](/contributing/development-environment/), installs them using
+[prek](https://prek.j178.dev/). To run the same checks over the whole tree, with the virtual environment activated:
 
 ```bash
-# Full lint+test suite
-docker run --rm -v "${PWD}/":/esphome -it ghcr.io/esphome/esphome-lint script/fulltest
-
-# Run lint only over changed files
-docker run --rm -v "${PWD}/":/esphome -it ghcr.io/esphome/esphome-lint script/quicklint
+prek run --all-files
 ```
 
-If you are using Windows and have docker installed, the syntax is slightly different.
-If you have cloned ESPHome to `c:\edev\esphome` the path will be `c/edev/esphome`
+This covers Ruff, Ruff's formatter, pyupgrade, yamllint, clang-format, pylint and `script/ci-custom.py`, the same
+set the lint jobs in CI run.
+
+The remaining CI jobs are separate commands:
 
 ```bash
-# convert the volume format
-$current_dir=(Get-Location).Path.ToLower().Replace(':','').Replace('\','/')
-# Run lint only over changed files from powershell
-docker run --rm -v "$($current_dir):/esphome" -it ghcr.io/esphome/esphome-lint script/quicklint
+# C++ static analysis over the files you changed, headers included; the first run downloads the toolchains it needs
+script/clang-tidy --changed --all-headers
+
+# Python unit tests
+pytest tests/unit_tests
+
+# Build a component's test configurations; see the component tests page for -e config and the platform options
+script/test_build_components -e compile -c <component>
 ```
+
+The last one is described in more detail under
+[Component/platform test configurations](/architecture/ci/component_tests#running-the-tests).
+
+On Windows, run `script/setup.bat` instead of `script/setup`, and invoke the scripts through Python, since PowerShell
+cannot execute them directly and `script/test_build_components` is a symlink to the `.py` file:
+
+```powershell
+python script/clang-tidy --changed --all-headers
+python script/test_build_components.py -e compile -c <component>
+```
+
+The `ghcr.io/esphome/esphome-lint` Docker image and the `script/quicklint` and `script/fulltest` wrappers it ran
+have been retired. The last image, 2025.4.2, ships Python 3.11, which cannot parse the current scripts.

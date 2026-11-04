@@ -618,22 +618,28 @@ form can use the names in the table:
 | Domain | Class | Names in `apply` | What `publish` publishes |
 | ------ | ----- | ---------------- | ------------------------ |
 | `button` | `button.ApplyButton` | `entity` | (not available) |
-| `switch` | `switch.ApplySwitch` | `entity`, `state` | `state` (`false` with `momentary`) |
-| `number` | `number.ApplyNumber` | `entity`, `value` | `value` |
-| `select` | `select.ApplySelect` | `entity`, `index`, `option` (the selected option's text) | `index` |
+| `switch` | `switch.ApplySwitch` | `entity`, `state` | `state` (`false` with `momentary`; only on `true` with `on_success`) |
+| `number` | `number.ApplyNumber` | `entity`, `value` | `value` (only on `true` with `on_success`) |
+| `select` | `select.ApplySelect` | `entity`, `index`, `option` (the selected option's text) | `index` (only on `true` with `on_success`) |
 | `output` | `output.ApplyFloatOutput`, `output.ApplyBinaryOutput` | `entity`, `index` (the channel passed to the constructor), `state` | (not available) |
 
 For outputs, use `output.sub_float_outputs` or `output.sub_binary_outputs`. Arguments given to `.create()` after the
 setter are passed to the output's constructor, which is how a channel number reaches `index`; see
 [Homogeneous channels](/architecture/components/output#homogeneous-channels-a-per-channel-key).
 
-`publish="before"` or `publish="after"` publishes the new state before or after the call. Leave it out when the hub
-publishes the state itself, for example once the device confirms the change. Code generation stops with an error when
-the `Apply` class has no `apply=`, when `apply=` is used with another class, when `apply=` without `parent=` does not
-call a namespaced function, when `publish=` is used without `apply=` or on a button or output, and when
-`publish="momentary"` is used on anything but a switch. The setter can be `None` when the hub keeps no pointer to the
-entity. For a platform whose whole config is one entity, call `.create(config, setter, apply=..., publish=...)` on the
-`sub_*` result instead.
+`publish="before"` or `publish="after"` publishes the new state before or after the call. Leave `publish` out when the
+hub publishes the state itself, for example once the device confirms the change. Code generation stops with an error when the `Apply` class
+has no `apply=`, when `apply=` is used with another class, when `apply=` without `parent=` does not call a namespaced
+function, when `publish=` is used without `apply=` or on a button or output, and when `publish="momentary"` is used
+on anything but a switch. The setter can be `None` when the hub keeps no pointer to the entity. For a platform whose
+whole config is one entity, call `.create(config, setter, apply=..., publish=...)` on the `sub_*` result instead.
+
+`publish="on_success"` is for a write the device can refuse. It publishes the new state only when the call returns
+`true`, so **the hub method must return `bool`**; after a refused write the entity keeps its old state.
+
+```python
+await switches(CONF_PG_GPO, hub.set_pg_gpo_switch, apply="write_pg_gpo_level(state)", publish="on_success")
+```
 
 `publish="momentary"` exists only for legacy switches that trigger an action, such as the restart and factory reset
 switches: it publishes off straight away and makes the call only when the switch is turned on, so it never stays on.
@@ -813,7 +819,8 @@ state:
   says "unspecified". `status_comm_result()` (below) sets or clears the warning from a read or write result.
 - `status_momentary_warning()` / `status_momentary_error()` set the flag and clear it again after a timeout (5000 ms by
   default). Use them for one-off failures, such as a single failed read. A new call restarts the timeout.
-- `mark_failed()` marks the component as failed when it cannot work at all, typically from `setup()`.
+- `mark_failed()` marks the component as failed when it cannot work at all, typically from `setup()`. `setup_check()`
+  (below) calls it from a read or write result.
 
 ```cpp
 this->status_momentary_warning();                          // cleared after 5000 ms
@@ -845,9 +852,26 @@ if (!this->status_comm_result(this->read_bytes(REG_RED_DATA_LSB, buffer, sizeof(
 Without a message the warning says "Communication failed" (`ESP_LOG_MSG_COMM_FAIL`). Pass a `LOG_STR("...")` as the
 second argument for another text, for example
 `this->status_comm_result(ok, LOG_STR("Failed to read one or more registers"))`. Use it for failures after `setup()`;
-a device that cannot be set up at all still calls `mark_failed()`. A component has one warning flag, so a success
-clears a warning set by any other check too; do not mix it with other `status_set_warning()` conditions in the same
-update.
+in `setup()` use `setup_check()` (below). A component has one warning flag, so a success clears a warning set by
+any other check too; do not mix it with other `status_set_warning()` conditions in the same update.
+
+In `setup()`, a failed read or write usually means the device cannot work at all. `setup_check(ok)` marks the
+component failed when `ok` is false and returns `ok`:
+
+```cpp
+// Before
+if (!this->write_byte(REG_RESET, 0)) {
+  this->mark_failed(LOG_STR(ESP_LOG_MSG_COMM_FAIL));
+  return;
+}
+
+// After
+if (!this->setup_check(this->write_byte(REG_RESET, 0)))
+  return;
+```
+
+The failure reason is "Communication failed" (`ESP_LOG_MSG_COMM_FAIL`), or the `LOG_STR("...")` passed as the second
+argument. A success changes nothing, so it is safe to call for each step of `setup()`.
 
 ### Component-specific methods
 

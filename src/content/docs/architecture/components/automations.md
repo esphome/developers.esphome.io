@@ -364,6 +364,56 @@ is kept. Constant bounds are written as literals in the generated function, as a
 the state as `x` (which is `const`, so one bound cannot change what the other sees), and the trigger is declared before
 its bounds, so a bound may refer to its own trigger id.
 
+### Hub that fires its own automations
+
+Use this when the component itself decides when an event fires and passes the values, for example a keypad hub that fires `on_key` with the key code, and nothing else listens for that event. The hub keeps an `AutomationList` sized at build time and triggers it directly: each automation costs one pointer-sized slot (4 bytes on 32-bit chips), there is no `Trigger` object and no heap vector, and an unused list compiles out.
+
+#### Python
+
+List each event once with its count define and trigger arguments, then call `build_automation_lists`:
+
+```python
+_AUTOMATION_LISTS = (
+    automation.AutomationList(CONF_ON_KEY, "MY_HUB_ON_KEY_COUNT", [(cg.uint8, "x")]),
+)
+
+
+async def to_code(config: ConfigType) -> None:
+    var = cg.new_Pvariable(config[CONF_ID])
+    await cg.register_component(var, config)
+    await automation.build_automation_lists(var, config, _AUTOMATION_LISTS)
+```
+
+The schema uses plain `automation.validate_automation()` with no trigger class. For each automation, the helper calls `add_<conf_key>_automation(automation)` on the hub (`add_on_key_automation` above). The count define is the largest number of automations any one hub instance has for that event; it is not emitted when no hub uses the event. Add each define to `esphome/core/defines.h` for static analysis.
+
+#### C++
+
+```cpp
+class MyHub : public Component {
+ public:
+#ifdef MY_HUB_ON_KEY_COUNT
+  void add_on_key_automation(Automation<uint8_t> *automation) { this->key_automations_.add(automation); }
+#endif
+
+ protected:
+  void on_key_(uint8_t key) {
+#ifdef MY_HUB_ON_KEY_COUNT
+    this->key_automations_.trigger(key);
+#endif
+  }
+
+#ifdef MY_HUB_ON_KEY_COUNT
+  AutomationList<MY_HUB_ON_KEY_COUNT, uint8_t> key_automations_;
+#endif
+};
+```
+
+`trigger()` runs every automation in the order they were added. It shares one copy of its loop between lists of different sizes with the same arguments. When building an argument costs something, such as formatting a string, check `empty()` first and build it once per event, not once per automation.
+
+Prefer a callback (above) when the parent already has a callback list for the event, or when other code listens to it too.
+
+When each automation needs its own stored value next to it, such as a threshold the hub compares against, build the automations one at a time with `automation.new_automation(args, conf)` and pass each one to the hub's own setter with that value. It returns the `Automation<args>` with its actions and no trigger.
+
 ### When to use which method
 
 | Scenario | Method | Example |
@@ -375,6 +425,7 @@ its bounds, so a bound may refer to its own trigger id.
 | Callback carries nothing, automation gets the parent | `build_parent_callback_automation` | [`fan on_state`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/__init__.py) -- forwards `::the_fan` |
 | Registration takes extra arguments | `build_trigger_callback` | [`mqtt on_message`](https://github.com/esphome/esphome/blob/dev/esphome/components/mqtt/__init__.py) -- the component passes the lambda to `subscribe(topic, callback, qos)`, filtered on the configured payload |
 | Fire when a float enters `above`/`below` | `new_value_range_trigger` | `sensor on_value_range` -- the trigger keeps `previous`, the bounds come from one generated `ValueRange` function ([esphome/esphome#21817](https://github.com/esphome/esphome/pull/21817), pending) |
+| Hub fires the event itself, no other listeners | `AutomationList` | [`wiegand on_key`](https://github.com/esphome/esphome/blob/dev/esphome/components/wiegand/wiegand.h) -- `AutomationList<WIEGAND_ON_KEY_COUNT, uint8_t>` ([esphome/esphome#21790](https://github.com/esphome/esphome/pull/21790), pending) |
 | Extra state needed | Trigger class | [`fan on_turn_on`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/automation.h) -- `FanTurnOnTrigger` tracks `last_on_` for edge detection (mutable state, can't be a forwarder) |
 | Complex logic (timing, state machine) | Trigger class | [`binary_sensor on_multi_click`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/automation.h) -- `MultiClickTrigger` with timing, cooldown, and multiple state fields |
 

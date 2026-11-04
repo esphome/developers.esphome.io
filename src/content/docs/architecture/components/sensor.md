@@ -273,15 +273,18 @@ class MyComponent final : public PollingComponent {
 };
 
 void MyComponent::update() {
-  // Always null-check: the user may have configured only one of them.
-  if (this->temperature_sensor_ != nullptr) {
-    this->temperature_sensor_->publish_state(this->read_temperature_());
-  }
-  if (this->humidity_sensor_ != nullptr) {
-    this->humidity_sensor_->publish_state(this->read_humidity_());
-  }
+  PUBLISH_STATE(this->temperature_sensor_, this->read_temperature_());
+  PUBLISH_STATE(this->humidity_sensor_, this->read_humidity_());
 }
 ```
+
+The user may have configured only some of the sensors, so every publish needs a null check.
+`PUBLISH_STATE(entity, ...)` from `esphome/core/entity_base.h` does that check: it calls `entity->publish_state(...)`
+only when `entity` is set, and it evaluates the arguments only in that case, so `this->read_temperature_()` above does
+not run when no temperature sensor is configured. It works for every entity type with `publish_state()` (binary
+sensors, text sensors, switches, numbers, selects, ...), and passes several arguments through, for example
+`PUBLISH_STATE(this->version_text_sensor_, buf, len)`. `PUBLISH_STATE` was added in ESPHome 2026.11.0; older code
+writes the `if (this->x_sensor_ != nullptr)` check by hand.
 
 #### Skipping repeated values
 
@@ -315,6 +318,27 @@ nothing. `has_sensor()` tells whether the sensor is configured, and `get_sensor(
 also be used directly, for example in a `std::array` of per-target sensors. `SensorWithDedup` was added in ESPHome
 2026.11.0.
 
+#### Publishing optional readings
+
+A parser that fills a struct of `optional` fields, one per reading it found in a packet, publishes each field only
+when it has a value and the entity is configured. `publish_optional()` from `esphome/core/entity_base.h` does both
+checks, in one call per field. It works for any entity with a matching `publish_state()`, such as a binary sensor
+with an `optional<bool>` field:
+
+```cpp
+// Before
+if (res.temperature.has_value() && this->temperature_sensor_ != nullptr)
+  this->temperature_sensor_->publish_state(*res.temperature);
+
+// After
+publish_optional(this->temperature_sensor_, res.temperature);
+```
+
+It takes an entity pointer, such as a `SUB_SENSOR` or `SUB_BINARY_SENSOR` member. A `SUB_SENSOR_WITH_DEDUP` member is
+not a pointer and already skips an unset sensor, so check only the value:
+`if (res.temperature.has_value()) this->temperature_sensor_.publish_state_if_not_dup(*res.temperature);`. Keep the `if`
+when the value needs changing before it is published. `publish_optional` was added in ESPHome 2026.11.0.
+
 ### Choosing between them
 
 Neither pattern is the "modern" one and neither is deprecated. They express different relationships between a device and
@@ -333,6 +357,22 @@ new component with no hub, sub-configs are usually the smaller change.
 
 Equivalent `SUB_*` macros exist for the other entity types that are commonly exposed this way:
 `SUB_BINARY_SENSOR`, `SUB_BUTTON`, `SUB_NUMBER`, `SUB_SELECT`, `SUB_SWITCH` and `SUB_TEXT_SENSOR`.
+
+## Reading another sensor as an input
+
+Some components take another sensor as an input, such as the temperature and humidity a gas sensor uses for
+compensation. Read it with `sensor::source_value(sensor, min, max)` from `esphome/components/sensor/sensor.h`. It
+returns the sensor's state when it lies in `[min, max]`, and `NAN` when the pointer is null, the sensor has no state
+yet, its state is `NAN` or it is out of range. The caller decides how to handle `NAN` (skip the update or fall back
+to a default) and what to log.
+
+```cpp
+float humidity = sensor::source_value(this->humidity_sensor_, 0.0f, 100.0f);
+if (std::isnan(humidity))
+  humidity = 50;  // the chip's default
+```
+
+This helper was added in ESPHome 2026.11.0.
 
 ## Following another entity
 

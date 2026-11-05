@@ -842,8 +842,8 @@ The static byte keeps the last field value, so the next poll with the same value
 
 `fallback` picks the string for a field value past the table's end, the last string by default. A bad mask or an on
 value outside the field fails when the row is built. When the states are already a dict of expressions,
-`STATUS_PUBLISHER.publish_children(hub, sensor.sub_sensors(config), states)` adds one `publish_state` per configured
-child.
+`await STATUS_PUBLISHER.publish_children(hub, sensor.sub_sensors(config), states)` adds one `publish_state` per
+configured child.
 
 ## C++ component structure
 

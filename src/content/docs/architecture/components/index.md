@@ -757,7 +757,7 @@ call.
 
 Keep a listener class when a child has its own state or timing beyond publishing what the hub passes in.
 
-### Register fields
+#### Register fields
 
 A hub that reads status registers describes each field once with `cg.RegisterField(register=, shift=, mask=, on=)`,
 where `on` lists the field values a binary sensor reads as on. A platform subclasses it to add its own columns:
@@ -810,6 +810,11 @@ PROGMEM_STRING_TABLE(MyHubStrings,
 
 ```python
 # my_hub/text_sensor.py
+from dataclasses import dataclass
+
+MyHubStrings = my_hub_ns.namespace("MyHubStrings")  # the PROGMEM_STRING_TABLE above
+
+
 @dataclass(frozen=True, kw_only=True)
 class _StatusText(cg.RegisterField):
     key: str

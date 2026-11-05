@@ -46,7 +46,8 @@ const remote_base::RawTimings &timings = data.get_raw_data();
 // After: view the frame
 remote_base::RawTimingsView timings = data.get_raw_data();
 // After: keep a copy
-remote_base::RawTimings timings(data.get_raw_data().begin(), data.get_raw_data().end());
+auto view = data.get_raw_data();
+remote_base::RawTimings timings(view.begin(), view.end());
 ```
 
 A helper that took `const RawTimings &` can take `RawTimingsView` instead; a vector still converts to it.

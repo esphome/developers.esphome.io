@@ -35,7 +35,12 @@ bool MyClimate::on_receive(remote_base::RemoteReceiveData data) {
 ```
 
 `data.get_raw_data()` gives the whole frame as a `remote_base::RawTimingsView` (`std::span<const int32_t>`). It
-views the receiver's buffer, so copy what you need to keep: `remote_base::RawTimings(raw.begin(), raw.end())`.
+views the receiver's buffer, so copy what you need to keep:
+
+```cpp
+auto raw = data.get_raw_data();
+remote_base::RawTimings copy(raw.begin(), raw.end());
+```
 
 ## Receiver platforms
 
@@ -47,8 +52,8 @@ copying it into `temp_`:
 this->call_listeners_dumpers_({this->frame_, this->frame_count_});
 ```
 
-The buffer must hold the frame until the call returns. Passing a vector to this overload does not compile; fill
-`temp_` and call `call_listeners_dumpers_()` instead, so `on_raw` can pass it on without a copy.
+The buffer must hold the frame until the call returns. A vector does not convert here: the vector overload is deleted.
+Fill `temp_` and call `call_listeners_dumpers_()` instead, so `on_raw` can pass it on without a copy.
 
 Receiver platforms dispatching from their own buffer and `RawTimingsView` were added in ESPHome 2026.12.0.
 

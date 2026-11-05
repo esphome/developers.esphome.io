@@ -249,8 +249,8 @@ def _final_validate(config: ConfigType) -> ConfigType:
 FINAL_VALIDATE_SCHEMA = _final_validate
 ```
 
-The manual check is best effort: its `conf_keys` argument, a collection of key names such as
-`(CONF_UART_ID, "bridge_uart_id")`, also finds the UART under keys other than `uart_id`, but bare
+The manual check is best effort: its `conf_keys` argument, the key names to search, replaces the default
+`(CONF_UART_ID,)`, so pass, for example, `(CONF_UART_ID, "bridge_uart_id")` to find the UART under either key, but bare
 `id:` references, such as a `uart.write` action, and lambdas are not found. The loop above skips the component's own
 domain, which fits a top-level, single-instance component; a platform (whose config sits under `sensor:` and the like)
 or a `MULTI_CONF` component must skip its own config node instead, or it rejects itself and misses a second instance

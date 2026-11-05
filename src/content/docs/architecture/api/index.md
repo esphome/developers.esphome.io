@@ -74,8 +74,10 @@ understand the functionality.
 
 ## Device network information
 
-The Native API reports the network interface the device is connected through in the `network_type` field of
-`DeviceInfoResponse`. The field uses the `NetworkType` enum from
+The Native API reports the device's primary network interface in the `network_type` field of
+`DeviceCapabilitiesResponse`, sent only once a connection is authenticated (unlike
+`DeviceInfoResponse`, which is identity-only and served pre-authentication). The field uses the
+`NetworkType` enum from
 [`api.proto`](https://github.com/esphome/esphome/blob/dev/esphome/components/api/api.proto):
 
 ```protobuf
@@ -87,6 +89,9 @@ enum NetworkType {
 }
 ```
 
-When several interfaces are compiled in, the device reports the first connected one in the order Wi-Fi (including
-an active access point), Ethernet, Thread. Clients receive `NETWORK_TYPE_UNKNOWN` when no interface is connected, and from firmware that predates the
-field.
+The value follows the same interface priority as the device's default route
+(`network::get_network_type()` in `network/util.h`): Ethernet first, unless a Wi-Fi-first
+`network: priority:` list says otherwise, then Thread. It is the device's own primary interface,
+not necessarily the one carrying the querying client's connection — a client on a device's
+fallback Wi-Fi access point, or on a cellular modem, sees `NETWORK_TYPE_UNKNOWN`, same as when no
+interface is connected yet or the firmware predates the field.

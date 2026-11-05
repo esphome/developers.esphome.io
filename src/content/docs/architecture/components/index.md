@@ -757,6 +757,59 @@ call.
 
 Keep a listener class when a child has its own state or timing beyond publishing what the hub passes in.
 
+### Register fields
+
+A hub that reads status registers describes each field once with `cg.RegisterField(register=, shift=, mask=, on=)`,
+where `on` lists the field values a binary sensor reads as on. A platform subclasses it to add its own columns:
+
+```python
+# my_hub/binary_sensor.py
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True, kw_only=True)
+class _StatusBit(cg.RegisterField):
+    key: str
+
+
+_FIELDS = (
+    _StatusBit(key=CONF_CHARGING, register=0, shift=5, mask=0x03, on=(1, 2)),
+    _StatusBit(key=CONF_POWER_GOOD, register=1, shift=7),
+)
+
+
+async def to_code(config: ConfigType) -> None:
+    hub = await cg.get_variable(config[CONF_MY_HUB_ID])
+    sensors = binary_sensor.sub_binary_sensors(config)
+    for field in _FIELDS:
+        if (var := await sensors(field.key, None)) is not None:
+            STATUS_PUBLISHER.add(hub, automation.parent_ref(var).publish_state(field.is_on(STATUS)))
+```
+
+```cpp
+::bs_charging->publish_state(((0b0110 >> ((status[0] >> 5) & 0x03)) & 1));
+::bs_power_good->publish_state(((status[1] >> 7) & 0x01));
+```
+
+A field that names a status word in a `PROGMEM_STRING_TABLE` publishes it only when the field changes, keeping one
+static byte per sensor:
+
+```python
+# my_hub/text_sensor.py
+text_sensor.add_table_on_change(STATUS_PUBLISHER, hub, var, STATUS, field, table=MyHubStrings, first=4)
+```
+
+```cpp
+static uint8_t esphome__ts_charge__last = 0xFF;
+text_sensor::publish_table_on_change<MyHubStrings, 0x03, MyHubStrings::LAST_INDEX>(
+    ::ts_charge, esphome__ts_charge__last, (status[0] >> 5), 4);
+```
+
+`fallback` picks the string for a field value past the table's end, the last string by default. A bad mask or an on
+value outside the field fails when the row is built. When the states are already a dict of expressions,
+`STATUS_PUBLISHER.publish_children(hub, sensor.sub_sensors(config), states)` adds one `publish_state` per configured
+child.
+
 ## C++ component structure
 
 Given the example Python code above, let's consider the following C++ code:

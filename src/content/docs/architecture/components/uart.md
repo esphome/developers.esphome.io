@@ -248,9 +248,9 @@ FINAL_VALIDATE_SCHEMA = _final_validate
 ```
 
 `uart.claim_exclusive(config, owner, conf_key="uart_id")` is a plain function, not a coroutine. It claims the UART
-that `config[conf_key]` names and rejects a second `my_bridge` entry on that UART, any other component that names it
-by `uart_id` or `conf_key`, and a `dummy_receiver` in the UART's `debug`. `owner` is the component's top-level
-config key: the check skips that domain and keeps the claims per `(owner, conf_key)` in
+that `config[conf_key]` names and rejects a second claim of that UART by the same owner, even under another key, any
+other component that names it by `uart_id` or `conf_key`, and a `dummy_receiver` in the UART's `debug`. `owner` is the
+component's top-level config key: the check skips that domain and keeps the claims per owner in
 `fv.full_config.get().data["uart_exclusive"]`.
 Grouped CI builds share one bus between components, so in testing mode other components are not checked. `uart_tcp`
 uses it.
@@ -288,14 +288,14 @@ def _final_validate(config: ConfigType) -> ConfigType:
 FINAL_VALIDATE_SCHEMA = _final_validate
 ```
 
-The manual check is best effort: its `conf_keys` argument, the key names to search, replaces the default
-`(CONF_UART_ID,)`, so pass, for example, `(CONF_UART_ID, "bridge_uart_id")` to find the UART under either key, but bare
-`id:` references, such as a `uart.write` action, and lambdas are not found. The loop above skips the component's own
-domain, which fits a top-level, single-instance component; a platform (whose config sits under `sensor:` and the like)
-or a `MULTI_CONF` component must skip its own config node instead, or it rejects itself and misses a second instance
-on the same bus. The `cdc_acm_uart` bridge platform skips its whole
-`bridge:` domain and records the ids it has claimed in `fv.full_config.get().data`, so a second bridge on the same
-UART is rejected too.
+The manual check is best effort: further arguments name the keys to search instead of the default `uart_id`, so
+`subtree_references_uart(domain_conf, uart_id, CONF_UART_ID, "bridge_uart_id")` finds the UART under either key and
+each key must match exactly, but bare `id:` references, such as a `uart.write` action, and lambdas are not found. The
+loop above skips the component's own domain, which fits a top-level, single-instance component; a platform (whose config
+sits under `sensor:` and the like) or a `MULTI_CONF` component must skip its own config node instead, or it rejects
+itself and misses a second instance on the same bus. The `cdc_acm_uart` bridge platform skips its whole `bridge:`
+domain and records the ids it has claimed in `fv.full_config.get().data`, so a second bridge on the same UART is
+rejected too.
 
 ## Reading text lines
 

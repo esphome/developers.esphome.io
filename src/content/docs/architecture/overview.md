@@ -165,21 +165,17 @@ id, and follows the placement new storage convention, so `esphome analyze-memory
 component as `storage for <owner>_buffer`. A second buffer for the same owner is `<owner>_buffer_2`, and so on.
 
 A buffer that used to be allocated with `RAMAllocator`, which places it in PSRAM when the board has it, should stay
-there. Pass `psram=True`: builds with PSRAM enabled (`psram:` configured and not disabled) then get `nullptr` instead of
-a static buffer, and the C++ hands what it got to `static_or_heap()` (`esphome/core/helpers.h`), which allocates
-`count` elements with `RAMAllocator` in that case and returns the static buffer otherwise:
+there. Pass `psram=True`: builds with PSRAM enabled (`psram:` configured and not disabled) then get a
+`psram_buffer<type_>(size)` call (`esphome/core/helpers.h`) instead of a static buffer, which allocates `size` elements
+with `RAMAllocator` and zeroes them, so both paths start all zero. The component needs no PSRAM code of its own:
 
 ```python
 buffer = cg.static_buffer(config[CONF_ID], cg.uint8, size, psram=True)
-cg.add(var.set_buffer(buffer, size))
+cg.add(var.set_buffer(buffer))
 ```
 
-```cpp
-void set_buffer(uint8_t *buffer, size_t size) { this->buffer_ = static_or_heap(buffer, size); }
-```
-
-`static_or_heap()` zeroes the heap allocation, so both paths start all zero, and returns `nullptr` when the allocation
-fails, so check it before use.
+The call allocates each time it runs, so pass the result once. It returns `nullptr` when the allocation fails, so check
+the pointer in `setup()` and mark the component failed.
 
 Two more options cover the common cases without casts or hand-built strings:
 

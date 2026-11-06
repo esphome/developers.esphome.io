@@ -4,8 +4,8 @@ title: "Modbus TCP framing"
 
 The MBAP helpers turn one Modbus RTU frame into one Modbus TCP frame, and back. The header is
 `esphome/components/modbus_tcp_uart/mbap.h`. It is header-only. A build that does not include it compiles none of it.
-It does not link the Modbus hub, but `take_rtu` uses the frame length helpers of the `modbus` component, so a component
-that calls it must load `modbus`.
+It does not link the Modbus hub and does not need the `modbus` component: `take_rtu` uses `rtu_frame_length`, which
+gives the same frame lengths as the hub's parser, except that it reads the 2-byte byte count of a Read FIFO Queue reply.
 
 `tcp_uart` and `uart_tcp` do not include the header. They copy bytes. The `modbus_tcp_uart` component includes it.
 That component is a UART in front of a raw `tcp_uart`. It does not open a socket.
@@ -45,8 +45,9 @@ switch (modbus_tcp_uart::take_mbap(buf, len, &frame, &used)) {
 
 `write_rtu` writes unit, PDU and CRC as one RTU frame and returns its length; `dst` must hold at least `pdu_len + 3`
 bytes. `RTU_MAX_SIZE` is the largest RTU frame, 256 bytes. `rtu_crc_ok` checks the CRC of one RTU frame of 4 to
-`RTU_MAX_SIZE` bytes. `take_rtu` finds the RTU frame at the start of a buffer. For a function code whose length the
-`modbus` hub knows, the frame ends where the hub's own parser ends it: pass `replies` as true for what a server sends,
+`RTU_MAX_SIZE` bytes. `take_rtu` finds the RTU frame at the start of a buffer. `rtu_frame_length(buf, len, replies)`
+returns the length of that frame as its function code gives it, or 0 for a code without a known length; `buf` must
+hold at least 2 bytes. Where it returns a length, the frame ends there: pass `replies` as true for what a server sends,
 false for what a client sends. That frame returns `NEED_MORE` while bytes are missing and `BAD` when its CRC fails. For
 any other function code the frame ends at the first CRC match from 4 bytes on. Without a match it returns `NEED_MORE`,
 and `BAD` once it has `RTU_MAX_SIZE` bytes. `modbus_tcp_uart` joins what a writer hands over with it: pieces until the

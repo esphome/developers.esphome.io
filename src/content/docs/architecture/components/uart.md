@@ -293,8 +293,8 @@ The manual check is best effort: further arguments name the keys to search inste
 each key must match exactly, but bare `id:` references, such as a `uart.write` action, and lambdas are not found. The
 loop above skips the component's own domain, which fits a top-level, single-instance component; a platform (whose config
 sits under `sensor:` and the like) or a `MULTI_CONF` component must skip its own config node instead, or it rejects
-itself and misses a second instance on the same bus. The `cdc_acm_uart` bridge platform skips its whole `bridge:`
-domain and records the ids it has claimed in `fv.full_config.get().data`, so a second bridge on the same UART is
+itself and misses a second instance on the same bus. The `cdc_acm_uart` bridge platform uses `claim_exclusive()`,
+which skips its whole `bridge:` domain and records the ids it has claimed, so a second bridge on the same UART is
 rejected too.
 
 ## Reading text lines

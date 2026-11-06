@@ -179,7 +179,8 @@ the pointer in `setup()` and mark the component failed.
 
 Two more options cover the common cases without casts or hand-built strings:
 
-- `align=4` emits `alignas(4)`, for a byte buffer that DMA or a word copy reads, so the C++ keeps a `uint8_t *`.
+- `align=4` emits `alignas(4)`, for a byte buffer that DMA or a word copy reads, so the C++ keeps a `uint8_t *`. With
+  `psram=True` the heap allocation guarantees no more than 4, so a larger `align` is rejected.
 - `size` may be a C++ expression. When the size comes from a `static constexpr` member, `Class.static_("member")`
   renders `ns::Class::member`, and calling it renders a call whose arguments go through `safe_exp`:
 

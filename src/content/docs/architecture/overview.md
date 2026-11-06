@@ -197,7 +197,8 @@ buffer = cg.static_buffer(config[CONF_ID], cg.uint8, size, align=4)
 A list of objects whose count codegen knows (one entry per configured sensor, valve or address) is a
 `StaticFixedVector<T>` (`esphome/core/helpers.h`) backed by `cg.static_storage(owner, type_, count)`, instead of a
 `FixedVector<T>` that allocates its array at setup. The storage is raw and aligned, so `push_back` and `emplace_back`
-build the elements in place, and it is never freed:
+build the elements in place, and it is never freed. Both refuse to go past the capacity: `push_back` ignores the
+value and `emplace_back` returns `nullptr`:
 
 ```python
 storage = cg.static_storage(config[CONF_ID], SensorSource, len(config[CONF_SOURCES]))

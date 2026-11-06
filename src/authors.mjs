@@ -23,4 +23,10 @@ export const authors = {
     picture: "https://github.com/clydebarrow.png",
     url: "https://github.com/clydebarrow",
   },
+  j9brown: {
+    name: "Jeff Brown",
+    title: "ESPHome Contributor",
+    picture: "https://github.com/j9brown.png",
+    url: "https://github.com/j9brown",
+  },
 };

@@ -205,6 +205,8 @@ cg.add(var.set_source_storage(storage))
 void set_source_storage(std::span<SensorSource> storage) { this->sources_.init(storage); }
 ```
 
+`init()` is called once, before any element is added, and the capacity is at most 65535.
+
 The storage is named like a static buffer, so `esphome analyze-memory` counts it under the owner. A count of 0 gives an
 empty span and no storage. A list that only ever exists once per configuration can instead be a `StaticVector<T, N>`
 sized by a codegen define.

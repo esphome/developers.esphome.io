@@ -178,7 +178,19 @@ cg.add(var.set_buffer(buffer, size))
 void set_buffer(uint8_t *buffer, size_t size) { this->buffer_ = static_or_heap(buffer, size); }
 ```
 
-`static_or_heap()` returns `nullptr` when the heap allocation fails, so check it before use.
+`static_or_heap()` zeroes the heap allocation, so both paths start all zero, and returns `nullptr` when the allocation
+fails, so check it before use.
+
+Two more options cover the common cases without casts or hand-built strings:
+
+- `align=4` emits `alignas(4)`, for a byte buffer that DMA or a word copy reads, so the C++ keeps a `uint8_t *`.
+- `size` may be a C++ expression. When the size comes from a `static constexpr` member, `Class.static_("member")`
+  renders `ns::Class::member`, and calling it renders a call whose arguments go through `safe_exp`:
+
+```python
+size = MyComponent.static_("frame_size")(config[CONF_MODEL])
+buffer = cg.static_buffer(config[CONF_ID], cg.uint8, size, align=4)
+```
 
 ## Runtime
 

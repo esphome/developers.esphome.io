@@ -155,13 +155,14 @@ A buffer whose size comes from the configuration belongs in static memory (BSS),
 constructor:
 
 ```python
-rx_buffer = cg.static_buffer(config[CONF_ID], cg.uint8, config[CONF_MAX_PACKET_SIZE])
-var = cg.new_Pvariable(config[CONF_ID], rx_buffer)
+size = config[CONF_MAX_PACKET_SIZE]
+rx_buffer = cg.static_buffer(config[CONF_ID], cg.uint8, size)
+var = cg.new_Pvariable(config[CONF_ID], rx_buffer, size)  # MyComponent(uint8_t *buffer, size_t size)
 ```
 
 `owner` is the ID of the component the buffer belongs to. The name is made from it, unique against every configured
 id, and follows the placement new storage convention, so `esphome analyze-memory` lists the buffer under the owner's
-component as `storage for <owner>_buffer`.
+component as `storage for <owner>_buffer`. A second buffer for the same owner is `<owner>_buffer_2`, and so on.
 
 ## Runtime
 

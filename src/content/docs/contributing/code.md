@@ -158,7 +158,8 @@ total free heap is still large. We have seen field crashes caused by this.
 
 **Heap allocation after `setup()` should be avoided unless absolutely unavoidable.** Every allocation/deallocation cycle
 contributes to fragmentation. ESPHome treats runtime heap allocation as a long-term reliability bug, not a performance
-issue.
+issue. A buffer whose size comes from the configuration is a static array instead; see
+[Static buffers](/architecture/overview/#static-buffers).
 
 #### Avoiding hidden heap allocations
 

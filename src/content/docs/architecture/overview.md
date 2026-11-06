@@ -165,9 +165,9 @@ id, and follows the placement new storage convention, so `esphome analyze-memory
 component as `storage for <owner>_buffer`. A second buffer for the same owner is `<owner>_buffer_2`, and so on.
 
 A buffer that used to be allocated with `RAMAllocator`, which places it in PSRAM when the board has it, should stay
-there. Pass `psram=True`: builds with the `psram` component then get `nullptr` instead of a static buffer, and the C++
-hands what it got to `static_or_heap()` (`esphome/core/helpers.h`), which allocates `count` elements with
-`RAMAllocator` in that case and returns the static buffer otherwise:
+there. Pass `psram=True`: builds with PSRAM enabled (`psram:` configured and not disabled) then get `nullptr` instead of
+a static buffer, and the C++ hands what it got to `static_or_heap()` (`esphome/core/helpers.h`), which allocates
+`count` elements with `RAMAllocator` in that case and returns the static buffer otherwise:
 
 ```python
 buffer = cg.static_buffer(config[CONF_ID], cg.uint8, size, psram=True)

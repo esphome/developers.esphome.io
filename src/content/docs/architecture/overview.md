@@ -171,9 +171,6 @@ async def to_code(config: ConfigType) -> None:
     var = cg.new_Pvariable(config[CONF_ID], rx_buffer)
 ```
 
-Do not build the name from another id (`f"{config[CONF_ID].id}__rx_buffer"`): a user id with that name would produce
-a second declaration and break the build. A generated ID is always unique.
-
 ## Runtime
 
 At this point, the Python part of the codebase has completed its work. Let's move on and discuss the C++ part of

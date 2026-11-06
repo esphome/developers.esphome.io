@@ -164,6 +164,31 @@ var = cg.new_Pvariable(config[CONF_ID], rx_buffer, size)  # MyComponent(uint8_t 
 id, and follows the placement new storage convention, so `esphome analyze-memory` lists the buffer under the owner's
 component as `storage for <owner>_buffer`. A second buffer for the same owner is `<owner>_buffer_2`, and so on.
 
+A buffer that used to be allocated with `RAMAllocator`, which places it in PSRAM when the board has it, should stay
+there. Pass `psram=True`: builds with PSRAM enabled (`psram:` configured and not disabled) then get a
+`psram_buffer<type_>(size)` call (`esphome/core/helpers.h`) instead of a static buffer, which allocates `size` elements
+with `RAMAllocator` and zeroes them, so both paths start all zero. The component needs no PSRAM code of its own:
+
+```python
+buffer = cg.static_buffer(config[CONF_ID], cg.uint8, size, psram=True)
+cg.add(var.set_buffer(buffer))
+```
+
+The call allocates each time it runs, so pass the result once. It returns `nullptr` when the allocation fails, so check
+the pointer in `setup()` and mark the component failed.
+
+Two more things cover the common cases without casts or hand-built strings:
+
+- `align=4` emits `alignas(4)`, for a byte buffer that DMA or a word copy reads, so the C++ keeps a `uint8_t *`. With
+  `psram=True` the heap allocation guarantees no more than 4, so a larger `align` is rejected.
+- `size` may be a C++ expression. `Class.static_("member")` renders `ns::Class::member`, for a `static constexpr`
+  constant. For a `static constexpr` function, call the result; its arguments go through `safe_exp`:
+
+```python
+size = MyComponent.static_("frame_size")(config[CONF_MODEL])
+buffer = cg.static_buffer(config[CONF_ID], cg.uint8, size, align=4)
+```
+
 ## Runtime
 
 At this point, the Python part of the codebase has completed its work. Let's move on and discuss the C++ part of

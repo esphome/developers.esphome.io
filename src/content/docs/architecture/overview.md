@@ -148,6 +148,22 @@ Next, there's a special method - `cg.add` - that you will often use. `cg.add()` 
 C++ declared in the parentheses of `cg.add()` will be added to the generated code. Note that, if you do not call
 "add" to insert a piece of code explicitly, it will not be added to the `main.cpp` file!
 
+### Static buffers
+
+A buffer whose size comes from the configuration belongs in static memory (BSS), not on the heap.
+`cg.static_buffer(owner, type_, size)` emits `static <type_> <name>[<size>];` and returns it, ready to pass to the
+constructor:
+
+```python
+size = config[CONF_MAX_PACKET_SIZE]
+rx_buffer = cg.static_buffer(config[CONF_ID], cg.uint8, size)
+var = cg.new_Pvariable(config[CONF_ID], rx_buffer, size)  # MyComponent(uint8_t *buffer, size_t size)
+```
+
+`owner` is the ID of the component the buffer belongs to. The name is made from it, unique against every configured
+id, and follows the placement new storage convention, so `esphome analyze-memory` lists the buffer under the owner's
+component as `storage for <owner>_buffer`. A second buffer for the same owner is `<owner>_buffer_2`, and so on.
+
 ## Runtime
 
 At this point, the Python part of the codebase has completed its work. Let's move on and discuss the C++ part of

@@ -150,26 +150,18 @@ C++ declared in the parentheses of `cg.add()` will be added to the generated cod
 
 ### Static buffers
 
-A buffer whose size comes from the configuration belongs in static memory (BSS), not on the heap. Declare an ID for it
-in the schema with the element type, then `cg.static_buffer(id_, size)` emits `static <type> <id>[<size>];` and returns
-it, ready to pass to the constructor:
+A buffer whose size comes from the configuration belongs in static memory (BSS), not on the heap.
+`cg.static_buffer(owner, type_, size)` emits `static <type_> <name>[<size>];` and returns it, ready to pass to the
+constructor:
 
 ```python
-CONF_RX_BUFFER_ID = "rx_buffer_id"
-
-CONFIG_SCHEMA = cv.Schema(
-    {
-        cv.GenerateID(): cv.declare_id(MyComponent),
-        cv.GenerateID(CONF_RX_BUFFER_ID): cv.declare_id(cg.uint8),
-        ...
-    }
-)
-
-
-async def to_code(config: ConfigType) -> None:
-    rx_buffer = cg.static_buffer(config[CONF_RX_BUFFER_ID], config[CONF_MAX_PACKET_SIZE])
-    var = cg.new_Pvariable(config[CONF_ID], rx_buffer)
+rx_buffer = cg.static_buffer(config[CONF_ID], cg.uint8, config[CONF_MAX_PACKET_SIZE])
+var = cg.new_Pvariable(config[CONF_ID], rx_buffer)
 ```
+
+`owner` is the ID of the component the buffer belongs to. The name is made from it, unique against every configured
+id, and follows the placement new storage convention, so `esphome analyze-memory` lists the buffer under the owner's
+component as `storage for <owner>_buffer`.
 
 ## Runtime
 

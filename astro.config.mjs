@@ -95,6 +95,7 @@ export default defineConfig({
                 "architecture/components/tcp_client_link",
                 "architecture/components/tcp_listener",
                 "architecture/components/mdns",
+                "architecture/components/web_server_https",
                 "architecture/components/runtime_image",
                 "architecture/components/deep_sleep",
                 "architecture/components/advanced",

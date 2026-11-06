@@ -148,6 +148,21 @@ Next, there's a special method - `cg.add` - that you will often use. `cg.add()` 
 C++ declared in the parentheses of `cg.add()` will be added to the generated code. Note that, if you do not call
 "add" to insert a piece of code explicitly, it will not be added to the `main.cpp` file!
 
+### Static buffers
+
+A buffer whose size comes from the configuration belongs in static memory (BSS), not on the heap.
+`cg.static_buffer(name, type_, size)` emits `static <type_> <name>[<size>];` and returns it, ready to pass to the
+constructor:
+
+```python
+rx_buffer = cg.static_buffer(f"{config[CONF_ID].id}__rx_buffer", cg.uint8, config[CONF_MAX_PACKET_SIZE])
+var = cg.new_Pvariable(config[CONF_ID], rx_buffer)
+```
+
+A string `name` is made unique against the configured ids, so a user id can never produce a second declaration with
+the same name. An `ID` declared in the schema (`cv.declare_id(cg.uint8)`) is used as is and must have the same type as
+`type_`.
+
 ## Runtime
 
 At this point, the Python part of the codebase has completed its work. Let's move on and discuss the C++ part of

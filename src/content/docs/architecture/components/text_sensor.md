@@ -116,6 +116,34 @@ unconfigured entity.
 - `LOG_TEXT_SENSOR(prefix, type, obj)`: a convenience macro for `dump_config()` that logs the text sensor's name in
   the standard format.
 
+## Filters that keep state
+
+The [filters](https://esphome.io/components/text_sensor/#text-sensor-filters) of a text sensor are `Filter` objects
+(`esphome/components/text_sensor/filter.h`), linked into a chain. A filter that remembers something between values,
+such as the time of the last value the `throttle` filter let through, or the timer and last value of the `timeout`
+filter, should override `reset()` to put that state back to what it is before the first value:
+
+```cpp
+class MyThrottleFilter : public text_sensor::Filter {
+ public:
+  bool new_value(std::string &value) override;
+  void reset() override { this->last_input_ = 0; }
+
+ protected:
+  uint32_t last_input_{0};
+};
+```
+
+`reset()` does nothing by default, so a filter without state does not need it. A filter that cannot be reset, such as
+a lambda that uses a global variable, keeps its state.
+
+`reset_chain()` calls `reset()` on a filter and on every filter after it, so calling it on the first filter of a sensor
+resets the whole chain. Nothing in the core calls it. It is for a component that takes the filter chain of its own text
+sensor out of use at run time, for example to publish every value for a while, and later puts it back. Reset the chain
+before taking it out, so that a timeout that is still running cannot publish an old value. The chain is the
+`filter_list_` member of `TextSensor`, which a class that derives from `TextSensor` can use. The
+[`ld2450`](https://github.com/esphome/esphome/tree/dev/esphome/components/ld2450) `xy_unfiltered` button does this.
+
 ## Exposing multiple text sensors from one component
 
 Hardware often maps to more than one text sensor - a device hub might expose a firmware version, a serial number and

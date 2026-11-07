@@ -757,6 +757,99 @@ call.
 
 Keep a listener class when a child has its own state or timing beyond publishing what the hub passes in.
 
+#### Register fields
+
+A hub that reads status registers describes each field once with `cg.RegisterField(register=, shift=, mask=, on=)`,
+where `on` lists the field values a binary sensor reads as on. A platform subclasses it to add its own columns:
+
+```python
+# my_hub/binary_sensor.py
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True, kw_only=True)
+class _StatusBit(cg.RegisterField):
+    key: str
+
+
+_FIELDS = (
+    _StatusBit(key=CONF_CHARGING, register=0, shift=5, mask=0x03, on=(1, 2)),
+    _StatusBit(key=CONF_POWER_GOOD, register=1, shift=7),
+)
+
+
+async def to_code(config: ConfigType) -> None:
+    hub = await cg.get_variable(config[CONF_MY_HUB_ID])
+    sensors = binary_sensor.sub_binary_sensors(config)
+    for field in _FIELDS:
+        if (var := await sensors(field.key, None)) is not None:
+            STATUS_PUBLISHER.add(hub, automation.parent_ref(var).publish_state(field.is_on(STATUS)))
+```
+
+```cpp
+::bs_charging->publish_state(((0b0110 >> ((status[0] >> 5) & 0x03)) & 1));
+::bs_power_good->publish_state(((status[1] >> 7) & 0x01));
+```
+
+A field that names a status word publishes it from a `PROGMEM_STRING_TABLE`, and only when the field changes. Each
+text field's `first` is where its words start in the table:
+
+```cpp
+// my_hub.h
+PROGMEM_STRING_TABLE(MyHubStrings,
+                     "Not Charging",      // 0  charge_status: first=0
+                     "Precharge",         // 1
+                     "Fast Charge",       // 2
+                     "Done",              // 3
+                     "Normal",            // 4  ts_status: first=4
+                     "Cold",              // 5
+                     "Cool",              // 6  ◄── ts_status field 2, worked through below
+                     "Warm",              // 7
+                     "Unknown");          // 8  LAST_INDEX, the default fallback
+```
+
+```python
+# my_hub/text_sensor.py
+from dataclasses import dataclass
+
+MyHubStrings = my_hub_ns.namespace("MyHubStrings")  # the PROGMEM_STRING_TABLE above
+
+
+@dataclass(frozen=True, kw_only=True)
+class _StatusText(cg.RegisterField):
+    key: str
+    first: int
+
+
+_FIELDS = (
+    _StatusText(key=CONF_CHARGE_STATUS, register=0, shift=5, mask=0x03, first=0),
+    _StatusText(key=CONF_TS_STATUS, register=1, shift=3, mask=0x03, first=4),
+)
+
+# in to_code, for each configured field
+text_sensor.add_table_on_change(STATUS_PUBLISHER, hub, var, STATUS, field, table=MyHubStrings, first=field.first)
+```
+
+```cpp
+static uint8_t esphome__ts_status__last = 0xFF;
+text_sensor::publish_table_on_change<MyHubStrings, 0x03, MyHubStrings::LAST_INDEX>(
+    ::ts_status, esphome__ts_status__last, (status[1] >> 3), 4);
+```
+
+Reading it for `ts_status` when `status[1]` is `0b00010000`:
+
+```text
+(status[1] >> 3) & 0x03  =  2
+first + 2  =  4 + 2  =  6  ──►  MyHubStrings[6]  ──►  "Cool"
+```
+
+The static byte keeps the last field value, so the next poll with the same value publishes nothing.
+
+`fallback` picks the string for a field value past the table's end, the last string by default. A bad mask or an on
+value outside the field fails when the row is built. When the states are already a dict of expressions,
+`await STATUS_PUBLISHER.publish_children(hub, sensor.sub_sensors(config), states)` adds one `publish_state` per
+configured child.
+
 ## C++ component structure
 
 Given the example Python code above, let's consider the following C++ code:

@@ -162,6 +162,27 @@ MODES = MyEnum.options("A", "B", prefix="MODE_")
 MODES["LEGACY"] = MyEnum.MODE_OLD_NAME
 ```
 
+When the choices are time periods, such as a sensor's integration time, key the dict by the number of milliseconds and
+validate it with `cv.time_period_enum()`. The user writes any time period (`100ms`, `0.1s`), and the result is the same
+as `cv.enum(..., int=True)` given that number. Pass `unit="us"` for a dict keyed by microseconds. The language schema
+lists the allowed values, which a plain validator function would hide:
+
+```python
+INTEGRATION_TIMES = {
+    25: IntegrationTime.INTEGRATION_TIME_25MS,
+    50: IntegrationTime.INTEGRATION_TIME_50MS,
+    100: IntegrationTime.INTEGRATION_TIME_100MS,
+}
+
+CONFIG_SCHEMA = cv.Schema(
+    {
+        cv.Optional(CONF_INTEGRATION_TIME, default="100ms"): cv.time_period_enum(
+            INTEGRATION_TIMES
+        ),
+    }
+)
+```
+
 #### Code generation
 
 The `to_code` method is called after the entire configuration has been validated. It is given the parsed `config`

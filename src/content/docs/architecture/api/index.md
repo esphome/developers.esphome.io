@@ -71,3 +71,27 @@ Support must be implemented to integrate the ESPHome implementation into Home As
 
 If user-facing functionality has been added and/or changed, the documentation must be updated so that users can
 understand the functionality.
+
+## Device network information
+
+The Native API reports the device's primary network interface in the `network_type` field of
+`DeviceCapabilitiesResponse`, sent only once a connection is authenticated (unlike
+`DeviceInfoResponse`, which is identity-only and served pre-authentication). The field uses the
+`NetworkType` enum from
+[`api.proto`](https://github.com/esphome/esphome/blob/dev/esphome/components/api/api.proto):
+
+```protobuf
+enum NetworkType {
+  NETWORK_TYPE_UNKNOWN = 0;
+  NETWORK_TYPE_WIFI = 1;
+  NETWORK_TYPE_ETHERNET = 2;
+  NETWORK_TYPE_THREAD = 3;
+}
+```
+
+The value follows the same interface priority as the device's default route
+(`network::get_network_type()` in `network/util.h`): Ethernet first, unless a Wi-Fi-first
+`network: priority:` list says otherwise, then Thread. It is the device's own primary interface,
+not necessarily the one carrying the querying client's connection — a client on a device's
+fallback Wi-Fi access point, or on a cellular modem, sees `NETWORK_TYPE_UNKNOWN`, same as when no
+interface is connected yet or the firmware predates the field.

@@ -618,22 +618,28 @@ form can use the names in the table:
 | Domain | Class | Names in `apply` | What `publish` publishes |
 | ------ | ----- | ---------------- | ------------------------ |
 | `button` | `button.ApplyButton` | `entity` | (not available) |
-| `switch` | `switch.ApplySwitch` | `entity`, `state` | `state` (`false` with `momentary`) |
-| `number` | `number.ApplyNumber` | `entity`, `value` | `value` |
-| `select` | `select.ApplySelect` | `entity`, `index`, `option` (the selected option's text) | `index` |
+| `switch` | `switch.ApplySwitch` | `entity`, `state` | `state` (`false` with `momentary`; only on `true` with `on_success`) |
+| `number` | `number.ApplyNumber` | `entity`, `value` | `value` (only on `true` with `on_success`) |
+| `select` | `select.ApplySelect` | `entity`, `index`, `option` (the selected option's text) | `index` (only on `true` with `on_success`) |
 | `output` | `output.ApplyFloatOutput`, `output.ApplyBinaryOutput` | `entity`, `index` (the channel passed to the constructor), `state` | (not available) |
 
 For outputs, use `output.sub_float_outputs` or `output.sub_binary_outputs`. Arguments given to `.create()` after the
 setter are passed to the output's constructor, which is how a channel number reaches `index`; see
 [Homogeneous channels](/architecture/components/output#homogeneous-channels-a-per-channel-key).
 
-`publish="before"` or `publish="after"` publishes the new state before or after the call. Leave it out when the hub
-publishes the state itself, for example once the device confirms the change. Code generation stops with an error when
-the `Apply` class has no `apply=`, when `apply=` is used with another class, when `apply=` without `parent=` does not
-call a namespaced function, when `publish=` is used without `apply=` or on a button or output, and when
-`publish="momentary"` is used on anything but a switch. The setter can be `None` when the hub keeps no pointer to the
-entity. For a platform whose whole config is one entity, call `.create(config, setter, apply=..., publish=...)` on the
-`sub_*` result instead.
+`publish="before"` or `publish="after"` publishes the new state before or after the call. Leave `publish` out when the
+hub publishes the state itself, for example once the device confirms the change. Code generation stops with an error when the `Apply` class
+has no `apply=`, when `apply=` is used with another class, when `apply=` without `parent=` does not call a namespaced
+function, when `publish=` is used without `apply=` or on a button or output, and when `publish="momentary"` is used
+on anything but a switch. The setter can be `None` when the hub keeps no pointer to the entity. For a platform whose
+whole config is one entity, call `.create(config, setter, apply=..., publish=...)` on the `sub_*` result instead.
+
+`publish="on_success"` is for a write the device can refuse. It publishes the new state only when the call returns
+`true`, so **the hub method must return `bool`**; after a refused write the entity keeps its old state.
+
+```python
+await switches(CONF_PG_GPO, hub.set_pg_gpo_switch, apply="write_pg_gpo_level(state)", publish="on_success")
+```
 
 `publish="momentary"` exists only for legacy switches that trigger an action, such as the restart and factory reset
 switches: it publishes off straight away and makes the call only when the switch is turned on, so it never stays on.
@@ -689,6 +695,67 @@ void restart_device();
 ```
 
 Keep a C++ class when the entity has state or logic of its own beyond that one call.
+
+#### Entities the hub publishes to
+
+The other direction is a hub that reads the device and publishes to its child entities: a status register decoded into
+binary sensors, a key matrix that presses binary sensors, an IMU that feeds axis sensors. Rather than a listener
+subclass per child kept in a list, declare a `cg.HubFunction` once in the hub's `__init__.py`. Each child platform adds
+one item to it, and code generation writes one function per hub (`esphome__<hub>__status_fn`) with every item in config order and
+passes it to `set_status_publisher()`, so the children stay plain entities and the hub stores a single function
+pointer:
+
+```python
+# my_hub/__init__.py
+MyHubRegisters = my_hub_ns.struct("MyHubRegisters")  # std::array<uint8_t, 4> in C++
+STATUS_PUBLISHER = cg.HubFunction(
+    "status",
+    cg.void,
+    [(MyHubRegisters.const_ref(), "status")],
+    define="USE_MY_HUB_STATUS_PUBLISHER",
+)
+STATUS = STATUS_PUBLISHER.param("status")
+
+
+# my_hub/binary_sensor.py
+from esphome import automation
+
+
+async def to_code(config: ConfigType) -> None:
+    hub = await cg.get_variable(config[CONF_MY_HUB_ID])
+    sensors = binary_sensor.sub_binary_sensors(config)
+    if (var := await sensors(CONF_CHARGING, None)) is not None:
+        STATUS_PUBLISHER.add(hub, automation.parent_ref(var).publish_state((STATUS[0] >> 5) & 0x01))
+```
+
+```cpp
+// my_hub.h, in the class: declares status_publisher_ (nullptr) and set_status_publisher()
+#ifdef USE_MY_HUB_STATUS_PUBLISHER
+  HUB_PUBLISHER(status, const MyHubRegisters &)
+#endif
+
+// my_hub.cpp, after each read
+#ifdef USE_MY_HUB_STATUS_PUBLISHER
+  if (this->status_publisher_ != nullptr)
+    this->status_publisher_(status);
+#endif
+```
+
+Build the items from code generation expressions, not C++ text. A decode that needs more than one expression goes in a
+small free function in the hub's header that the item calls. `automation.parent_ref()` names the entity from global
+scope, so a parameter of the generated function cannot shadow it. The define is set for the whole build once any hub
+has an item, so a second hub without children still compiles the call with a `nullptr` pointer; check it before each
+call.
+
+- One hub can have several hub functions, such as one for key presses and one for releases.
+- With a `bool` return type each item is a `bool` expression; every item runs and the function returns whether any
+  was `true`, for a hub that logs data no child claimed. The hub then declares `HUB_PUBLISHER_RETURNING(bool, name, ...)`.
+- `HUB_PUBLISHER` ends on `public:`, so put it in a public section.
+- A child that loses its `Component` base still needs its `dump_config` lines. Give the hub a second hub function
+  (`"dump"`, with a `const char *` tag parameter) whose items call a small dump helper per child, and call it from
+  the hub's `dump_config()` with the hub's `TAG`.
+
+Keep a listener class when a child has its own state or timing beyond publishing what the hub passes in.
 
 ## C++ component structure
 
@@ -813,7 +880,8 @@ state:
   says "unspecified". `status_comm_result()` (below) sets or clears the warning from a read or write result.
 - `status_momentary_warning()` / `status_momentary_error()` set the flag and clear it again after a timeout (5000 ms by
   default). Use them for one-off failures, such as a single failed read. A new call restarts the timeout.
-- `mark_failed()` marks the component as failed when it cannot work at all, typically from `setup()`.
+- `mark_failed()` marks the component as failed when it cannot work at all, typically from `setup()`. `setup_check()`
+  (below) calls it from a read or write result.
 
 ```cpp
 this->status_momentary_warning();                          // cleared after 5000 ms
@@ -845,9 +913,26 @@ if (!this->status_comm_result(this->read_bytes(REG_RED_DATA_LSB, buffer, sizeof(
 Without a message the warning says "Communication failed" (`ESP_LOG_MSG_COMM_FAIL`). Pass a `LOG_STR("...")` as the
 second argument for another text, for example
 `this->status_comm_result(ok, LOG_STR("Failed to read one or more registers"))`. Use it for failures after `setup()`;
-a device that cannot be set up at all still calls `mark_failed()`. A component has one warning flag, so a success
-clears a warning set by any other check too; do not mix it with other `status_set_warning()` conditions in the same
-update.
+in `setup()` use `setup_check()` (below). A component has one warning flag, so a success clears a warning set by
+any other check too; do not mix it with other `status_set_warning()` conditions in the same update.
+
+In `setup()`, a failed read or write usually means the device cannot work at all. `setup_check(ok)` marks the
+component failed when `ok` is false and returns `ok`:
+
+```cpp
+// Before
+if (!this->write_byte(REG_RESET, 0)) {
+  this->mark_failed(LOG_STR(ESP_LOG_MSG_COMM_FAIL));
+  return;
+}
+
+// After
+if (!this->setup_check(this->write_byte(REG_RESET, 0)))
+  return;
+```
+
+The failure reason is "Communication failed" (`ESP_LOG_MSG_COMM_FAIL`), or the `LOG_STR("...")` passed as the second
+argument. A success changes nothing, so it is safe to call for each step of `setup()`.
 
 ### Component-specific methods
 

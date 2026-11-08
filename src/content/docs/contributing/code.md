@@ -463,6 +463,7 @@ pointer, a length and an optional starting value:
 | `sum16_bytes(data, len, sum = 0)` | Sum of the bytes, kept to 16 bits |
 | `xor_bytes(data, len, init = 0)` | XOR of the bytes |
 | `crc8()`, `crc16()`, `crc16be()` | CRCs with a choice of polynomial and bit order |
+| `crc32(crc, data, len)` | Standard reflected CRC-32 (zlib-compatible); seed with 0, or with a previous return value to continue across chunks |
 
 ```cpp
 // Before

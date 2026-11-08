@@ -205,7 +205,7 @@ With `encryption:` and no `key`, `new_stream()` defines `USE_NOISE_STREAM_RUNTIM
 the constructor that takes a preference hash, made from the owner's id, instead of a key. Builds where every stream
 has its key in YAML compile none of this.
 
-- `load_key()` from `setup()`, after `set_log_tag()`, reads the saved key and returns whether the stream has one; a
+- `load_key()` from `setup()` reads the saved key and returns whether the stream has one; a
   key from YAML counts. The key is kept in flash and survives a restart. A saved key that has since become the API
   or OTA key does not count. `load_key()` creates the flash record, never later, because ESP8266 places flash
   records in the order they are created; until it ran, `set_key()` refuses every key with a warning.
@@ -227,14 +227,9 @@ connect and a server does not listen, and turns it on once a key is saved:
 ```cpp
 void setup() override {
   this->link_.begin(TAG);
-#ifdef USE_NOISE_STREAM
-  if (this->noise_ != nullptr) {
-    this->noise_->set_log_tag(TAG);
 #ifdef USE_NOISE_STREAM_RUNTIME_KEY
-    if (!this->noise_->load_key()) {
-      this->disable_loop();
-    }
-#endif
+  if (this->noise_ != nullptr && !this->noise_->load_key()) {
+    this->disable_loop();
   }
 #endif
 }

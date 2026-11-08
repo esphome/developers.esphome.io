@@ -9,7 +9,8 @@ component calls `noise.require_stream()` from `to_code`, which defines `USE_NOIS
 The session is Noise_NNpsk0_25519_ChaChaPoly_SHA256, the pattern the API uses, with its own prologue, so an API
 peer never completes a stream handshake. Frames use the API wire format: an indicator byte, a 16-bit big endian
 length and the payload. Handshake payloads start with the same status byte, and a responder that fails a handshake
-sends the same reject reasons; both ends log a wrong key as `wrong encryption key`.
+sends the same reject reasons. A responder logs a wrong key as `wrong encryption key`, and an initiator logs the
+reason it receives, `Handshake MAC failure`.
 
 After the handshake, the first encrypted frame in each direction is the Hello. Its plaintext is the version of the
 stream protocol, one byte major and one byte minor; the stream sends 1.0. Like the API's version, it is the stream's
@@ -24,10 +25,8 @@ The stream knows no transport. Its methods that move bytes are templates on a li
 `tx_commit()`, `flush_tx()`, `close()`, `note_attempt()`, `note_io()`, `check_idle()` and `reconnect_interval()`.
 Nothing is virtual.
 
-- The constructor takes the key, a pointer to 32 bytes that outlive the stream, and whether this end speaks
-  first. The TCP client is the initiator.
-- `set_log_tag(tag)` from `setup()` sets the tag of the stream's log lines, normally the component's own `TAG`. The
-  stream keeps the pointer. Without the call the tag is `noise`.
+- The constructor takes the tag of the stream's log lines, the key as a pointer to 32 bytes, and whether this end
+  speaks first. The stream keeps both pointers, so both must outlive it. The TCP client is the initiator.
 - `up(link)` once per loop, also while the link is down. It returns true once both Hellos are through, and it is
   inline then and while the link is down. While the link is up and the session is not, it runs the handshake; a
   failed handshake, or one not finished 60 seconds after the connection came up, closes the link and calls
@@ -42,6 +41,7 @@ Nothing is virtual.
 - `read(link, buf, len)` returns plaintext with the same results as `TcpClientLink::read()`. It reads until `len`
   bytes are there or the link has nothing more, so a short count means the socket is drained. Handing out
   plaintext of a frame read earlier involves no socket read, so `read()` calls `note_io()` whenever it returns bytes.
+  If the link drops during a call that has bytes to return, that call returns them and the next call returns -1.
 - `queue(link, data, len)` adds plaintext to an open frame in the link's buffer and returns how many bytes fit.
   `tx_free(link)` is the room one `queue()` call grants. `flush(link)` encrypts the open frame in place, appends
   its MAC and sends. Bytes written between two flushes go into frames of at most 480 plaintext bytes; a longer write
@@ -96,13 +96,15 @@ async def to_code(config: ConfigType) -> None:
     cg.add(var.set_port(config[CONF_PORT]))
     if (encryption := config.get(CONF_ENCRYPTION)) is not None:
         # This side dials, so it speaks first
-        stream = noise.new_stream(config[CONF_ID], encryption.get(CONF_KEY), True)
+        stream = noise.new_stream(config[CONF_ID], encryption.get(CONF_KEY), True, DOMAIN)
         cg.add(var.set_noise_stream(stream))
 ```
 
-`new_stream(owner_id, key, initiator)` calls `require_stream()`, creates the stream with the key in flash and, for
-a side that answers (`initiator` false, as on a server), turns on the spare ephemeral key. Without a key it creates
-a stream whose key is set at runtime, see below.
+`new_stream(owner_id, key, initiator, log_tag)` calls `require_stream()`, creates the stream with the log tag and the
+key in flash and, for a side that answers (`initiator` false, as on a server), turns on the spare ephemeral key.
+Without a key it creates a stream whose key is set at runtime, see below.
+`log_tag` is normally the text of the component's own `TAG`. Only the roles in use are compiled: `new_stream()`
+defines `USE_NOISE_STREAM_INITIATOR` or `USE_NOISE_STREAM_RESPONDER`, so create every stream with it.
 
 `STREAM_ENCRYPTION_SCHEMA` makes `key` optional. `final_validate_stream_key(owner)` rejects a key that equals the
 `api` or `esphome` OTA key, because the peer device holds the stream key; a key the API gets at runtime cannot be
@@ -131,11 +133,6 @@ void set_port(uint16_t port) { this->link_.set_port(port); }
 
 void setup() override {
   this->link_.begin(TAG);
-#ifdef USE_NOISE_STREAM
-  if (this->noise_ != nullptr) {
-    this->noise_->set_log_tag(TAG);
-  }
-#endif
 }
 
 void loop() override {
@@ -197,7 +194,7 @@ bool flush_() {
 }
 ```
 
-Call `set_log_tag(TAG)` from `setup()`; it names the stream's log lines. On the rising edge, read once even if
+On the rising edge, read once even if
 `link_.ready()` is false. `flush()` sends nothing before the session is up, so a drop during the handshake is
 always seen by `up()`, which resets the session when it finds the link closed. A component calls `reset()` only
 when it closes the link itself and may reopen it before its next `up()`.

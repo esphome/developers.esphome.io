@@ -49,7 +49,7 @@ bytes. `RTU_MAX_SIZE` is the largest RTU frame, 256 bytes. `rtu_crc_ok` checks t
 returns the length of that frame as its function code gives it, or 0 for a code without a known length; `buf` must
 hold at least 2 bytes. Where it returns a length, the frame ends there: pass `replies` as true for what a server sends,
 false for what a client sends. That frame returns `NEED_MORE` while bytes are missing and `BAD` when its CRC fails. For
-any other function code the frame ends at the first CRC match from 4 bytes on, or one byte later if a 0x00 follows.
+any other function code the frame ends at the last CRC match in `buf` from 4 bytes on, so a 0x00 behind it is taken in.
 Without a match it returns `NEED_MORE`,
 and `BAD` once it has `RTU_MAX_SIZE` bytes. `modbus_tcp_uart` joins what a writer hands over with it: pieces until the
 frame is whole, and several frames from one write:

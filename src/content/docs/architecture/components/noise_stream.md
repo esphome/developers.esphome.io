@@ -223,8 +223,8 @@ has its key in YAML compile none of this.
   records in the order they are created; until it ran, `set_key()` refuses every key with a warning.
 - `<domain>.set_encryption_key` in `on_boot` needs a `priority` below the owner's setup priority. At or above it, the
   action runs before `load_key()`, and `set_key()` refuses the key with a warning. `final_validate_stream_key()` assumes
-  that the owner sets up at `setup_priority::AFTER_WIFI` (200) and rejects the action in an `on_boot` automation whose
-  `priority` is 200 or more, the default of 600 included. An owner that registers the action returns
+  that the owner sets up at `setup_priority::AFTER_WIFI` (200), or at its `setup_priority` from YAML, and rejects the
+  action in `on_boot` whose `priority`, 600 by default, is that or more. An owner that registers the action returns
   `setup_priority::AFTER_WIFI` from `get_setup_priority()`.
 - `set_key(link, key)` takes a base64 key. It refuses, with a warning, a key that does not decode to 32 bytes, the
   all-zeros key, and a key equal to the API key, also one the API got at runtime, or an `esphome` OTA key from YAML.

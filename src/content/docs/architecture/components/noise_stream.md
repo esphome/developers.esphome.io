@@ -50,6 +50,7 @@ Nothing is virtual.
 - `reset()` forgets the session. `up()` does this when it finds the link closed, and `flush()` when the link was closed
   under an open frame. A component that closes the link itself and may reopen it before its next `up()` calls `reset()`,
   as `up()` would not see the link down.
+- `dump_config()` from the component's own `dump_config()` logs one line, `Encryption: Noise`.
 - A responder takes the spare ephemeral key when one is ready, as the API server does. With the API in the build,
   the API server refills the slot; without it, a responder prepares a new key while its link is down. An initiator
   leaves the slot alone.
@@ -131,8 +132,19 @@ void set_noise_stream(noise::NoiseStream *stream) { this->noise_ = stream; }
 void set_host(const char *host) { this->link_.set_host(host); }
 void set_port(uint16_t port) { this->link_.set_port(port); }
 
+float get_setup_priority() const override { return setup_priority::AFTER_WIFI; }
+
 void setup() override {
   this->link_.begin(TAG);
+}
+
+void dump_config() override {
+  ESP_LOGCONFIG(TAG, "My Link:");
+#ifdef USE_NOISE_STREAM
+  if (this->noise_ != nullptr) {
+    this->noise_->dump_config();
+  }
+#endif
 }
 
 void loop() override {
@@ -212,7 +224,8 @@ has its key in YAML compile none of this.
 - `<domain>.set_encryption_key` in `on_boot` needs a `priority` below the owner's setup priority. At or above it, the
   action runs before `load_key()`, and `set_key()` refuses the key with a warning. `final_validate_stream_key()` assumes
   that the owner sets up at `setup_priority::AFTER_WIFI` (200) and rejects the action in an `on_boot` automation whose
-  `priority` is 200 or more, the default of 600 included.
+  `priority` is 200 or more, the default of 600 included. An owner that registers the action returns
+  `setup_priority::AFTER_WIFI` from `get_setup_priority()`.
 - `set_key(link, key)` takes a base64 key. It refuses, with a warning, a key that does not decode to 32 bytes, the
   all-zeros key, and a key equal to the API key, also one the API got at runtime, or an `esphome` OTA key from YAML.
   The same key again changes nothing. Otherwise it saves the key, resets the session and the retry wait of earlier

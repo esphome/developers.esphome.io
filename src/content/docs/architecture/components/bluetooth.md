@@ -300,6 +300,7 @@ improv_ble, which creates its service only while Wi-Fi has no credentials. The h
 BLEService *svc = global_ble_server->create_service(uuid, true);
 BLECharacteristic *chr = svc->create_characteristic(chr_uuid, BLECharacteristic::PROPERTY_READ);
 chr->add_descriptor(new BLE2902());  // the characteristic takes ownership
+global_ble_server->enqueue_start_service(svc);
 ```
 
 **Objects the component keeps alive** suit a service that always exists. They cost no heap and no allocator
@@ -316,7 +317,8 @@ BLE2902 level_cccd_;
 // In setup()
 this->level_.add_descriptor(this->level_cccd_);  // a reference: never freed by the characteristic
 this->service_.add_characteristic(this->level_);
-global_ble_server->add_service(this->service_);
+if (global_ble_server->add_service(this->service_))
+  global_ble_server->enqueue_start_service(&this->service_);
 ```
 
 Ownership rules:
@@ -327,8 +329,9 @@ Ownership rules:
   does not. Passing the address of a member or static descriptor to the pointer overload is a bug.
 - `remove_service()` frees only a service from `create_service()`. A caller-owned child that outlives its
   parent has its parent pointer cleared, and `remove_descriptor()` hands ownership back to the caller.
-- YAML services, characteristics and descriptors are static objects from code generation and are registered
-  the same way.
+- YAML `descriptors:` are static objects from code generation and are added by reference. With
+  esphome/esphome#22458, YAML services and characteristics are static objects added the same way; before it they
+  come from `create_service()` and `create_characteristic()`.
 
 ## Migrating from the esp32-only API
 

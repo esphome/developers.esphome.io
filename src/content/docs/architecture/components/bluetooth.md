@@ -288,6 +288,47 @@ In Python, declare the codegen class with `BLEHub` as a parent so `use_id(BLEHub
 MyTracker = my_ns.class_("MyTracker", ble_device_base.BLEHub, cg.Component)
 ```
 
+## Hosting a GATT service with `esp32_ble_server`
+
+A component that serves its own GATT service registers it on the `esp32_ble_server` hub, either as
+objects the server allocates or as objects the component keeps alive itself.
+
+**Server-allocated objects** suit a service that is only built when it is needed, for example
+improv_ble, which creates its service only while Wi-Fi has no credentials. The heap is used only then:
+
+```cpp
+BLEService *svc = global_ble_server->create_service(uuid, true);
+BLECharacteristic *chr = svc->create_characteristic(chr_uuid, BLECharacteristic::PROPERTY_READ);
+chr->add_descriptor(new BLE2902());  // the characteristic takes ownership
+```
+
+**Objects the component keeps alive** (members or static objects) suit a service that always exists.
+They cost no heap and no allocator overhead:
+
+```cpp
+// Members of the component, constructed with it
+BLEService service_{uuid, 6, false};  // the server picks the instance id
+BLECharacteristic level_{level_uuid, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY,
+                         ESP_GATT_PERM_READ};
+BLE2902 level_cccd_;
+
+// In setup()
+this->level_.add_descriptor(this->level_cccd_);  // a reference: never freed by the characteristic
+this->service_.add_characteristic(this->level_);
+global_ble_server->add_service(this->service_);
+```
+
+Ownership rules:
+
+- `create_service()` and `create_characteristic()` allocate the object, and its parent frees it.
+  `add_service()` and `add_characteristic()` take an object the caller keeps alive and never free it.
+- `add_descriptor(BLEDescriptor *)` takes ownership of a heap descriptor; `add_descriptor(BLEDescriptor &)`
+  does not. Passing the address of a member or static descriptor to the pointer overload is a bug.
+- `remove_service()` frees only a service from `create_service()`. A caller-owned child that outlives its
+  parent has its parent pointer cleared, and `remove_descriptor()` hands ownership back to the caller.
+- YAML services, characteristics and descriptors are static objects from code generation and are registered
+  the same way.
+
 ## Migrating from the esp32-only API
 
 Before `ble_device_base`, the shared BLE types lived in `esp32_ble_tracker`. External components

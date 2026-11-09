@@ -302,8 +302,9 @@ BLECharacteristic *chr = svc->create_characteristic(chr_uuid, BLECharacteristic:
 chr->add_descriptor(new BLE2902());  // the characteristic takes ownership
 ```
 
-**Objects the component keeps alive** (members or static objects) suit a service that always exists.
-They cost no heap and no allocator overhead:
+**Objects the component keeps alive** suit a service that always exists. They cost no heap and no allocator
+overhead. Make them members of the component: a function-local or namespace-scope `static` registers its
+destructor to run at exit, which links `~BLEService` and `~BLECharacteristic` (about 290 bytes) into the firmware.
 
 ```cpp
 // Members of the component, constructed with it

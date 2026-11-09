@@ -50,7 +50,8 @@ returns the length of that frame as its function code gives it, or 0 for a code 
 hold at least 2 bytes. Where it returns a length, the frame ends there: pass `replies` as true for what a server sends,
 false for what a client sends. That frame returns `NEED_MORE` while bytes are missing and `BAD` when its CRC fails. For
 any other function code the frame ends at the last CRC match in `buf` from 4 bytes on, so a 0x00 behind it is taken in.
-Without a match it returns `NEED_MORE`,
+That keeps a frame whose CRC ends in 0x00 whole: its CRC already matches one byte before the end. A match on the last
+byte in `buf` returns `FRAME` at once; `take_rtu` does not wait for a 0x00. Without a match it returns `NEED_MORE`,
 and `BAD` once it has `RTU_MAX_SIZE` bytes. `modbus_tcp_uart` joins what a writer hands over with it: pieces until the
 frame is whole, and several frames from one write:
 
@@ -70,3 +71,8 @@ switch (modbus_tcp_uart::take_rtu(buf, len, false, &frame_len)) {
     break;
 }
 ```
+
+## See Also
+
+- [Modbus TCP UART component](https://esphome.io/components/modbus_tcp_uart/)
+- [Modbus component](https://esphome.io/components/modbus/)

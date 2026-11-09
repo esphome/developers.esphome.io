@@ -218,7 +218,7 @@ has its key in YAML compile none of this.
   The same key again changes nothing. Otherwise it saves the key, resets the session and the retry wait of earlier
   failed handshakes, closes the link and returns true; the next session uses the new key.
 - Without a key, `up()` closes a link that is up instead of running a handshake, which would use the all-zeros key.
-  `has_key()` tells `dump_config()` whether the link waits for a key.
+  The stream's `dump_config()`, which the owner calls from its own, then logs `Encryption: Noise, key: none`.
 
 `register_set_key_action(domain, owner)` registers `<domain>.set_encryption_key`, which calls the owner's
 `set_encryption_key()` with the key. The owner keeps its loop off while there is no key, so a client does not

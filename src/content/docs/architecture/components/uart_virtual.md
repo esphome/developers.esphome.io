@@ -49,7 +49,7 @@ received block:
 
 namespace esphome::my_link {
 
-static const char *const TAG = "my_link";
+ESPHOME_LOG_TAG(TAG, "my_link");
 
 class MyLink final : public uart::VirtualUARTComponent, public Component {
  public:

@@ -167,7 +167,7 @@ name, so a generated id is found too. Both are plain functions, not coroutines.
 bits of one character: 10 for 8N1, 11 for 8E1. Data bits that were never set count as 8, stop bits as 1.
 `wire_time_us(chars)` returns how many microseconds `chars` characters take at the baud rate, rounded down. A baud
 rate of 0 counts as 1, so it never divides by zero. Both use integer arithmetic only. A `UARTDevice` calls them on
-`this->parent_`. They are available in ESPHome 2026.11.0 and later.
+`this->parent_`. They are available in ESPHome 2026.12.0 and later.
 
 ```cpp
 // A Modbus RTU frame ends after 3.5 characters (7 / 2) of silence, at least 1750 us.

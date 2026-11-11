@@ -916,6 +916,23 @@ second argument for another text, for example
 in `setup()` use `setup_check()` (below). A component has one warning flag, so a success clears a warning set by
 any other check too; do not mix it with other `status_set_warning()` conditions in the same update.
 
+When an update makes several bus calls in a row, only the last one should clear the warning. Clearing logs a line,
+so if an early step cleared it while a later step kept failing, every update would log a clear followed by a set.
+`status_comm_check(ok)` (ESPHome 2026.12.0 and later, esphome/esphome#22421) sets the same warning when `ok` is
+false but never clears it, and returns `ok`:
+
+```cpp
+// Earlier steps: set only
+if (!this->status_comm_check(this->write(&CMD_MEASURE, 1) == i2c::ERROR_OK))
+  return;
+// Last step: set or clear
+if (!this->status_comm_result(this->read(buffer, sizeof(buffer)) == i2c::ERROR_OK))
+  return;
+```
+
+A component that sets the warning must clear it somewhere on its success path, with `status_comm_result()` on the
+last step or `status_clear_warning()` at the end, or one failed read leaves it in warning until reboot.
+
 In `setup()`, a failed read or write usually means the device cannot work at all. `setup_check(ok)` marks the
 component failed when `ok` is false and returns `ok`:
 

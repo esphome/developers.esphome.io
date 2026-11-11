@@ -142,3 +142,6 @@ from esphome.const import CONF_MAX_CONNECTIONS
 
 socket.consume_role_sockets("my_component", CONF_MAX_CONNECTIONS)
 ```
+
+The server schema must give that key a default, for example `cv.Optional(CONF_MAX_CONNECTIONS, default=1)`, because
+`consume_role_sockets` reads it without a fallback.

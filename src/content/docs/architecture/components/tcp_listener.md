@@ -11,8 +11,7 @@ resolver.
 The listener owns the listen socket and, when the config passes a list, an
 [IPv4 allow list](/architecture/components/ipv4_allow/).
 `poll()` accepts one peer at a time and adopts the socket into the caller's `TcpClientLink`. A second connection waits
-in the stack until the first one drops. The listen backlog is 1 unless `set_backlog()` sets another before the first
-`poll()` or `poll_listen()`.
+in the stack until the first one drops. The listen backlog is 1 unless the caller passes another to `poll_listen()`.
 
 `uart_tcp` is the first caller; `tcp_uart`'s server role (esphome#20026) follows. A server role calls
 `require_tcp_listener()` and, for a non-empty `allowed_ips`, `add_ipv4_allow`. An empty or omitted list does
@@ -107,7 +106,7 @@ void loop() override {
 A rejected peer is closed without being adopted, and the warning is logged at most once every 5 seconds.
 Call the listener's `dump_config()` from the component's own `dump_config()`; it prints one line per
 allowed network. `EAGAIN`, `EWOULDBLOCK`, `ECONNABORTED` and `EINTR` from
-`accept()` are ignored. Running out of sockets or memory (`ENFILE`, `EMFILE`, `ENOBUFS`, `ENOMEM`) is logged and
+`accept()` are ignored. Running out of sockets or memory (`ENFILE`, `EMFILE`, `ENOBUFS`, `ENOMEM`) is not logged and
 keeps the listen socket. Any other accept error closes the listen socket; `poll()` reopens it after the
 link's reconnect interval.
 
@@ -115,13 +114,13 @@ link's reconnect interval.
 
 A server with several connections on one port keeps one `TcpClientLink` per connection and calls the two steps of
 `poll()` itself. `poll_listen(clock)` opens the listen socket on the port and reconnect interval of `clock`, one of
-the links, and returns true when a connection waits. `accept(clock)` needs the open listen socket, so call it only
+the links, and returns true when a connection waits. Call `accept(clock)`
 right after `poll_listen()` returned true. It returns the accepted socket, or `nullptr` when none was waiting, the
 allow list rejected the peer or the accept failed. A listener error closes the listen socket as above, and
 `poll_listen()` reopens it after `clock`'s reconnect interval. The caller picks the link that adopts the socket.
 
 ```cpp
-if (this->listener_.poll_listen(this->links_[0])) {
+if (this->listener_.poll_listen(this->links_[0], this->links_.size())) {
   auto sock = this->listener_.accept(this->links_[0]);
   if (sock != nullptr) {
     // A link that is down and whose disconnect edge has run. When all links are in use, close
@@ -131,7 +130,7 @@ if (this->listener_.poll_listen(this->links_[0])) {
 }
 ```
 
-Pass the number of links to `set_backlog()` before the first `poll_listen()`, so that connections that arrive
+Pass the number of links to `poll_listen()` as the backlog, so that connections that arrive
 together can wait for `accept()`.
 
 Instead of the one stream socket above, a server counts one stream socket per connection when `consume_role_sockets`

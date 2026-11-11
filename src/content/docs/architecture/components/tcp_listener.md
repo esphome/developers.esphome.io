@@ -10,8 +10,8 @@ resolver.
 
 The listener owns the listen socket and, when the config passes a list, an
 [IPv4 allow list](/architecture/components/ipv4_allow/).
-It accepts one peer at a time and adopts the socket into the caller's `TcpClientLink`. A second connection waits
-in the stack until the first one drops. The listen backlog is 1.
+`poll()` accepts one peer at a time and adopts the socket into the caller's `TcpClientLink`. A second connection waits
+in the stack until the first one drops. The listen backlog is 1 unless the caller passes another to `poll_listen()`.
 
 `uart_tcp` is the first caller; `tcp_uart`'s server role (esphome#20026) follows. A server role calls
 `require_tcp_listener()` and, for a non-empty `allowed_ips`, `add_ipv4_allow`. An empty or omitted list does
@@ -106,5 +106,42 @@ void loop() override {
 A rejected peer is closed without being adopted, and the warning is logged at most once every 5 seconds.
 Call the listener's `dump_config()` from the component's own `dump_config()`; it prints one line per
 allowed network. `EAGAIN`, `EWOULDBLOCK`, `ECONNABORTED` and `EINTR` from
-`accept()` are ignored. Any other accept error closes the listen socket; `poll()` reopens it after the
+`accept()` are ignored. Running out of sockets or memory (`ENFILE`, `EMFILE`, `ENOBUFS`, `ENOMEM`) is not logged and
+keeps the listen socket. Any other accept error closes the listen socket; `poll()` reopens it after the
 link's reconnect interval.
+
+## Several Links
+
+A server with several connections on one port keeps one `TcpClientLink` per connection and calls the two steps of
+`poll()` itself. `poll_listen(link)` opens the listen socket on the port and reconnect interval of `link`, one of
+the links, and returns true when a connection waits. Call `accept(link)`
+right after `poll_listen()` returned true. It returns the accepted socket, or `nullptr` when none was waiting, the
+allow list rejected the peer or the accept failed. A listener error closes the listen socket as above, and
+`poll_listen()` reopens it after `link`'s reconnect interval. The caller picks the link that adopts the socket.
+
+```cpp
+if (this->listener_.poll_listen(this->links_[0], this->links_.size())) {
+  auto sock = this->listener_.accept(this->links_[0]);
+  if (sock != nullptr) {
+    // A link that is down and whose disconnect edge has run. When all links are in use, close
+    // one and run its edge first.
+    this->free_link_().adopt(std::move(sock));
+  }
+}
+```
+
+Pass the number of links to `poll_listen()` as the backlog, so that connections that arrive
+together can wait for `accept()`.
+
+Instead of the one stream socket above, a server counts one stream socket per connection when `consume_role_sockets`
+gets the config key that holds the number of connections as its second argument. It still counts a single listen
+socket in all, because the links share the one listener:
+
+```python
+from esphome.const import CONF_MAX_CONNECTIONS
+
+socket.consume_role_sockets("my_component", CONF_MAX_CONNECTIONS)
+```
+
+The server schema must give that key a default, for example `cv.Optional(CONF_MAX_CONNECTIONS, default=1)`, because
+`consume_role_sockets` reads it without a fallback.

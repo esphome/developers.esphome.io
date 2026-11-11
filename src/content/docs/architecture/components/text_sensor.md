@@ -104,6 +104,10 @@ through the user-configured [filter chain](https://esphome.io/components/text_se
 (uppercasing, substitution, mapping, etc.), stores the final result in the `state` member and notifies all
 front-ends. Publish the raw, unfiltered value - the filters the user configured in YAML are applied for you.
 
+A parser that reads optional values, such as a BLE advertisement parser, can publish them with
+[`publish_optional()`](/architecture/components/sensor#publishing-optional-readings), which skips an unset value or an
+unconfigured entity.
+
 ### Useful members
 
 - `state`: the most recent published (filtered) value.

@@ -454,8 +454,9 @@ the same bit and byte handling again in each component.
 
 #### Checksums
 
-Many serial and I2C devices end a frame with a simple checksum. These helpers cover the common kinds; each takes a
-pointer, a length and an optional starting value:
+Many serial and I2C devices end a frame with a simple checksum. These helpers cover the common kinds; most take a
+pointer, a length and an optional starting value, while `crc32()` takes the running CRC first, in zlib's argument
+order:
 
 | Helper | Result |
 | ------ | ------ |

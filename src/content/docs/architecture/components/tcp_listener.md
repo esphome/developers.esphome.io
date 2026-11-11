@@ -113,11 +113,11 @@ link's reconnect interval.
 ## Several Links
 
 A server with several connections on one port keeps one `TcpClientLink` per connection and calls the two steps of
-`poll()` itself. `poll_listen(clock)` opens the listen socket on the port and reconnect interval of `clock`, one of
-the links, and returns true when a connection waits. Call `accept(clock)`
+`poll()` itself. `poll_listen(link)` opens the listen socket on the port and reconnect interval of `link`, one of
+the links, and returns true when a connection waits. Call `accept(link)`
 right after `poll_listen()` returned true. It returns the accepted socket, or `nullptr` when none was waiting, the
 allow list rejected the peer or the accept failed. A listener error closes the listen socket as above, and
-`poll_listen()` reopens it after `clock`'s reconnect interval. The caller picks the link that adopts the socket.
+`poll_listen()` reopens it after `link`'s reconnect interval. The caller picks the link that adopts the socket.
 
 ```cpp
 if (this->listener_.poll_listen(this->links_[0], this->links_.size())) {

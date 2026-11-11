@@ -666,7 +666,7 @@ language features ([esphome/backlog#201](https://github.com/esphome/backlog/issu
 
 - new YAML tags (ESPHome has `!include`, `!include_dir_*`, `!secret`, `!env_var`, `!lambda`, `!literal`, `!extend` and
   `!remove`)
-- new behaviour in `packages:` or `substitutions:`
+- new behaviour in `packages:` or `substitutions:`, including new functions or filters for Jinja expressions
 - new ways to merge, override or remove parts of a configuration
 
 Bug fixes to the existing features are still welcome. This is only about how YAML files are read, included and

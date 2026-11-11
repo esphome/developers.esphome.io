@@ -433,6 +433,8 @@ When each automation needs its own stored value next to it, such as a threshold 
 
 Some triggers pass arguments that are only valid while the callback runs: a `StringRef` into a receive buffer that the next message overwrites, a `JsonObject` into a document freed when the callback returns, a span into a buffer the hub reuses. Deferring actions (`delay`, `wait_until`, `script.wait`, ...) keep the trigger arguments and use them later — `DelayAction` copies them by value, which copies the pointer but not the data — so a lambda that runs after them reads stale or freed memory.
 
+A byte payload argument is `cg.byte_span`, the `std::span<const uint8_t>` type, for example `[(cg.byte_span, "data")]`. It points into the caller's buffer, so it is one of these short-lived arguments.
+
 If the argument cannot be copied cheaply, reject deferring actions at config validation. `automation.validate_synchronous_automation()` is `validate_automation()` with that check added:
 
 ```python

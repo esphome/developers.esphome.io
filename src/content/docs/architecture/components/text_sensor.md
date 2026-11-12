@@ -139,27 +139,18 @@ class MyThrottleFilter : public text_sensor::Filter {
 ```
 
 A filter without state needs no override. A filter that cannot be reset, such as a lambda that uses a global variable,
-keeps its state.
+keeps its state. Because `detach_filters()` below resets the chain through `initialize()`, an override must clear all
+of the filter's state and be safe to call again.
 
-`reset_chain()` calls `initialize()` again on a filter and on every filter after it, so calling it on the first filter
-of a sensor puts the whole chain back in its state at boot. Nothing in the core calls it. It is for a component that
-takes the filter chain of its own text sensor out of use at run time, for example to publish every value for a while,
-and later puts it back. Reset the chain before taking it out, so that a timeout that is still running cannot publish an
-old value. The chain is the `filter_list_` member of `TextSensor`, which a class that derives from `TextSensor` can use.
+A component can make its text sensor publish unfiltered values for a while. `Filter *chain = sensor->detach_filters();`
+resets the chain and takes it out of use: a value a filter was holding back is sent, and values published after that
+skip the filters. The component keeps the returned pointer and later calls `sensor->attach_filters(chain);`, which puts
+the chain back and runs the current state through it, without calling the raw state callbacks again. Do not call
+`detach_filters()` from the sensor's own raw state callback, as the publish in progress still uses the chain; use
+`defer()` instead. The reset is done by `reset_chain()`, which calls `initialize()` on every filter of the chain.
 
-`reset_chain()` and the state clearing of the built-in filters are compiled only when a component asks for them, so
-call `request_filter_reset()` from its `to_code`:
-
-```python
-from esphome.components import text_sensor
-
-
-async def to_code(config):
-    ...
-    text_sensor.request_filter_reset()
-```
-
-The [`ld2450`](https://github.com/esphome/esphome/tree/dev/esphome/components/ld2450) `xy_unfiltered` button does this.
+These methods, and the state clearing of the built-in filters, are compiled only when a component calls
+`text_sensor.request_filter_reset()` from its `to_code`.
 
 ## Exposing multiple text sensors from one component
 

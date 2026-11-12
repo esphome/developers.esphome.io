@@ -505,9 +505,19 @@ yourself, register it with `automation.ApplyAction` as its class, and return
 body of the generated function. Start generated names with `esphome__` so a trigger argument cannot shadow them. Call
 a config lambda with `await automation.call_user_lambda(value, args, return_type)`, which calls it the same way
 `register_apply_action` does: a lambda that names no trigger argument becomes its plain expression, and one that names
-an argument gets its own copy of it, which it may change.
+a by-value argument gets its own copy of it, which it may change. Reference arguments keep their reference type.
 
 ```python
+from esphome.core import Lambda
+
+SET_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(): cv.use_id(MyComponent),
+        cv.Required(CONF_VALUE): cv.templatable(cv.int_),
+    }
+)
+
+
 @automation.register_action("my_component.set", automation.ApplyAction, SET_SCHEMA, synchronous=True)
 async def set_to_code(config, action_id, template_arg, args):
     parent = automation.parent_ref(await cg.get_variable(config[CONF_ID]))

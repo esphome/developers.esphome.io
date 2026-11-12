@@ -291,7 +291,9 @@ MyTracker = my_ns.class_("MyTracker", ble_device_base.BLEHub, cg.Component)
 ## Hosting a GATT service with `esp32_ble_server`
 
 A component that serves its own GATT service registers it on the `esp32_ble_server` hub, either as
-objects the server allocates or as objects the component keeps alive itself.
+objects the server allocates or as objects the component keeps alive itself. Return
+`setup_priority::AFTER_BLUETOOTH` from `get_setup_priority()`, so the server has been set up and
+`global_ble_server` is set when the component's `setup()` runs.
 
 **Server-allocated objects** suit a service that is only built when it is needed, for example
 improv_ble, which creates its service only while Wi-Fi has no credentials. The heap is used only then:

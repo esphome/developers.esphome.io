@@ -189,6 +189,29 @@ size = MyComponent.static_("frame_size")(config[CONF_MODEL])
 buffer = cg.static_buffer(config[CONF_ID], cg.uint8, size, align=4)
 ```
 
+### Static lists
+
+A list of objects whose count codegen knows (one entry per configured sensor, valve or address) is a
+`StaticFixedVector<T>` (`esphome/core/helpers.h`) backed by `cg.static_storage(owner, type_, count)`, instead of a
+`FixedVector<T>` that allocates its array at setup. The storage is raw and aligned, so `push_back` and `emplace_back`
+build the elements in place, and it is never freed. Both refuse to go past the capacity: `push_back` ignores the
+value and `emplace_back` returns `nullptr`:
+
+```python
+storage = cg.static_storage(config[CONF_ID], SensorSource, len(config[CONF_SOURCES]))
+cg.add(var.set_source_storage(storage))
+```
+
+```cpp
+void set_source_storage(std::span<SensorSource> storage) { this->sources_.init(storage); }
+```
+
+`init()` is called once, before any element is added, and the capacity is at most 65535.
+
+The storage is named like a static buffer, so `esphome analyze-memory` counts it under the owner. A count of 0 gives an
+empty span and no storage. A list that only ever exists once per configuration can instead be a `StaticVector<T, N>`
+sized by a codegen define.
+
 ## Runtime
 
 At this point, the Python part of the codebase has completed its work. Let's move on and discuss the C++ part of

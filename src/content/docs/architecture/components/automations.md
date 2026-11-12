@@ -514,10 +514,12 @@ async def set_to_code(config, action_id, template_arg, args):
     value = config[CONF_VALUE]
     if isinstance(value, Lambda):
         value = await automation.call_user_lambda(value, args, cg.int32)
-    return automation.apply_statements_action(
-        action_id, template_arg, args, [f"{parent}->set({cg.safe_exp(value)});"]
-    )
+    text = str(cg.statement(parent.set(value)))
+    return automation.apply_statements_action(action_id, template_arg, args, [text])
 ```
+
+Build the statements from codegen expressions, as above, rather than formatting C++ text. The result of
+`call_user_lambda` is safe as a function argument or initializer; put it in parentheses before using it as an operand.
 
 `cover.control` and `cover.template.publish` in the ESPHome repository are in-tree examples; `sx127x.send_packet` and `uart.write` show `ApplyBytes`. The hand-written class below is for actions whose `play()` has logic beyond forwarding values.
 

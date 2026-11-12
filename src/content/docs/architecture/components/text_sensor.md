@@ -116,6 +116,51 @@ unconfigured entity.
 - `LOG_TEXT_SENSOR(prefix, type, obj)`: a convenience macro for `dump_config()` that logs the text sensor's name in
   the standard format.
 
+## Filters that keep state
+
+The [filters](https://esphome.io/components/text_sensor/#text-sensor-filters) of a text sensor are `Filter` objects
+(`esphome/components/text_sensor/filter.h`), linked into a chain. `initialize(parent, next)` puts a filter in its state
+before the first value. It can be called more than once, so a filter that remembers something between values, such as
+the time of the last value the `throttle` filter let through, or the pending timer of the `timeout` filter, clears that
+state there:
+
+```cpp
+class MyThrottleFilter : public text_sensor::Filter {
+ public:
+  bool new_value(std::string &value) override;
+  void initialize(text_sensor::TextSensor *parent, text_sensor::Filter *next) override {
+    Filter::initialize(parent, next);
+    this->last_input_ = 0;
+  }
+
+ protected:
+  uint32_t last_input_{0};
+};
+```
+
+A filter without state needs no override. A filter that cannot be reset, such as a lambda that uses a global variable,
+keeps its state.
+
+`reset_chain()` calls `initialize()` again on a filter and on every filter after it, so calling it on the first filter
+of a sensor puts the whole chain back in its state at boot. Nothing in the core calls it. It is for a component that
+takes the filter chain of its own text sensor out of use at run time, for example to publish every value for a while,
+and later puts it back. Reset the chain before taking it out, so that a timeout that is still running cannot publish an
+old value. The chain is the `filter_list_` member of `TextSensor`, which a class that derives from `TextSensor` can use.
+
+`reset_chain()` and the state clearing of the built-in filters are compiled only when a component asks for them, so
+call `request_filter_reset()` from its `to_code`:
+
+```python
+from esphome.components import text_sensor
+
+
+async def to_code(config):
+    ...
+    text_sensor.request_filter_reset()
+```
+
+The [`ld2450`](https://github.com/esphome/esphome/tree/dev/esphome/components/ld2450) `xy_unfiltered` button does this.
+
 ## Exposing multiple text sensors from one component
 
 Hardware often maps to more than one text sensor - a device hub might expose a firmware version, a serial number and

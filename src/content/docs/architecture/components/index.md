@@ -696,6 +696,67 @@ void restart_device();
 
 Keep a C++ class when the entity has state or logic of its own beyond that one call.
 
+#### Entities the hub publishes to
+
+The other direction is a hub that reads the device and publishes to its child entities: a status register decoded into
+binary sensors, a key matrix that presses binary sensors, an IMU that feeds axis sensors. Rather than a listener
+subclass per child kept in a list, declare a `cg.HubFunction` once in the hub's `__init__.py`. Each child platform adds
+one item to it, and code generation writes one function per hub (`esphome__<hub>__status_fn`) with every item in config order and
+passes it to `set_status_publisher()`, so the children stay plain entities and the hub stores a single function
+pointer:
+
+```python
+# my_hub/__init__.py
+MyHubRegisters = my_hub_ns.struct("MyHubRegisters")  # std::array<uint8_t, 4> in C++
+STATUS_PUBLISHER = cg.HubFunction(
+    "status",
+    cg.void,
+    [(MyHubRegisters.const_ref(), "status")],
+    define="USE_MY_HUB_STATUS_PUBLISHER",
+)
+STATUS = STATUS_PUBLISHER.param("status")
+
+
+# my_hub/binary_sensor.py
+from esphome import automation
+
+
+async def to_code(config: ConfigType) -> None:
+    hub = await cg.get_variable(config[CONF_MY_HUB_ID])
+    sensors = binary_sensor.sub_binary_sensors(config)
+    if (var := await sensors(CONF_CHARGING, None)) is not None:
+        STATUS_PUBLISHER.add(hub, automation.parent_ref(var).publish_state((STATUS[0] >> 5) & 0x01))
+```
+
+```cpp
+// my_hub.h, in the class: declares status_publisher_ (nullptr) and set_status_publisher()
+#ifdef USE_MY_HUB_STATUS_PUBLISHER
+  HUB_PUBLISHER(status, const MyHubRegisters &)
+#endif
+
+// my_hub.cpp, after each read
+#ifdef USE_MY_HUB_STATUS_PUBLISHER
+  if (this->status_publisher_ != nullptr)
+    this->status_publisher_(status);
+#endif
+```
+
+Build the items from code generation expressions, not C++ text. A decode that needs more than one expression goes in a
+small free function in the hub's header that the item calls. `automation.parent_ref()` names the entity from global
+scope, so a parameter of the generated function cannot shadow it. The define is set for the whole build once any hub
+has an item, so a second hub without children still compiles the call with a `nullptr` pointer; check it before each
+call.
+
+- One hub can have several hub functions, such as one for key presses and one for releases.
+- With a `bool` return type each item is a `bool` expression; every item runs and the function returns whether any
+  was `true`, for a hub that logs data no child claimed. The hub then declares `HUB_PUBLISHER_RETURNING(bool, name, ...)`.
+- `HUB_PUBLISHER` ends on `public:`, so put it in a public section.
+- A child that loses its `Component` base still needs its `dump_config` lines. Give the hub a second hub function
+  (`"dump"`, with a `const char *` tag parameter) whose items call a small dump helper per child, and call it from
+  the hub's `dump_config()` with the hub's `TAG`.
+
+Keep a listener class when a child has its own state or timing beyond publishing what the hub passes in.
+
 ## C++ component structure
 
 Given the example Python code above, let's consider the following C++ code:
@@ -854,6 +915,23 @@ second argument for another text, for example
 `this->status_comm_result(ok, LOG_STR("Failed to read one or more registers"))`. Use it for failures after `setup()`;
 in `setup()` use `setup_check()` (below). A component has one warning flag, so a success clears a warning set by
 any other check too; do not mix it with other `status_set_warning()` conditions in the same update.
+
+When an update makes several bus calls in a row, only the last one should clear the warning. Clearing logs a line,
+so if an early step cleared it while a later step kept failing, every update would log a clear followed by a set.
+`status_comm_check(ok)` (ESPHome 2026.12.0 and later, esphome/esphome#22421) sets the same warning when `ok` is
+false but never clears it, and returns `ok`:
+
+```cpp
+// Earlier steps: set only
+if (!this->status_comm_check(this->write(&CMD_MEASURE, 1) == i2c::ERROR_OK))
+  return;
+// Last step: set or clear
+if (!this->status_comm_result(this->read(buffer, sizeof(buffer)) == i2c::ERROR_OK))
+  return;
+```
+
+A component that sets the warning must clear it somewhere on its success path, with `status_comm_result()` on the
+last step or `status_clear_warning()` at the end, or one failed read leaves it in warning until reboot.
 
 In `setup()`, a failed read or write usually means the device cannot work at all. `setup_check(ok)` marks the
 component failed when `ok` is false and returns `ok`:

@@ -240,6 +240,26 @@ if (bar := config.get(CONF_BAR)) is not None:
     cg.add(var.set_bar(bar))
 ```
 
+`cg.progmem_array(id_, rhs, align=16)` declares a constant array in flash and returns a reference to it, for data that
+must not cost RAM, such as a model file or a firmware blob:
+
+```python
+prog_arr = cg.progmem_array(config[CONF_RAW_DATA_ID], [HexInt(x) for x in data], align=16)
+```
+
+which generates:
+
+```c++
+alignas(16) static constexpr uint8_t model_data[] PROGMEM = {0x.., ...};
+```
+
+The array is aligned to a single byte by default, which is all a read that copies bytes needs. Pass `align` when the
+data is read through a cast: on Xtensa an unaligned 32-bit load raises `LoadStoreAlignmentCause`, so a buffer that a
+library reads as wider values, such as a flatbuffer, faults instead of returning an error. 16 bytes is what the
+TensorFlow Lite code generator uses for model arrays.
+
+`align` is available in ESPHome 2026.12.0 and later (esphome/esphome#22620).
+
 ### Further information
 
 - `ALIASES`: A list of legacy names that should transparently route to this component's canonical name. This allows a

@@ -310,18 +310,23 @@ overhead. Make them members of the component: a function-local or namespace-scop
 destructor to run at exit, which links `~BLEService` and `~BLECharacteristic` (about 290 bytes) into the firmware.
 
 ```cpp
-// Members of the component, constructed with it
-BLEService service_{uuid, 6, false};  // the server picks the instance id
+// Members of the component, constructed with it; children first, so they outlive their parent
+BLE2902 level_cccd_;
 BLECharacteristic level_{level_uuid, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY,
                          ESP_GATT_PERM_READ};
-BLE2902 level_cccd_;
+BLEService service_{uuid, 6, false};  // the server picks the instance id
 
 // In setup()
 this->level_.add_descriptor(this->level_cccd_);  // a reference: never freed by the characteristic
 this->service_.add_characteristic(this->level_);
-if (global_ble_server->add_service(this->service_))
+if (global_ble_server->add_service(this->service_)) {
   global_ble_server->enqueue_start_service(&this->service_);
+  esp32_ble::global_ble->advertising_start();  // released with advertising_stop() when the service is removed
+}
 ```
+
+The server advertises on its own only for YAML services or manufacturer data, so a component's service requests
+advertising itself with a matching `advertising_stop()`.
 
 Ownership rules:
 
@@ -331,6 +336,8 @@ Ownership rules:
   does not. Passing the address of a member or static descriptor to the pointer overload is a bug.
 - `remove_service()` frees only a service from `create_service()`. A caller-owned child that outlives its
   parent has its parent pointer cleared, and `remove_descriptor()` hands ownership back to the caller.
+- Each object belongs to one parent: adding a service, characteristic or descriptor that is already added is
+  refused with an error, and the `add_*` call returns `false`.
 - YAML `descriptors:` are static objects from code generation and are added by reference. With
   esphome/esphome#22458, YAML services and characteristics are static objects added the same way; before it they
   come from `create_service()` and `create_characteristic()`.

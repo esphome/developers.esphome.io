@@ -503,6 +503,25 @@ The action is the core `ApplyAction<Ts...>`, which stores one function pointer. 
 
 For a hand-written action with a byte payload, see [Byte payloads](#byte-payloads) below.
 
+### Actions that write their own statements
+
+When the statements do not fit `register_apply_action`, for example a call to a codegen-only free function or a value chosen per config, register the action with `automation.ApplyAction` and return `automation.apply_statements_action(action_id, template_arg, args, statements)`. It is still an inline action: it gets no C++ class and merges with the inline actions next to it. Build each statement from codegen expressions, not formatted strings. Name the parent with `automation.parent_ref(var)`, so a trigger argument cannot shadow it. Call a user lambda with `automation.call_user_lambda(value, args, return_type)`, which copies only the by-value trigger arguments the lambda names and otherwise reduces it to its expression, as `register_apply_action` does:
+
+```python
+@automation.register_action(
+    "my_component.apply", automation.ApplyAction, MY_APPLY_SCHEMA, synchronous=True
+)
+async def my_apply_to_code(config, action_id, template_arg, args):
+    parent = automation.parent_ref(await cg.get_variable(config[CONF_ID]))
+    value = config[CONF_VALUE]
+    if isinstance(value, Lambda):
+        value = await automation.call_user_lambda(value, args, cg.int32)
+    text = str(cg.statement(my_ns.apply_value(parent, value)))
+    return automation.apply_statements_action(action_id, template_arg, args, [text])
+```
+
+The result of `call_user_lambda` is safe as a function argument or initializer; put it in parentheses before using it as an operand. `call_user_lambda` is available in ESPHome 2026.12.0 and later ([esphome/esphome#22588](https://github.com/esphome/esphome/pull/22588)).
+
 ### Python
 
 When `play()` has its own logic but the builder only needs to look up the parent component and construct the C++ object, register the action with one call and no builder function:

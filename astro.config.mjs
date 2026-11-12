@@ -92,6 +92,7 @@ export default defineConfig({
                 "architecture/components/esp32_tls",
                 "architecture/components/esp32_rmt",
                 "architecture/components/ipv4_allow",
+                "architecture/components/modbus_tcp_uart",
                 "architecture/components/tcp_client_link",
                 "architecture/components/tcp_listener",
                 "architecture/components/mdns",

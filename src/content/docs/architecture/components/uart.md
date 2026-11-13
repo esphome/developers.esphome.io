@@ -253,7 +253,8 @@ other component that names it by `uart_id` or `conf_key`, and a `dummy_receiver`
 component's top-level config key: the check skips that domain and keeps the claims per owner in
 `fv.full_config.get().data["uart_exclusive"]`.
 Grouped CI builds share one bus between components, so in testing mode other components are not checked. `uart_tcp`
-uses it.
+uses it, and the `cdc_acm_uart` bridge platform claims both its `uart_id` and its `usb_cdc_acm_id` with the owner
+`bridge`, so a second bridge on the same UART or the same CDC-ACM interface is rejected.
 
 Finding other components is best effort: bare `id:` references, such as a `uart.write` action, and lambdas are missed.
 
@@ -293,9 +294,7 @@ The manual check is best effort: further arguments name the keys to search inste
 each key must match exactly, but bare `id:` references, such as a `uart.write` action, and lambdas are not found. The
 loop above skips the component's own domain, which fits a top-level, single-instance component; a platform (whose config
 sits under `sensor:` and the like) or a `MULTI_CONF` component must skip its own config node instead, or it rejects
-itself and misses a second instance on the same bus. The `cdc_acm_uart` bridge platform uses `claim_exclusive()`,
-which skips its whole `bridge:` domain and records the ids it has claimed, so a second bridge on the same UART is
-rejected too.
+itself and misses a second instance on the same bus.
 
 ## Reading text lines
 

@@ -288,6 +288,60 @@ In Python, declare the codegen class with `BLEHub` as a parent so `use_id(BLEHub
 MyTracker = my_ns.class_("MyTracker", ble_device_base.BLEHub, cg.Component)
 ```
 
+## Hosting a GATT service with `esp32_ble_server`
+
+A component that serves its own GATT service registers it on the `esp32_ble_server` hub, either as
+objects the server allocates or as objects the component keeps alive itself. Return
+`setup_priority::AFTER_BLUETOOTH` from `get_setup_priority()`, so the server has been set up and
+`global_ble_server` is set when the component's `setup()` runs.
+
+**Server-allocated objects** suit a service that is only built when it is needed, for example
+improv_ble, which creates its service only while Wi-Fi has no credentials. The heap is used only then:
+
+```cpp
+BLEService *svc = global_ble_server->create_service(uuid, true);
+BLECharacteristic *chr = svc->create_characteristic(chr_uuid, BLECharacteristic::PROPERTY_READ);
+chr->add_descriptor(new BLE2902());  // the characteristic takes ownership
+global_ble_server->enqueue_start_service(svc);
+```
+
+**Objects the component keeps alive** suit a service that always exists. They cost no heap and no allocator
+overhead. Make them members of the component: a function-local or namespace-scope `static` registers its
+destructor to run at exit, which links `~BLEService` and `~BLECharacteristic` (about 290 bytes) into the firmware.
+
+```cpp
+// Members of the component, constructed with it; children first, so they outlive their parent
+BLE2902 level_cccd_;
+BLECharacteristic level_{level_uuid, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY,
+                         ESP_GATT_PERM_READ};
+BLEService service_{uuid, 6, false};  // the server picks the instance id
+
+// In setup()
+this->level_.add_descriptor(this->level_cccd_);  // a reference: never freed by the characteristic
+this->service_.add_characteristic(this->level_);
+if (global_ble_server->add_service(this->service_)) {
+  global_ble_server->enqueue_start_service(&this->service_);
+  esp32_ble::global_ble->advertising_start();  // released with advertising_stop() when the service is removed
+}
+```
+
+The server advertises on its own only for YAML services or manufacturer data, so a component's service requests
+advertising itself with a matching `advertising_stop()`.
+
+Ownership rules:
+
+- `create_service()` and `create_characteristic()` allocate the object, and its parent frees it.
+  `add_service()` and `add_characteristic()` take an object the caller keeps alive and never free it.
+- `add_descriptor(BLEDescriptor *)` takes ownership of a heap descriptor; `add_descriptor(BLEDescriptor &)`
+  does not. Passing the address of a member or static descriptor to the pointer overload is a bug.
+- `remove_service()` frees only a service from `create_service()`. A caller-owned child that outlives its
+  parent has its parent pointer cleared, and `remove_descriptor()` hands ownership back to the caller.
+- Each object belongs to one parent: adding a service, characteristic or descriptor that is already added is
+  refused with an error, and the `add_*` call returns `false`.
+- YAML `descriptors:` are static objects from code generation and are added by reference. With
+  esphome/esphome#22458, YAML services and characteristics are static objects added the same way; before it they
+  come from `create_service()` and `create_characteristic()`.
+
 ## Migrating from the esp32-only API
 
 Before `ble_device_base`, the shared BLE types lived in `esp32_ble_tracker`. External components

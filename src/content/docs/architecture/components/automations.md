@@ -499,6 +499,38 @@ The action is the core `ApplyAction<Ts...>`, which stores one function pointer. 
 - `ApplyBytes(CONF_DATA, "transmit_packet({})")` forwards a byte payload. The key is validated with `cv.templatable(...)` over a byte list or string, and the target's single `{}` expands to `data, len`. A constant payload is a shared `PROGMEM` table passed directly, so it costs no RAM; on ESP8266 it is first copied out, to the stack up to `stack=` bytes (default 64) and to the heap beyond that, unless `progmem_target=` names a call that reads flash itself, such as `uart`'s `write_array_progmem`. A user lambda returns `std::vector<uint8_t>` and its data and size are passed. The template may name the parent as `{parent}`.
 - `call="make_call"` is for actions that build a call object: every statement, follow-up calls included, targets the call object returned by `parent->make_call()`, and `perform()` on it is appended last.
 
+When the statements do not fit those shapes, such as values bound in a set order before a call, write the builder
+yourself, register it with `automation.ApplyAction` as its class, and return
+`automation.apply_statements_action(action_id, template_arg, args, statements)`. The statements are C++ text for the
+body of the generated function. Start generated names with `esphome__` so a trigger argument cannot shadow them. Call
+a config lambda with `await automation.call_user_lambda(value, args, return_type)`, which calls it the same way
+`register_apply_action` does: a lambda that names no trigger argument becomes its plain expression, and one that names
+a by-value argument gets its own copy of it, which it may change. Reference arguments keep their reference type.
+
+```python
+from esphome.core import Lambda
+
+SET_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(): cv.use_id(MyComponent),
+        cv.Required(CONF_VALUE): cv.templatable(cv.int_),
+    }
+)
+
+
+@automation.register_action("my_component.set", automation.ApplyAction, SET_SCHEMA, synchronous=True)
+async def set_to_code(config, action_id, template_arg, args):
+    parent = automation.parent_ref(await cg.get_variable(config[CONF_ID]))
+    value = config[CONF_VALUE]
+    if isinstance(value, Lambda):
+        value = await automation.call_user_lambda(value, args, cg.int32)
+    text = str(cg.statement(parent.set(value)))
+    return automation.apply_statements_action(action_id, template_arg, args, [text])
+```
+
+Build the statements from codegen expressions, as above, rather than formatting C++ text. The result of
+`call_user_lambda` is safe as a function argument or initializer; put it in parentheses before using it as an operand.
+
 `cover.control` and `cover.template.publish` in the ESPHome repository are in-tree examples; `sx127x.send_packet` and `uart.write` show `ApplyBytes`. The hand-written class below is for actions whose `play()` has logic beyond forwarding values.
 
 For a hand-written action with a byte payload, see [Byte payloads](#byte-payloads) below.

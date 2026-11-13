@@ -118,6 +118,38 @@ PC UART interface baud rate is the same baud rate as your ESPHome device UART
 (default is 115200), and that both your interface and device have a shared
 ground connection.
 
+## Sharing the Logger's Serial Port
+
+A component that talks a raw protocol over the port the logger prints to (Improv serial does this) asks
+for the console API from `to_code`:
+
+```python
+from esphome.components.logger import request_console
+
+
+async def to_code(config):
+    ...
+    request_console()
+```
+
+That compiles in two methods on `logger::global_logger`, which bypass log formatting:
+
+```cpp
+// Blocking; returns the bytes written
+size_t written = logger::global_logger->console_write(data, len);
+
+// Non-blocking; false when no byte is waiting
+uint8_t byte;
+while (logger::global_logger->console_read(byte)) {
+  this->handle_byte_(byte);
+}
+```
+
+They exist on ESP32 (UART, USB CDC and USB Serial JTAG), ESP8266, RP2040 and LibreTiny, not on nRF52 or
+the host. The port is the one chosen by the logger's `hardware_uart`, fixed at build time; the logger
+must have a non-zero `baud_rate`, so validate that in your component's `FINAL_VALIDATE_SCHEMA`. Log
+lines keep going to the same port, so the protocol on the other end must skip text it does not expect.
+
 ## Logging Best Practices
 
 [Review the logging best practices guide](/architecture/logging/best_practices/). In general, keep log messages short and to the point in order to avoid using too much processing power and network resources, and also to avoid overwhelming users and developers. Also remember to output your component's configuration using `ESP_LOGCONFIG()` in your component's `dump_config()` function.

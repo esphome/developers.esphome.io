@@ -659,6 +659,22 @@ output path, even on the vast majority of configurations that never enable it.
 
 If you are unsure whether a feature clears the bar to remain ungated, gate it. Gating is cheap, removing is expensive.
 
+### YAML language features are frozen
+
+ESPHome plans to move its configuration files to yaml.rocks. Until that move is done, we do not accept new YAML
+language features ([esphome/backlog#201](https://github.com/esphome/backlog/issues/201)):
+
+- new YAML tags (ESPHome has `!include`, `!include_dir_*`, `!secret`, `!env_var`, `!lambda`, `!literal`, `!extend` and
+  `!remove`)
+- new behaviour in `packages:` or `substitutions:`, including new functions or filters for Jinja expressions
+- new ways to merge, override or remove parts of a configuration
+
+Bug fixes to the existing features are still welcome. This is only about how YAML files are read, included and
+combined; a component's own configuration options are not affected.
+
+Every feature of this kind would have to be carried over to yaml.rocks, and every tool that reads or edits
+configurations, such as the device builder, has to handle it as well.
+
 ### Use of external libraries
 
 In general, we try to avoid use of external libraries.

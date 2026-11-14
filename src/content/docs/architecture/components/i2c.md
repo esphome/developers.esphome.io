@@ -142,6 +142,25 @@ of `value` outside `mask` are ignored, so pass `0` as the value to clear bits. I
 write fails. After a failed read it writes nothing, so a bus error never leads to a wrong value being written. The
 write happens even when the value does not change. The old and new values are logged at the `VERBOSE` level.
 
+## 16-bit register addresses
+
+Some chips (touch controllers, ToF sensors, PMICs) address their registers with two bytes. `read_register16()` and
+`write_register16()` send the address most significant byte first; for a single byte use `read_byte_reg16()` and
+`write_byte_reg16()`, and `update_register16(reg, mask, value)` works like `update_register()`:
+
+```cpp
+// Before
+uint8_t value = 0x01;
+this->write_register16(SYSTEM_INTERRUPT_CLEAR, &value, 1);
+
+// After
+this->write_byte_reg16(SYSTEM_INTERRUPT_CLEAR, 0x01);
+this->update_register16(REG_CONFIG, 0x03, 0x02);
+```
+
+All three return `false` when the transfer fails. Do not confuse them with `read_byte_16()` and `write_byte_16()`,
+which take an 8-bit address and a 16-bit value.
+
 ## Multi-byte values
 
 `read_byte_16()` and `write_byte_16()` on `I2CDevice` treat the first byte on the wire as the most significant byte.

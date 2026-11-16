@@ -267,3 +267,54 @@ The rules for an override:
 
 For everything else, the component implements the usual set of methods
 [as described here](/architecture/components/index#common-methods).
+
+### Driver-owned MIPI pixel operations
+
+The ESP32-P4 `mipi_dsi::MipiDsi` driver also accepts a bounded PPA operation
+through `draw_rgb565_transformed()`. This is a display operation, independent
+of a camera, codec or transport. Call it from normal display/main-loop context,
+never an ISR or an audio callback.
+
+Check `supports_rgb565_transform()` after setup. The source may be RGB565,
+RGB888, ARGB8888, packed YUV420 or YUV444; the DPI output must be little-endian
+RGB565. Describe the source picture/stride and block in the public PPA input,
+pass its byte capacity, use zero rotation and a scale representable in 1/16 steps.
+Supply a logical output rectangle. The driver composes its own display rotation
+once and ignores the supplied output buffer. Keep the source valid and immutable
+until this blocking call returns after PPA and panel completion. A generation/activity predicate may reject work
+after waiting for the owner; it must not mutate state or re-enter display code.
+A hardware error or a predicate that changes after dispatch is not a guarantee
+that the visible buffer stayed untouched.
+
+For example, a complete 16x16 RGB565 picture at scale 1 is submitted with:
+
+```cpp
+ppa_srm_oper_config_t operation{};
+operation.in.buffer = pixels;
+operation.in.pic_w = operation.in.block_w = 16;
+operation.in.pic_h = operation.in.block_h = 16;
+operation.in.srm_cm = PPA_SRM_COLOR_MODE_RGB565;
+operation.rotation_angle = PPA_SRM_ROTATION_ANGLE_0;
+operation.scale_x = operation.scale_y = 1.0f;
+const bool committed = panel.draw_rgb565_transformed(operation, pixel_bytes, 0, 0, 16, 16);
+```
+
+`copy_frame_buffer_rgb565(target, capacity, extra_rotation)` copies the completed
+composition, including non-LVGL pixels, into caller-owned uint16-aligned storage.
+It does not force an LVGL redraw or export a framebuffer pointer. Allocate at
+least `get_width() * get_height() * 2` bytes. Default extra rotation 0 already uses
+logical orientation; 90/270 swaps output dimensions but preserves byte capacity.
+Do not add LVGL rotation again. A busy owner, pending buffered UI drawing,
+unsupported output or invalid storage returns false before changing the target.
+Keep the previously published image on a failed capture.
+
+The normal ID pass also resolves the component's per-display Python capability
+IDs. `mipi_dsi.get_data()` owns `rgb565_transform_ids` and
+`framebuffer_readback_ids`; advertise support only for the corresponding output
+format, and still check the runtime capability after setup. The existing display
+external-writer registry remains responsible for declaring a drawing owner.
+
+External components must still declare their display writer through the existing
+`display.register_external_writer(display_id, owner)` validation API. The pixel
+transaction methods do not bypass writer-conflict validation or decide when a
+page should expose its video surface.

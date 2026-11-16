@@ -110,13 +110,20 @@ CONFIG_SCHEMA = cv.All(
 )
 ```
 
-### Server with Multiple Clients (Web Server)
+### Clients of the Shared Web Server
+
+Components that serve requests through the shared web server (`web_server_base`) do not register the listening
+socket; `web_server_base` does. Register the client connections your component keeps open with
+`web_server_base.add_httpd_clients()` instead of `socket.consume_sockets()`:
 
 ```python
+from esphome.components import web_server_base
+
+DOMAIN = "web_server"
+
 def _consume_web_server_sockets(config):
-    """Web server needs 1 listener + 2 concurrent clients."""
-    from esphome.components import socket
-    socket.consume_sockets(3, "web_server")(config)
+    # A browser opens several connections: page resources, the event stream and control requests
+    web_server_base.add_httpd_clients(5, DOMAIN)
     return config
 
 CONFIG_SCHEMA = cv.All(
@@ -126,6 +133,23 @@ CONFIG_SCHEMA = cv.All(
     _consume_web_server_sockets,
 )
 ```
+
+`add_httpd_clients()` registers the TCP sockets and adds them to the shared server's client total. On ESP32 that
+total sets the ESP-IDF HTTP server's open socket limit (`max_open_sockets`) at build time, never below the ESP-IDF
+default of 7, so a component that keeps long-lived connections (for example a stream) must count them here, or the
+server runs out of slots and purges the oldest connection. Call `add_httpd_clients()` during config validation, and
+do not register the same clients again with `socket.consume_sockets()`.
+
+If the user sets `CONFIG_LWIP_MAX_SOCKETS` in `sdkconfig_options`, the limit is capped at that value minus three
+(the listening socket and the two UDP control sockets), even when that is below 7. For example, a value of 9 allows
+6 clients.
+
+`web_server_idf` registers the two UDP control sockets that the ESP-IDF HTTP server opens, so components never count
+those.
+
+Short requests that close right away, like a Prometheus scrape, need no registration, but each one holds a client
+slot while it is served. If registered long-lived connections fill every slot, such a request makes the server purge
+one of them, so register one more client when short requests must not interrupt them.
 
 ### Multi-Instance Component (Camera)
 
@@ -148,7 +172,7 @@ CONFIG_SCHEMA = cv.All(
 
 ## How It Works
 
-1. **Registration Phase:** During configuration validation, each component calls `socket.consume_sockets(count, name)` to register its socket needs.
+1. **Registration Phase:** During configuration validation, each component calls `socket.consume_sockets(count, name)` to register its socket needs. Clients of the shared web server call `web_server_base.add_httpd_clients(count, name)` instead, which registers the sockets the same way.
 
 1. **Accumulation:** ESPHome stores these registrations in `CORE.data[KEY_SOCKET_CONSUMERS]`, accumulating the total across all components.
 
@@ -175,9 +199,11 @@ esp32:
     sdkconfig_options:
       CONFIG_LWIP_MAX_SOCKETS: "8"  # Too low!
 
-# Warning: CONFIG_LWIP_MAX_SOCKETS is set to 8 but components need 16 sockets:
+# Warning: CONFIG_LWIP_MAX_SOCKETS is set to 8 but components need 22 sockets:
 #   - api: 4
-#   - web_server: 3
+#   - web_server: 5
+#   - web_server_base: 1
+#   - web_server_idf: 2
 #   - mdns: 2
 #   - ota: 1
 #   - mqtt: 1

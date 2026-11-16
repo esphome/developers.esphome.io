@@ -65,6 +65,45 @@ var = await uart.new_uart_component(config)
 Arguments after `config` go to the constructor, for example `await uart.new_uart_component(config, config[CONF_MODE])`.
 [I2C](/architecture/components/i2c#python) and [SPI](/architecture/components/spi#python) have the same helper.
 
+### Forwarding UARTs
+
+A component that is itself a UART but passes on the bytes of another UART has no baud rate, data bits, parity or stop
+bits of its own. Devices on it that require them would be rejected. `uart.inherit_settings(uart_id, source_id)` makes
+`final_validate_device_schema()` check those devices against the settings of the source UART instead, following every
+hop. No pins are checked on a forwarding UART: `require_tx` and `require_rx` apply to hardware UARTs only.
+
+Call it from `CONFIG_SCHEMA`. `to_code` runs after final validation, so a call there is always too late. Final
+validation runs in YAML order, so a call from final validation can miss devices that were checked before it. `inherit_settings` is a plain function, not a coroutine:
+
+```python
+import esphome.codegen as cg
+from esphome.components import uart
+import esphome.config_validation as cv
+from esphome.const import CONF_ID, CONF_UART_ID
+from esphome.types import ConfigType
+
+DEPENDENCIES = ["uart"]
+
+my_tap_ns = cg.esphome_ns.namespace("my_tap")
+MyTap = my_tap_ns.class_("MyTap", uart.UARTComponent, cg.Component)
+
+
+def _inherit_settings(config: ConfigType) -> ConfigType:
+    uart.inherit_settings(config[CONF_ID], config[CONF_UART_ID])
+    return config
+
+
+CONFIG_SCHEMA = cv.All(
+    cv.Schema(
+        {
+            cv.GenerateID(): cv.declare_id(MyTap),
+            cv.Required(CONF_UART_ID): cv.use_id(uart.UARTComponent),
+        }
+    ).extend(cv.COMPONENT_SCHEMA),
+    _inherit_settings,
+)
+```
+
 ## C++
 
 The C++ class for this example component is quite simple.
@@ -192,7 +231,33 @@ It returns `size_t`, so `std::min` with a `size_t` length works as shown. What i
 
 `uart_tcp` uses it.
 
-A component that reads the UART for itself can reject other users in its final validation:
+A component that reads the UART for itself claims it in its final validation:
+
+```python
+from esphome.components import uart
+from esphome.types import ConfigType
+
+DOMAIN = "my_bridge"
+
+
+def _final_validate(config: ConfigType) -> None:
+    uart.claim_exclusive(config, DOMAIN)
+
+
+FINAL_VALIDATE_SCHEMA = _final_validate
+```
+
+`uart.claim_exclusive(config, owner, conf_key="uart_id")` is a plain function, not a coroutine. It claims the UART
+that `config[conf_key]` names and rejects a second claim of that UART by the same owner, even under another key, any
+other component that names it by `uart_id` or `conf_key`, and a `dummy_receiver` in the UART's `debug`. `owner` is the
+component's top-level config key: the check skips that domain and keeps the claims per owner in
+`fv.full_config.get().data["uart_exclusive"]`.
+Grouped CI builds share one bus between components, so in testing mode other components are not checked. `uart_tcp`
+uses it.
+
+Finding other components is best effort: bare `id:` references, such as a `uart.write` action, and lambdas are missed.
+
+For other messages or rules, check by hand with `subtree_references_uart()`:
 
 ```python
 from esphome.components import uart
@@ -223,13 +288,14 @@ def _final_validate(config: ConfigType) -> ConfigType:
 FINAL_VALIDATE_SCHEMA = _final_validate
 ```
 
-The check is best effort: the third argument, `conf_key`, finds the UART under another key than `uart_id`, but bare
-`id:` references, such as a `uart.write` action, and lambdas are not found. The loop above skips the component's own
-domain, which fits a top-level, single-instance component; a platform (whose config sits under `sensor:` and the like)
-or a `MULTI_CONF` component must skip its own config node instead, or it rejects itself and misses a second instance
-on the same bus. `uart_tcp` runs the check exactly as shown. The `cdc_acm_uart` bridge platform skips its whole
-`bridge:` domain and records the ids it has claimed in `fv.full_config.get().data`, so a second bridge on the same
-UART is rejected too.
+The manual check is best effort: further arguments name the keys to search instead of the default `uart_id`, so
+`subtree_references_uart(domain_conf, uart_id, CONF_UART_ID, "bridge_uart_id")` finds the UART under either key and
+each key must match exactly, but bare `id:` references, such as a `uart.write` action, and lambdas are not found. The
+loop above skips the component's own domain, which fits a top-level, single-instance component; a platform (whose config
+sits under `sensor:` and the like) or a `MULTI_CONF` component must skip its own config node instead, or it rejects
+itself and misses a second instance on the same bus. The `cdc_acm_uart` bridge platform skips its whole `bridge:`
+domain and records the ids it has claimed in `fv.full_config.get().data`, so a second bridge on the same UART is
+rejected too.
 
 ## Reading text lines
 

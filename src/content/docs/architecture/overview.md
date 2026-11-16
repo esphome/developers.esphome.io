@@ -148,6 +148,70 @@ Next, there's a special method - `cg.add` - that you will often use. `cg.add()` 
 C++ declared in the parentheses of `cg.add()` will be added to the generated code. Note that, if you do not call
 "add" to insert a piece of code explicitly, it will not be added to the `main.cpp` file!
 
+### Static buffers
+
+A buffer whose size comes from the configuration belongs in static memory (BSS), not on the heap.
+`cg.static_buffer(owner, type_, size)` emits `static <type_> <name>[<size>];` and returns it, ready to pass to the
+constructor:
+
+```python
+size = config[CONF_MAX_PACKET_SIZE]
+rx_buffer = cg.static_buffer(config[CONF_ID], cg.uint8, size)
+var = cg.new_Pvariable(config[CONF_ID], rx_buffer, size)  # MyComponent(uint8_t *buffer, size_t size)
+```
+
+`owner` is the ID of the component the buffer belongs to. The name is made from it, unique against every configured
+id, and follows the placement new storage convention, so `esphome analyze-memory` lists the buffer under the owner's
+component as `storage for <owner>_buffer`. A second buffer for the same owner is `<owner>_buffer_2`, and so on.
+
+A buffer that used to be allocated with `RAMAllocator`, which places it in PSRAM when the board has it, should stay
+there. Pass `psram=True`: builds with PSRAM enabled (`psram:` configured and not disabled) then get a
+`psram_buffer<type_>(size)` call (`esphome/core/helpers.h`) instead of a static buffer, which allocates `size` elements
+with `RAMAllocator` and zeroes them, so both paths start all zero. The component needs no PSRAM code of its own:
+
+```python
+buffer = cg.static_buffer(config[CONF_ID], cg.uint8, size, psram=True)
+cg.add(var.set_buffer(buffer))
+```
+
+The call allocates each time it runs, so pass the result once. It returns `nullptr` when the allocation fails, so check
+the pointer in `setup()` and mark the component failed.
+
+Two more things cover the common cases without casts or hand-built strings:
+
+- `align=4` emits `alignas(4)`, for a byte buffer that DMA or a word copy reads, so the C++ keeps a `uint8_t *`. With
+  `psram=True` the heap allocation guarantees no more than 4, so a larger `align` is rejected.
+- `size` may be a C++ expression. `Class.static_("member")` renders `ns::Class::member`, for a `static constexpr`
+  constant. For a `static constexpr` function, call the result; its arguments go through `safe_exp`:
+
+```python
+size = MyComponent.static_("frame_size")(config[CONF_MODEL])
+buffer = cg.static_buffer(config[CONF_ID], cg.uint8, size, align=4)
+```
+
+### Static lists
+
+A list of objects whose count codegen knows (one entry per configured sensor, valve or address) is a
+`StaticFixedVector<T>` (`esphome/core/helpers.h`) backed by `cg.static_storage(owner, type_, count)`, instead of a
+`FixedVector<T>` that allocates its array at setup. The storage is raw and aligned, so `push_back` and `emplace_back`
+build the elements in place, and it is never freed. Both refuse to go past the capacity: `push_back` ignores the
+value and `emplace_back` returns `nullptr`:
+
+```python
+storage = cg.static_storage(config[CONF_ID], SensorSource, len(config[CONF_SOURCES]))
+cg.add(var.set_source_storage(storage))
+```
+
+```cpp
+void set_source_storage(std::span<SensorSource> storage) { this->sources_.init(storage); }
+```
+
+`init()` is called once, before any element is added, and the capacity is at most 65535.
+
+The storage is named like a static buffer, so `esphome analyze-memory` counts it under the owner. A count of 0 gives an
+empty span and no storage. A list that only ever exists once per configuration can instead be a `StaticVector<T, N>`
+sized by a codegen define.
+
 ## Runtime
 
 At this point, the Python part of the codebase has completed its work. Let's move on and discuss the C++ part of

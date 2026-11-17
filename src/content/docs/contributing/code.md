@@ -389,7 +389,8 @@ ESP_LOGD(TAG, "Fan mode: %s", LOG_STR_ARG(FanModeStrings::get_log_str(mode)));
 
 The index can be an enum or any integer, so it needs no cast. A value outside the table, including a negative one or
 one wider than 8 bits, returns the fallback, which is the last entry unless you pass another index or enum value as
-the second argument:
+the second argument. Declare the table at namespace scope, such as just above the function that uses it; the macro
+defines a struct with template members, which a function body cannot hold:
 
 ```cpp
 // RANGE_DEFAULT is 0, so entry 0 is its name and also the text for any value outside the table

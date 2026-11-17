@@ -135,7 +135,7 @@ async def to_code(config):
 That compiles in two methods on `logger::global_logger`, which bypass log formatting:
 
 ```cpp
-// Blocking; returns the bytes written
+// Returns the bytes written, which can be fewer than len on a USB port
 size_t written = logger::global_logger->console_write(data, len);
 
 // Non-blocking; false when no byte is waiting
@@ -149,6 +149,11 @@ They exist on ESP32 (UART, USB CDC and USB Serial JTAG), ESP8266, RP2040 and Lib
 the host. The port is the one chosen by the logger's `hardware_uart`, fixed at build time; the logger
 must have a non-zero `baud_rate`, so validate that in your component's `FINAL_VALIDATE_SCHEMA`. Log
 lines keep going to the same port, so the protocol on the other end must skip text it does not expect.
+
+A UART write blocks until every byte is queued. A USB write can stop short when the host is not reading
+(USB Serial JTAG gives up after 20 ms), so a protocol that sends frames either checks the returned count
+or relies on the other end resending. On ESP32 targets without USB OTG, such as the C3, C6 and H2, the
+logger accepts `hardware_uart: USB_CDC` but ESP-IDF has no CDC console there, so both methods do nothing.
 
 ## Logging Best Practices
 

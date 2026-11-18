@@ -402,7 +402,7 @@ same header. Each `FrameFormat` is one kind of frame: the header bytes it starts
 largest frame the component accepts; a longer length is not a frame. The length rules are:
 
 | Rule | Length field |
-|---|---|
+| --- | --- |
 | `FrameLengthU8<POS, ADD>` | one byte at `POS` |
 | `FrameLengthU16BE<POS, ADD>` | two bytes at `POS`, high byte first |
 | `FrameLengthU16LE<POS, ADD>` | two bytes at `POS`, low byte first |
@@ -410,9 +410,8 @@ largest frame the component accepts; a longer length is not a frame. The length 
 
 The length of the whole frame, header included, is the field plus `ADD`: 0 when the field counts the whole frame, or
 the size of the header, length field, checksum and footer when it counts only the payload. A component can also pass
-its own type with a `KNOWN_AT` constant (the bytes needed before the length is known) and a static `get(buf)`. Its
-`get()` can return 0 to reject a header it can already tell is broken, such as a bad header checksum or an unknown
-frame type, so the reader drops it at once instead of waiting for a length it cannot trust.
+its own type with a `KNOWN_AT` constant (the bytes needed before the length is known) and a static `get(buf)`, which
+can return 0 to reject a broken header (a bad header checksum or an unknown type).
 
 A reader can take several formats when their first header bytes differ, such as the command and data frames of the
 LD24xx radars. The first byte picks the format, and all of this is resolved at compile time, so no table is placed in
@@ -426,9 +425,8 @@ LengthFrameReader<50, FrameFormat<FrameLengthU16LE<4, 10>, 0xFD, 0xFC, 0xFB, 0xF
 ```
 
 Checksums, footers and a minimum length that covers them stay with the caller, in a handler that gets each complete
-frame and its length and returns `false` when the bytes are not a real frame (a checksum, footer or structure that
-does not match). A rejected frame is searched for frames inside it and after it, which go to the same handler. The
-handler must not feed the same reader again.
+frame and its length and returns `false` when the bytes are not a real frame. A rejected frame is searched for frames
+inside it and after it, which go to the same handler. The handler must not feed the same reader again.
 
 Feed the reader from `loop()` with `read_frames()` on `UARTDevice`:
 
@@ -439,13 +437,9 @@ void LD2410Component::loop() {
 }
 ```
 
-It feeds the bytes waiting in the UART and sets `last_rx_` (a `uint32_t` member of the component) to the loop time.
-A corrupt length can hold complete frames back behind it until enough bytes arrive; on a pass with no bytes waiting,
-once the line has been quiet for the gap (100 ms, or the optional last argument), `read_frames()` gives up the
-partial frame and passes the frames it held to the handler. It only does this on a pass with nothing waiting, so a
-slow loop does not cut off a frame whose rest is already in the UART buffer. It returns the number of bytes it fed.
-A component that reads somewhere else, such as while waiting for a reply, can call it there with `millis()` and a
-local timestamp, or call `reader_.flush(handler)` itself. `length()` is the size of the partial frame. Besides the
-buffer the reader keeps three position bytes, or six when `N` is more than 255. A byte in the middle of a frame costs
-one compare and is handled inline; the rest of the reader is kept out of line. It is available in ESPHome 2026.12.0 and
-later (esphome/esphome#22884), as is `read_frames()`.
+It feeds the waiting bytes and sets `last_rx_` (a `uint32_t` member) to the loop time. A corrupt length can hold
+complete frames back; on a pass with nothing waiting, once the line has been quiet for the gap (100 ms by default),
+it gives up the partial frame and passes the frames it held to the handler. A component that reads elsewhere, such as
+while waiting for a reply, calls it there with its own timestamp. Besides the buffer the reader keeps three position
+bytes, or six when `N` is more than 255; a byte in the middle of a frame costs one inline compare. Both are available
+in ESPHome 2026.12.0 and later (esphome/esphome#22884).

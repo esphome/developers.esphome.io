@@ -394,3 +394,35 @@ frame. Call it only right after `feed()` returned the frame, and use `reset()` o
 forgets the partial frame, for example after sending a new command or after a timeout. Besides the buffer the reader
 keeps one byte for its position, or two bytes when `N` is more than 255. It is available in ESPHome 2026.11.0 and
 later (esphome/esphome#21446).
+
+### Frames that give their own length
+
+When a header byte gives the length of the frame, use `LengthFrameReader<N, LEN_POS, LEN_ADD, HEADER...>` from the
+same header. The byte at `LEN_POS` plus `LEN_ADD` is the length of the whole frame, header included, at most `N`:
+`LEN_ADD` is 0 when the byte counts the whole frame, and the size of the header, length byte and checksum when it
+counts only the payload. `frame_length()` gives the length of the frame `feed()` returned:
+
+```cpp
+// Header A5 01, length of the whole frame at byte 7
+LengthFrameReader<255, 7, 0, 0xA5, 0x01> reader_;
+
+this->read_available([this](uint8_t byte) {
+  const uint8_t *frame = this->reader_.feed(byte);
+  if (frame == nullptr)
+    return;
+  const size_t len = this->reader_.frame_length();
+  if (len < MIN_FRAME_SIZE || !this->checksum_ok_(frame, len)) {
+    this->reader_.resync();
+    return;
+  }
+  this->handle_frame_(frame, len);
+});
+```
+
+A length that ends the frame before its length byte, or is longer than `N`, is not a frame, and the reader looks for
+a header after its first byte. A minimum length that covers the checksum is left to the caller, as above.
+
+`resync()` also takes a partial frame, for a caller that gives up on one after a pause in the data: a corrupt length
+can hold back complete frames behind it. It returns a complete frame found in the bytes it looks through, like
+`feed()`, so a caller handles that frame the same way (in a loop, if that frame can be rejected too). `length()` and
+`reset()` work as for `FrameReader`. It is available in ESPHome 2026.12.0 and later (esphome/esphome#22884).

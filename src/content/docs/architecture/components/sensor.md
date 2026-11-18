@@ -402,12 +402,15 @@ static std::optional<float> esphome__sensor_applyfilter_id__fn(float x) { return
 
 - Each `ApplyCall` is one statement whose `{}` take config values. A constant is built in, and a `!lambda` value
   becomes its own function, so an id named like the filter's `x` still means that entity. `WHOLE_CONFIG` is the key for
-  a filter whose schema is a single value. A statement whose keys are all missing is skipped.
+  a filter whose schema is a single value. A statement whose keys are all missing is skipped, except the last: the
+  function returns there, so code generation fails if it would be skipped.
 - The function receives `x` and returns what the domain's filters return: `optional<float>` for sensors,
   `optional<bool>` for binary sensors (which also receive the filter, to schedule a delayed output), and `bool` after
   changing `x` in place for text sensors.
 - When the statements depend on the shape of the config (a shorthand value or a mapping, for example), pick them in
-  the filter's `to_code` and call `await APPLY_FILTER.build(name, config, filter_id, *statements)`.
+  the filter's `to_code` and call `await APPLY_FILTER.build(name, config, filter_id, *statements, schema=SCHEMA)`.
+  `schema` is the filter's config schema; it checks the statement keys, so a misspelled key is an error instead of
+  a skipped statement.
 - Keep a C++ filter class when the filter remembers anything between values (windows, throttling, the last value) or
   uses the scheduler on its own.
 

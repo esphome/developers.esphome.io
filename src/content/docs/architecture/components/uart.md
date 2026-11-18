@@ -423,22 +423,19 @@ LengthFrameReader<50, FrameFormat<FrameLengthU16LE<4, 10>, 0xFD, 0xFC, 0xFB, 0xF
     reader_;
 ```
 
-Checksums, footers and a minimum length that covers them stay with the caller. `feed()` returns a complete frame and
-`frame_length()` its length. After handling a frame call `next()`; after rejecting one call `resync()`, which looks
-for frames inside the rejected bytes and after them. Both return the next frame or `nullptr`:
+Checksums, footers and a minimum length that covers them stay with the caller, in a handler that gets each complete
+frame and its length and returns `false` for a frame it rejects. A rejected frame is searched for frames inside it
+and after it, which go to the same handler:
 
 ```cpp
 this->read_available([this](uint8_t c) {
-  const uint8_t *frame = this->reader_.feed(c);
-  while (frame != nullptr) {
-    const size_t len = this->reader_.frame_length();
-    frame = this->valid_(frame, len) ? (this->handle_frame_(frame, len), this->reader_.next()) : this->reader_.resync();
-  }
+  this->reader_.feed(c, [this](const uint8_t *frame, size_t len) { return this->handle_frame_(frame, len); });
 });
 ```
 
 A corrupt length can hold back complete frames behind it. A component that gives up on a partial frame after a pause
-in the data calls the same loop starting with `resync()` while `length()` is not 0, and gets those frames back.
-`reset()` forgets everything. Besides the buffer the reader keeps two position bytes, or four when `N` is more than
-255. A byte in the middle of a frame is handled inline; the rest of the reader is kept out of line. It is available in
-ESPHome 2026.12.0 and later (esphome/esphome#22884).
+in the data calls `reader_.flush(handler)`, which passes those frames to the handler. `length()` is the size of the
+partial frame and `reset()` forgets everything. The lower level `feed(c)`, `next()` and `resync()` are there for a
+caller that cannot use a handler. Besides the buffer the reader keeps three position bytes, or six when `N` is more
+than 255. A byte in the middle of a frame costs one compare and is handled inline; the rest of the reader is kept out
+of line. It is available in ESPHome 2026.12.0 and later (esphome/esphome#22884).

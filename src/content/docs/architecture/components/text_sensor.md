@@ -148,7 +148,7 @@ of a sensor puts the whole chain back in its state at boot.
 
 A component can take the filter chain of one of its own text sensors out of use at run time, for example to publish
 every value for a while, and put it back later. Do not use `filter_list_` or `raw_state_` for that; use
-`detach_filters()` and `attach_filters()`:
+`detach_filters()` and `attach_filters()` (ESPHome 2026.12.0 and later, esphome/esphome#22621):
 
 ```cpp
 // Values published from now on skip the filters
@@ -161,7 +161,8 @@ sensor->attach_filters(filters);
   a value the filters were holding back, and returns the chain, or `nullptr` if the sensor has none. Keep the returned
   pointer, and give it to `attach_filters()`. Calling it again while detached returns `nullptr`.
 - `attach_filters()` puts the chain back and runs the current state through it, so filters such as a `map` apply to
-  a value that was published while detached. It does not call the raw state callbacks again.
+  a value that was published while detached. It does not call the raw state callbacks again. Passing `nullptr`
+  does nothing.
 
 Do not call `detach_filters()` from the sensor's own raw state callback, because publishing still uses the filters
 after the callback returns. Defer the call instead.

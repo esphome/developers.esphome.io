@@ -445,6 +445,7 @@ once the line has been quiet for the gap (100 ms, or the optional last argument)
 partial frame and passes the frames it held to the handler. It only does this on a pass with nothing waiting, so a
 slow loop does not cut off a frame whose rest is already in the UART buffer. It returns the number of bytes it fed.
 A component that reads somewhere else, such as while waiting for a reply, can call it there with `millis()` and a
-local timestamp, or call `reader_.flush(handler)` itself. `length()` is the size of the partial frame. Besides the buffer the reader keeps three position bytes, or six when `N` is more than 255. A byte
-in the middle of a frame costs one compare and is handled inline; the rest of the reader is kept out of line. It is
-available in ESPHome 2026.12.0 and later (esphome/esphome#22884), as is `read_frames()`.
+local timestamp, or call `reader_.flush(handler)` itself. `length()` is the size of the partial frame. Besides the
+buffer the reader keeps three position bytes, or six when `N` is more than 255. A byte in the middle of a frame costs
+one compare and is handled inline; the rest of the reader is kept out of line. It is available in ESPHome 2026.12.0 and
+later (esphome/esphome#22884), as is `read_frames()`.

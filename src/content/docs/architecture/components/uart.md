@@ -397,32 +397,48 @@ later (esphome/esphome#21446).
 
 ### Frames that give their own length
 
-When a header byte gives the length of the frame, use `LengthFrameReader<N, LEN_POS, LEN_ADD, HEADER...>` from the
-same header. The byte at `LEN_POS` plus `LEN_ADD` is the length of the whole frame, header included, at most `N`:
-`LEN_ADD` is 0 when the byte counts the whole frame, and the size of the header, length byte and checksum when it
-counts only the payload. `frame_length()` gives the length of the frame `feed()` returned:
+When a field in the frame gives its length, use `LengthFrameReader<N, FrameFormat<LENGTH, HEADER...>...>` from the
+same header. Each `FrameFormat` is one kind of frame: the header bytes it starts with and a length rule. `N` is the
+largest frame the component accepts; a longer length is not a frame. The length rules are:
+
+| Rule | Length field |
+|---|---|
+| `FrameLengthU8<POS, ADD>` | one byte at `POS` |
+| `FrameLengthU16BE<POS, ADD>` | two bytes at `POS`, high byte first |
+| `FrameLengthU16LE<POS, ADD>` | two bytes at `POS`, low byte first |
+| `FrameFixedLength<LEN>` | none: the frame always has `LEN` bytes |
+
+The length of the whole frame, header included, is the field plus `ADD`: 0 when the field counts the whole frame, or
+the size of the header, length field, checksum and footer when it counts only the payload. A component can also pass
+its own type with a `KNOWN_AT` constant (the bytes needed before the length is known) and a static `get(buf)`.
+
+A reader can take several formats when their first header bytes differ, such as the command and data frames of the
+LD24xx radars. The first byte picks the format, and all of this is resolved at compile time, so no table is placed in
+RAM:
 
 ```cpp
-// Header A5 01, length of the whole frame at byte 7
-LengthFrameReader<255, 7, 0, 0xA5, 0x01> reader_;
+// ld2410.h: payload length little-endian at 4; header, length and footer add 10
+LengthFrameReader<50, FrameFormat<FrameLengthU16LE<4, 10>, 0xFD, 0xFC, 0xFB, 0xFA>,
+                  FrameFormat<FrameLengthU16LE<4, 10>, 0xF4, 0xF3, 0xF2, 0xF1>>
+    reader_;
+```
 
-this->read_available([this](uint8_t byte) {
-  const uint8_t *frame = this->reader_.feed(byte);
-  if (frame == nullptr)
-    return;
-  const size_t len = this->reader_.frame_length();
-  if (len < MIN_FRAME_SIZE || !this->checksum_ok_(frame, len)) {
-    this->reader_.resync();
-    return;
+Checksums, footers and a minimum length that covers them stay with the caller. `feed()` returns a complete frame and
+`frame_length()` its length. After handling a frame call `next()`; after rejecting one call `resync()`, which looks
+for frames inside the rejected bytes and after them. Both return the next frame or `nullptr`:
+
+```cpp
+this->read_available([this](uint8_t c) {
+  const uint8_t *frame = this->reader_.feed(c);
+  while (frame != nullptr) {
+    const size_t len = this->reader_.frame_length();
+    frame = this->valid_(frame, len) ? (this->handle_frame_(frame, len), this->reader_.next()) : this->reader_.resync();
   }
-  this->handle_frame_(frame, len);
 });
 ```
 
-A length that ends the frame before its length byte, or is longer than `N`, is not a frame, and the reader looks for
-a header after its first byte. A minimum length that covers the checksum is left to the caller, as above.
-
-`resync()` also takes a partial frame, for a caller that gives up on one after a pause in the data: a corrupt length
-can hold back complete frames behind it. It returns a complete frame found in the bytes it looks through, like
-`feed()`, so a caller handles that frame the same way (in a loop, if that frame can be rejected too). `length()` and
-`reset()` work as for `FrameReader`. It is available in ESPHome 2026.12.0 and later (esphome/esphome#22884).
+A corrupt length can hold back complete frames behind it. A component that gives up on a partial frame after a pause
+in the data calls the same loop starting with `resync()` while `length()` is not 0, and gets those frames back.
+`reset()` forgets everything. Besides the buffer the reader keeps two position bytes, or four when `N` is more than
+255. A byte in the middle of a frame is handled inline; the rest of the reader is kept out of line. It is available in
+ESPHome 2026.12.0 and later (esphome/esphome#22884).

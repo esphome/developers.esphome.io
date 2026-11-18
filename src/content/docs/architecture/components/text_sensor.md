@@ -157,9 +157,11 @@ text_sensor::Filter *filters = sensor->detach_filters();
 sensor->attach_filters(filters);
 ```
 
-- `detach_filters()` resets the chain, so a timeout that was running cannot publish an old value afterwards. It sends
-  a value the filters were holding back, and returns the chain, or `nullptr` if the sensor has none. Keep the returned
-  pointer, and give it to `attach_filters()`. Calling it again while detached returns `nullptr`.
+- `detach_filters()` resets the chain, so a timeout that was running cannot publish an old value afterwards. If the
+  last raw value differs from the current state, because a filter held it back, changed it or dropped it, it
+  publishes the raw value, so state callbacks and automations run. It returns the chain, or `nullptr` if the sensor
+  has none. Keep the returned pointer, and give it to `attach_filters()`. Calling it again while detached returns
+  `nullptr`.
 - `attach_filters()` puts the chain back and runs the current state through it, so filters such as a `map` apply to
   a value that was published while detached. It does not call the raw state callbacks again. Passing `nullptr`
   does nothing.

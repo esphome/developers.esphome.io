@@ -435,7 +435,6 @@ this->read_available([this](uint8_t c) {
 
 A corrupt length can hold back complete frames behind it. A component that gives up on a partial frame after a pause
 in the data calls `reader_.flush(handler)`, which passes those frames to the handler. `length()` is the size of the
-partial frame and `reset()` forgets everything. The lower level `feed(c)`, `next()` and `resync()` are there for a
-caller that cannot use a handler. Besides the buffer the reader keeps three position bytes, or six when `N` is more
-than 255. A byte in the middle of a frame costs one compare and is handled inline; the rest of the reader is kept out
-of line. It is available in ESPHome 2026.12.0 and later (esphome/esphome#22884).
+partial frame. Besides the buffer the reader keeps three position bytes, or six when `N` is more than 255. A byte
+in the middle of a frame costs one compare and is handled inline; the rest of the reader is kept out of line. It is
+available in ESPHome 2026.12.0 and later (esphome/esphome#22884).

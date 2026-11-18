@@ -206,27 +206,27 @@ A component that copies bytes into a UART from a faster source, such as a socket
 `paced_write_room()` returns how many bytes a write can take now:
 
 ```cpp
-// Members: the bytes that wait for the UART, and the loop start time of the last write.
+// Members: the bytes that wait for the UART, and the time paced_write_done() stores after each write.
 const uint8_t *pending_{nullptr};
 size_t pending_len_{0};
-uint32_t last_write_ms_{0};
+uint32_t last_write_us_{0};
 
 // Move at most what the UART can take now.
-size_t n = std::min(this->parent_->paced_write_room(this->last_write_ms_), this->pending_len_);
+size_t n = std::min(this->parent_->paced_write_room(this->last_write_us_), this->pending_len_);
 if (n != 0) {
   this->write_array(this->pending_, n);
   this->pending_ += n;
   this->pending_len_ -= n;
-  this->last_write_ms_ = App.get_loop_component_start_time();
+  this->parent_->paced_write_done(this->last_write_us_);
 }
 ```
 
 It returns `size_t`, so `std::min` with a `size_t` length works as shown. What it returns:
 
 - Where the driver reports its TX room, `available_for_write()`; 0 means the TX buffer is full.
-- Otherwise, the bytes the line carries at 10 bits per byte (8N1) in the time since `last_write_ms`, a loop start
-  time from `App.get_loop_component_start_time()`. That time is capped at one loop interval and at 4 s, whichever is
-  smaller.
+- Otherwise, the whole bytes the line sent at 10 bits per byte (8N1) since `last_write_us`, at most those of one loop
+  interval plus one. `paced_write_done()`, called right after the write, stores in `last_write_us` when the write
+  returned, less the part of a byte the line sent after its last whole byte, so that part counts for the next write.
 - Never less than one byte. At a low baud rate a loop that wakes often can therefore still get ahead of the line.
 
 `uart_tcp` uses it.

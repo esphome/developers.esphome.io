@@ -337,6 +337,33 @@ class TurnOnTrigger final : public Trigger<> {
 
 The trigger needs to track mutable state (`last_on_`) across callback invocations. A forwarder struct must contain only a single `Automation*` field -- it cannot store extra state. When the trigger logic requires additional fields, use a `Trigger` subclass instead. The `Trigger` base class manages the connection to the `Automation` object.
 
+### Triggers on a value range
+
+An `on_value_range` style trigger (fire when a float state enters `above`/`below`) does not need its own bound members.
+`automation.new_value_range_trigger(trigger_id, parent, config)` creates the trigger with one generated function that
+returns both bounds as an `esphome::ValueRange` for the current value:
+
+```python
+async def to_code(config: ConfigType) -> None:
+    ...
+    for conf in config.get(CONF_ON_VALUE_RANGE, []):
+        trigger = await automation.new_value_range_trigger(conf[CONF_TRIGGER_ID], var, conf)
+        await cg.register_component(trigger, conf)
+        await automation.build_automation(trigger, [(float, "x")], conf)
+```
+
+```cpp
+// generated for `above: 10` / `below: 90`
+static ValueRange esphome__range_trigger__fn(const float x) { return ValueRange{10.0f, 90.0f}; }
+```
+
+The trigger class takes `ValueRange (*)(float x)` in its constructor and calls
+`range_(state).contains(state, previous)`, where `previous` is the trigger's last in-range result; it fires only when
+that goes from false to true. A missing bound is `NAN` and is not checked; with both bounds `NAN` the previous result
+is kept. Constant bounds are written as literals in the generated function, as above. A `!lambda` bound is called with
+its own copy of the state as `x`, so one bound cannot change what the other sees, and the trigger is declared before
+its bounds, so a bound may refer to its own trigger id.
+
 ### Hub that fires its own automations
 
 Use this when the component itself decides when an event fires and passes the values, for example a keypad hub that fires `on_key` with the key code, and nothing else listens for that event. The hub keeps an `AutomationList` sized at build time and triggers it directly: each automation costs one pointer-sized slot (4 bytes on 32-bit chips), there is no `Trigger` object and no heap vector, and an unused list compiles out.
@@ -397,6 +424,7 @@ When each automation needs its own stored value next to it, such as a threshold 
 | Different callback arguments or a constant filter | Callback with `params`, `forward`, `when` | [`select on_value`](https://github.com/esphome/esphome/blob/dev/esphome/components/select/__init__.py) -- forwards the option text looked up from the index |
 | Callback carries nothing, automation gets the parent | `build_parent_callback_automation` | [`fan on_state`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/__init__.py) -- forwards `::the_fan` |
 | Registration takes extra arguments | `build_trigger_callback` | [`mqtt on_message`](https://github.com/esphome/esphome/blob/dev/esphome/components/mqtt/__init__.py) -- the component passes the lambda to `subscribe(topic, callback, qos)`, filtered on the configured payload |
+| Fire when a float enters `above`/`below` | `new_value_range_trigger` | `sensor on_value_range` -- the trigger keeps `previous`, the bounds come from one generated `ValueRange` function ([esphome/esphome#21817](https://github.com/esphome/esphome/pull/21817), pending) |
 | Hub fires the event itself, no other listeners | `AutomationList` | [`wiegand on_key`](https://github.com/esphome/esphome/blob/dev/esphome/components/wiegand/wiegand.h) -- `AutomationList<WIEGAND_ON_KEY_COUNT, uint8_t>` ([esphome/esphome#21790](https://github.com/esphome/esphome/pull/21790), pending) |
 | Extra state needed | Trigger class | [`fan on_turn_on`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/automation.h) -- `FanTurnOnTrigger` tracks `last_on_` for edge detection (mutable state, can't be a forwarder) |
 | Complex logic (timing, state machine) | Trigger class | [`binary_sensor on_multi_click`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/automation.h) -- `MultiClickTrigger` with timing, cooldown, and multiple state fields |
@@ -404,6 +432,8 @@ When each automation needs its own stored value next to it, such as a threshold 
 ### Triggers with short-lived arguments
 
 Some triggers pass arguments that are only valid while the callback runs: a `StringRef` into a receive buffer that the next message overwrites, a `JsonObject` into a document freed when the callback returns, a span into a buffer the hub reuses. Deferring actions (`delay`, `wait_until`, `script.wait`, ...) keep the trigger arguments and use them later — `DelayAction` copies them by value, which copies the pointer but not the data — so a lambda that runs after them reads stale or freed memory.
+
+A byte payload argument is `cg.byte_span`, the `std::span<const uint8_t>` type, for example `[(cg.byte_span, "data")]`. It points into the caller's buffer, so it is one of these short-lived arguments.
 
 If the argument cannot be copied cheaply, reject deferring actions at config validation. `automation.validate_synchronous_automation()` is `validate_automation()` with that check added:
 
@@ -469,7 +499,41 @@ The action is the core `ApplyAction<Ts...>`, which stores one function pointer. 
 - `ApplyBytes(CONF_DATA, "transmit_packet({})")` forwards a byte payload. The key is validated with `cv.templatable(...)` over a byte list or string, and the target's single `{}` expands to `data, len`. A constant payload is a shared `PROGMEM` table passed directly, so it costs no RAM; on ESP8266 it is first copied out, to the stack up to `stack=` bytes (default 64) and to the heap beyond that, unless `progmem_target=` names a call that reads flash itself, such as `uart`'s `write_array_progmem`. A user lambda returns `std::vector<uint8_t>` and its data and size are passed. The template may name the parent as `{parent}`.
 - `call="make_call"` is for actions that build a call object: every statement, follow-up calls included, targets the call object returned by `parent->make_call()`, and `perform()` on it is appended last.
 
+When the statements do not fit those shapes, such as values bound in a set order before a call, write the builder
+yourself, register it with `automation.ApplyAction` as its class, and return
+`automation.apply_statements_action(action_id, template_arg, args, statements)`. The statements are C++ text for the
+body of the generated function. Start generated names with `esphome__` so a trigger argument cannot shadow them. Call
+a config lambda with `await automation.call_user_lambda(value, args, return_type)`, which calls it the same way
+`register_apply_action` does: a lambda that names no trigger argument becomes its plain expression, and one that names
+a by-value argument gets its own copy of it, which it may change. Reference arguments keep their reference type.
+
+```python
+from esphome.core import Lambda
+
+SET_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(): cv.use_id(MyComponent),
+        cv.Required(CONF_VALUE): cv.templatable(cv.int_),
+    }
+)
+
+
+@automation.register_action("my_component.set", automation.ApplyAction, SET_SCHEMA, synchronous=True)
+async def set_to_code(config, action_id, template_arg, args):
+    parent = automation.parent_ref(await cg.get_variable(config[CONF_ID]))
+    value = config[CONF_VALUE]
+    if isinstance(value, Lambda):
+        value = await automation.call_user_lambda(value, args, cg.int32)
+    text = str(cg.statement(parent.set(value)))
+    return automation.apply_statements_action(action_id, template_arg, args, [text])
+```
+
+Build the statements from codegen expressions, as above, rather than formatting C++ text. The result of
+`call_user_lambda` is safe as a function argument or initializer; put it in parentheses before using it as an operand.
+
 `cover.control` and `cover.template.publish` in the ESPHome repository are in-tree examples; `sx127x.send_packet` and `uart.write` show `ApplyBytes`. The hand-written class below is for actions whose `play()` has logic beyond forwarding values.
+
+For a hand-written action with a byte payload, see [Byte payloads](#byte-payloads) below.
 
 ### Python
 
@@ -566,6 +630,52 @@ async def set_state_to_code(
 Same imports as the earlier Python snippets on this page apply (`cg`, `cv`, `automation`, constants, typing aliases); `CONF_STATE` and `SetValueAction` are defined by the component itself.
 
 Passing a raw value such as `cg.add(var.set_state(config[CONF_STATE]))` worked on 2026.3.x and earlier for literal constants but fails to compile on 2026.4.0 and later, because trivially copyable types use `TemplatableFn` (pointer-sized function-pointer storage, 4 bytes on 32-bit platforms), for which implicit conversion from raw values is not possible. See the [TemplatableFn blog post](/blog/2026/04/09/templatablefn-4-byte-templatable-storage-for-trivially-copyable-types/) for details.
+
+### Byte payloads
+
+A hand-written action takes a byte payload with `TEMPLATABLE_BYTES(data)`:
+
+- In the builder, `await automation.templatable_bytes(config[CONF_DATA], args, var.set_data_template, var.set_data_static, "my_data")` sets either the user lambda or a shared constant table.
+- In `play()`, `visit()` passes the payload as a pointer and length:
+
+  ```cpp
+  void play(const Ts &...x) override {
+    this->data_.visit([this](const uint8_t *data, size_t len) { this->parent_->send(data, len); }, x...);
+  }
+  ```
+
+- A user lambda returns `std::vector<uint8_t>`, so each run allocates.
+
+When the payload has a fixed maximum size, declare `TEMPLATABLE_BUFFER(data, Type)` instead and pass the same type as `return_type=`. The lambda then returns `Type` on the stack. `Type` needs `data()`, `size()` and `resize()`, such as a `StaticVector`; a constant payload longer than its capacity is cut, so cap it in the schema. `canbus.send` does this with its `CanPayload`:
+
+```cpp
+template<typename... Ts> class CanbusSendAction final : public Action<Ts...>, public Parented<Canbus> {
+ public:
+  TEMPLATABLE_BUFFER(data, CanPayload)
+  // ...
+};
+```
+
+```python
+await automation.templatable_bytes(
+    config[CONF_DATA], args, var.set_data_template, var.set_data_static, "canbus_data",
+    return_type=CanPayload,
+)
+```
+
+`TEMPLATABLE_BUFFER` and `return_type=` are available in ESPHome 2026.11.0 and later ([esphome/esphome#22043](https://github.com/esphome/esphome/pull/22043)).
+
+### Sharing generated functions
+
+Codegen that emits one function per instance and templates a class on it (`ApplyAction<fn>`, a filter templated on its function) gets one class, vtable and method per instance, even when two instances generate the same body. GCC already folds identical plain functions, but not the template instantiations built on them. Pass `share=True` to `automation.apply_static_function(id_, return_type, params, body, share=True)`, or call `cg.shared_static_function(name, return_type, params, body)` directly, to emit one function per distinct return type, parameter list and body and reuse it for every instance that asks for the same one:
+
+```python
+fn = automation.apply_static_function(
+    filter_id, cg.bool_, [(cg.float_, "x")], ["return x > 0.5f;"], share=True
+)
+```
+
+Do not share a body that contains user lambda code: a `static` local in it would then be shared between the instances. Names are made unique the same way as other globals, so two instances may pass the same name. These helpers are available in ESPHome 2026.11.0 and later ([esphome/esphome#21837](https://github.com/esphome/esphome/pull/21837)).
 
 ## Conditions
 

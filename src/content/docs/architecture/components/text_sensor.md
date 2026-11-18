@@ -116,6 +116,73 @@ unconfigured entity.
 - `LOG_TEXT_SENSOR(prefix, type, obj)`: a convenience macro for `dump_config()` that logs the text sensor's name in
   the standard format.
 
+## Filters that keep state
+
+The [filters](https://esphome.io/components/text_sensor/#text-sensor-filters) of a text sensor are `Filter` objects
+(`esphome/components/text_sensor/filter.h`), linked into a chain. `initialize(parent, next)` puts a filter in its state
+before the first value. It can be called more than once, so a filter that remembers something between values, such as
+the time of the last value the `throttle` filter let through, or the pending timer of the `timeout` filter, clears that
+state there:
+
+```cpp
+class MyThrottleFilter : public text_sensor::Filter {
+ public:
+  bool new_value(std::string &value) override;
+  void initialize(text_sensor::TextSensor *parent, text_sensor::Filter *next) override {
+    Filter::initialize(parent, next);
+    this->last_input_ = 0;
+  }
+
+ protected:
+  uint32_t last_input_{0};
+};
+```
+
+A filter without state needs no override. A filter that cannot be reset, such as a lambda that uses a global variable,
+keeps its state.
+
+`reset_chain()` calls `initialize()` again on a filter and on every filter after it, so calling it on the first filter
+of a sensor puts the whole chain back in its state at boot.
+
+### Taking the filters out of use
+
+A component can take the filter chain of one of its own text sensors out of use at run time, for example to publish
+every value for a while, and put it back later. Do not use `filter_list_` or `raw_state_` for that; use
+`detach_filters()` and `attach_filters()` (ESPHome 2026.12.0 and later, esphome/esphome#22621):
+
+```cpp
+// Values published from now on skip the filters
+text_sensor::Filter *filters = sensor->detach_filters();
+// ... later: the filters are back, in their state at boot
+sensor->attach_filters(filters);
+```
+
+- `detach_filters()` resets the chain, so a timeout that was running cannot publish an old value afterwards. If the
+  last raw value differs from the current state, because a filter held it back, changed it or dropped it, it
+  publishes the raw value, so state callbacks and automations run. It returns the chain, or `nullptr` if the sensor
+  has none. Keep the returned pointer, and give it to `attach_filters()`. Calling it again while detached returns
+  `nullptr`.
+- `attach_filters()` puts the chain back and runs the current state through it, so filters such as a `map` apply to
+  a value that was published while detached. It does not call the raw state callbacks again. Passing `nullptr`
+  does nothing.
+
+Do not call `detach_filters()` from the sensor's own raw state callback, because publishing still uses the filters
+after the callback returns. Defer the call instead.
+
+These and `reset_chain()` are compiled only when a component asks for them, so call `request_filter_reset()` from its
+`to_code`:
+
+```python
+from esphome.components import text_sensor
+
+
+async def to_code(config):
+    ...
+    text_sensor.request_filter_reset()
+```
+
+The [`ld2450`](https://github.com/esphome/esphome/tree/dev/esphome/components/ld2450) `xy_unfiltered` button does this.
+
 ## Exposing multiple text sensors from one component
 
 Hardware often maps to more than one text sensor - a device hub might expose a firmware version, a serial number and

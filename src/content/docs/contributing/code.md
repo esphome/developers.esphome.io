@@ -158,7 +158,8 @@ total free heap is still large. We have seen field crashes caused by this.
 
 **Heap allocation after `setup()` should be avoided unless absolutely unavoidable.** Every allocation/deallocation cycle
 contributes to fragmentation. ESPHome treats runtime heap allocation as a long-term reliability bug, not a performance
-issue.
+issue. A buffer whose size comes from the configuration is a static array instead; see
+[Static buffers](/architecture/overview/#static-buffers).
 
 #### Avoiding hidden heap allocations
 
@@ -233,6 +234,55 @@ Choose containers carefully on embedded systems:
     services.push_back(record1);
     ```
 
+    A hub's list of child entities, listeners or triggers is the most common case: every `register_*()` call
+    comes from code generation, so the count is known at build time. Declare the list with `SLOT_LIST` from
+    `esphome/core/helpers.h`, and create its registration helper with `cg.slot_list()`, passing the hub
+    component's `DOMAIN`. Each call of the helper reserves one slot for that hub and returns the register call;
+    once every `to_code` has run, the define holds the largest count any one hub needs, so every instance of a
+    `MULTI_CONF` hub fits. Whenever that domain is in the build the define exists, as 0 when nothing
+    registered, so neither the list nor the code that walks it needs an `#ifdef`: a list of 0 takes no space,
+    loops over it compile to nothing, and registering into a list of 0 fails to compile. Registrations past the
+    count are dropped, so every registration must go through the helper.
+
+    ```python
+    # my_hub/__init__.py
+    register_channel = cg.slot_list("MY_HUB_CHANNEL_COUNT", "register_channel", DOMAIN)
+
+
+    # my_hub/binary_sensor.py
+    async def to_code(config: ConfigType) -> None:
+        var = await binary_sensor.new_binary_sensor(config)
+        hub = await cg.get_variable(config[CONF_MY_HUB_ID])
+        cg.add(register_channel(hub, var))
+    ```
+
+    ```cpp
+    class MyHub : public Component {
+     public:
+      SLOT_LIST(MyHubChannel, channels_, register_channel, MY_HUB_CHANNEL_COUNT)
+
+      void loop() override {
+        for (auto *channel : this->channels_)
+          channel->update();
+      }
+    };
+    ```
+
+    `SLOT_LIST` goes in a public section. It declares a protected `channels_` list and a public
+    `register_channel()` that appends to it. The list is a `SlotList<T, N>`: a `StaticVector<T, N>`, or an empty
+    list that takes no space when `N` is 0.
+
+    - **`sub_*` helpers:** bind the helper to its hub to use it as their setter, for example
+      `await sensors(CONF_TEMPERATURE, partial(register_channel, hub))` with `sensors = sensor.sub_sensors(config)`.
+    - **Hand-written register method:** when registering takes more than a `push_back`, put
+      `SLOT_LIST_REQUIRES(MY_HUB_CHANNEL_COUNT)` before the method and store the entries in a
+      `[[no_unique_address]] SlotList<Entry, MY_HUB_CHANNEL_COUNT>` member. Keep the attribute, or an empty list
+      still takes space. Register through `cg.slot_list()` as before.
+    - **`#if` guards:** keep an `#if MY_HUB_CHANNEL_COUNT` only around code that needs a registered child's own
+      component, such as its entity type.
+    - **`cg.slot_counter()`:** use it instead when the C++ side adds itself to the list, or when the define
+      gates more than the list. Its define is absent when nothing requested a slot.
+
 1. **Runtime-known sizes**: Use `FixedVector` from `esphome/core/helpers.h` when the size is only known at runtime.
 
     ```cpp
@@ -268,7 +318,8 @@ Choose containers carefully on embedded systems:
 1. **Queues**: Use a ring buffer from `esphome/core/helpers.h` instead of `std::queue` or `std::deque`.
    `StaticRingBuffer<T, N>` holds `N` elements inline, and `FixedRingBuffer<T>` allocates its capacity once with
    `init()`. Both have `push()`, `pop()`, `front()`, `size()`, `empty()`, `clear()` and iteration from oldest to newest;
-   `push()` returns false when the buffer is full.
+   `push()` returns false when the buffer is full. `StaticRingBuffer` also has `push_front()`, for a queue that puts
+   work back to run next (ESPHome 2026.12.0 and later, esphome/esphome#22262).
 
     ```cpp
     // Good - one allocation in setup(), none after
@@ -403,8 +454,9 @@ the same bit and byte handling again in each component.
 
 #### Checksums
 
-Many serial and I2C devices end a frame with a simple checksum. These helpers cover the common kinds; each takes a
-pointer, a length and an optional starting value:
+Many serial and I2C devices end a frame with a simple checksum. These helpers cover the common kinds; most take a
+pointer, a length and an optional starting value, while `crc32()` takes the running CRC first, in zlib's argument
+order:
 
 | Helper | Result |
 | ------ | ------ |
@@ -412,6 +464,7 @@ pointer, a length and an optional starting value:
 | `sum16_bytes(data, len, sum = 0)` | Sum of the bytes, kept to 16 bits |
 | `xor_bytes(data, len, init = 0)` | XOR of the bytes |
 | `crc8()`, `crc16()`, `crc16be()` | CRCs with a choice of polynomial and bit order |
+| `crc32(crc, data, len)` | Standard reflected CRC-32 (zlib-compatible); seed with 0, or with a previous return value to continue across chunks |
 
 ```cpp
 // Before
@@ -428,6 +481,33 @@ Other checksums are built from these. An inverted XOR is `static_cast<uint8_t>(~
 widen the result to `int`, so comparing it to a received byte without the cast always fails. Pass the starting value
 to include bytes that are not next to the data, such as a header sent separately.
 
+#### Writing integers into a buffer
+
+Byte order is the most common mistake in device code: the datasheet says big-endian or little-endian, and a
+hand-written row of shifts splits the value the other way round. Use the helper whose name matches the datasheet
+instead. `put_be16()`, `put_be24()` and `put_be32()` write a value most significant byte first (big-endian),
+`put_le16()` and `put_le32()` least significant byte first (little-endian). Each takes a pointer into an existing
+buffer and returns the pointer just past the bytes it wrote:
+
+```cpp
+// Before
+address[1] = (addr >> 8) & 0xFF;
+address[2] = addr & 0xFF;
+address[3] = (reg_cnt >> 8) & 0xFF;
+address[4] = reg_cnt & 0xFF;
+
+// After
+put_be16(address + 1, addr);
+put_be16(address + 3, reg_cnt);
+```
+
+The return value lets a frame be written in order without counting offsets, as in `p = put_be16(p, length);`. The
+width is part of the name, not taken from the argument: each helper writes exactly that many bytes and drops any
+higher bits, so `put_be16(p, x >> 8)` writes 2 bytes even when `x >> 8` is an `int`, and `put_be24()` drops the top
+byte of its `uint32_t`. A signed value is written as two's complement. The functions are plain byte stores, so
+the buffer does not need to be aligned. To go the other way, from bytes to a value, use `encode_uint16()`,
+`encode_value<T>()` and `encode_value_le<T>()`.
+
 #### Signed values of unusual widths
 
 Sensors often report a signed value in a width that is not a C++ type, such as 12 or 24 bits. `sign_extend<BITS>()`
@@ -443,6 +523,34 @@ int32_t raw = sign_extend<24>(raw_energy);
 
 `sign_extend<24>(0xFFFFFE)` is `-2`. `BITS` can be from 1 to 32, which is checked when the code compiles. It is
 `constexpr`, so it also works in constants.
+
+#### Nibbles and 12-bit values
+
+Many chips pack two 4-bit fields into one byte, or split a 12-bit value into an 8-bit part and a nibble. Touch
+controllers are a common case: each coordinate is 12 bits, and the low 4 bits of X and Y share one byte. Spelled out
+as shifts and masks this is hard to read, so name the fields with `high_nibble()`, `low_nibble()` and
+`encode_uint12()`:
+
+```cpp
+// Before
+return {static_cast<uint8_t>(r[0] >> 4), static_cast<uint8_t>(r[0] & 0x0F),
+        static_cast<uint16_t>(r[1] << 4 | r[3] >> 4), static_cast<uint16_t>(r[2] << 4 | (r[3] & 0x0F)), r[4]};
+
+// After
+return {
+    .id = high_nibble(r[0]),
+    .event = low_nibble(r[0]),
+    .x = encode_uint12(r[1], high_nibble(r[3])),
+    .y = encode_uint12(r[2], low_nibble(r[3])),
+    .z = r[4],
+};
+```
+
+`high_nibble(b)` is the top 4 bits of a byte and `low_nibble(b)` the bottom 4. `encode_uint12(high_bits, low_bits)`
+puts 8 high bits above a 4-bit low part, ignoring anything above the low 4 bits of its second argument. When the
+nibble holds the top 4 bits instead, use `encode_uint16(low_nibble(b0), b1)`. For a signed 12-bit field, combine it
+with `sign_extend`: `sign_extend<12>(encode_uint12(msb, low_nibble(lsb)))`. All three are `constexpr` and available
+in ESPHome 2026.12.0 and later (esphome/esphome#22760).
 
 #### Setting or clearing register bits
 
@@ -580,6 +688,22 @@ output path, even on the vast majority of configurations that never enable it.
   change that requires the deprecation process documented below.
 
 If you are unsure whether a feature clears the bar to remain ungated, gate it. Gating is cheap, removing is expensive.
+
+### YAML language features are frozen
+
+ESPHome plans to move its configuration files to yaml.rocks. Until that move is done, we do not accept new YAML
+language features ([esphome/backlog#201](https://github.com/esphome/backlog/issues/201)):
+
+- new YAML tags (ESPHome has `!include`, `!include_dir_*`, `!secret`, `!env_var`, `!lambda`, `!literal`, `!extend` and
+  `!remove`)
+- new behaviour in `packages:` or `substitutions:`, including new functions or filters for Jinja expressions
+- new ways to merge, override or remove parts of a configuration
+
+Bug fixes to the existing features are still welcome. This is only about how YAML files are read, included and
+combined; a component's own configuration options are not affected.
+
+Every feature of this kind would have to be carried over to yaml.rocks, and every tool that reads or edits
+configurations, such as the device builder, has to handle it as well.
 
 ### Use of external libraries
 

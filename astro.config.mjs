@@ -98,6 +98,7 @@ export default defineConfig({
                 "architecture/components/runtime_image",
                 "architecture/components/deep_sleep",
                 "architecture/components/sx126x",
+                "architecture/components/sx127x",
                 "architecture/components/advanced",
                 {
                   label: "Entity base classes",

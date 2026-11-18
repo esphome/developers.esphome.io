@@ -541,6 +541,27 @@ and C61); call it from a validator or a callable default, not while the schema i
 target is not known yet. `validate_storage` accepts `flash` or `rtc` and rejects `rtc` where it is unavailable. `is_in_flash()` also
 emits the define that enables the RTC backend on ESP32, so always route the chosen value through it in `to_code`.
 
+### Writing a value to flash right away
+
+`save()` on a flash preference only queues the value. It reaches flash on the next periodic save (set by
+`flash_write_interval`), which a user may lengthen or suspend. A value that must be on flash before the component goes
+on, such as a security counter, calls `sync()` on the same preference object after `save()`:
+
+```cpp
+this->pref_.save(&counter);
+if (!this->status_comm_result(this->pref_.sync(), LOG_STR("Counter save failed")))
+  return;  // not on flash yet; keep the old state and retry later
+```
+
+`sync()` writes only this preference and leaves every other queued value for the periodic save. It returns `true`
+once the value is stored. Each call is a flash write, so use it for rare saves, not for values that change often. Do
+not call `global_preferences->sync()` for this: it writes every component's queued values.
+
+It returns `false` for an RTC preference, since RTC memory does not survive a power loss. It exists only on platforms
+that can write one preference on its own: ESP32, Zephyr (nRF52) and host. On ESP8266, RP2040 and LibreTiny all
+preferences share one flash block, and calling it is a compile error, so guard the call with the platform's `#ifdef`
+or limit the component to the platforms above.
+
 ## See Also
 
 - Component Loop Control: [`esphome/core/component.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.h) and [`esphome/core/component.cpp`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.cpp)

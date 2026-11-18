@@ -13,11 +13,14 @@ uses HTTPS must serve its own pages through handlers added with `add_handler()`,
 
 ## Python
 
-Add `consume_ssl_sockets` to the component's schema:
+Load `web_server_base`, which creates the server and loads `web_server_idf` on ESP32, and add `consume_ssl_sockets`
+to the component's schema:
 
 ```python
 import esphome.config_validation as cv
 from esphome.components import web_server_idf
+
+AUTO_LOAD = ["web_server_base"]
 
 CONFIG_SCHEMA = cv.All(
     cv.Schema({...}),

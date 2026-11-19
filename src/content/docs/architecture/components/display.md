@@ -267,3 +267,60 @@ The rules for an override:
 
 For everything else, the component implements the usual set of methods
 [as described here](/architecture/components/index#common-methods).
+
+### Draw an image on an ESP32-P4 MIPI display
+
+A component can draw an image directly on the panel and another component can
+take a screenshot of the result, including any controls drawn by LVGL. Run
+both operations from the main loop.
+
+After setup, check `supports_rgb565_transform()` before drawing. The driver can
+scale RGB565, RGB888, ARGB8888, packed YUV420, or YUV444 input on a little-endian
+RGB565 panel. Give `draw_rgb565_transformed()` the input dimensions and stride,
+the region to draw, the input buffer size in bytes, and the destination rectangle.
+Use zero input rotation and a scale in steps of 1/16. The display driver chooses
+the output buffer and applies its own rotation. Keep the input available and
+unchanged until the call returns.
+
+**Coordinates with LVGL.** LVGL rotates its own widgets before drawing them on
+a MIPI display. A direct draw uses the display's coordinates. If LVGL rotates
+the interface, a component positioning an image over a widget must convert
+the rectangle and orient the image to match. With zero LVGL rotation the two
+coordinate systems agree.
+
+An optional callback lets the component cancel work that became obsolete while
+it was waiting for the display. The callback must only check state. If hardware
+fails or the callback cancels after drawing began, some pixels may have changed.
+
+This example draws a complete 16 by 16 RGB565 image at its original size.
+
+```cpp
+ppa_srm_oper_config_t operation{};
+operation.in.buffer = pixels;
+operation.in.pic_w = operation.in.block_w = 16;
+operation.in.pic_h = operation.in.block_h = 16;
+operation.in.srm_cm = PPA_SRM_COLOR_MODE_RGB565;
+operation.rotation_angle = PPA_SRM_ROTATION_ANGLE_0;
+operation.scale_x = operation.scale_y = 1.0f;
+const bool committed = panel.draw_rgb565_transformed(operation, pixel_bytes, 0, 0, 16, 16);
+```
+
+### Capture the full MIPI display
+
+`copy_frame_buffer_rgb565(target, capacity, extra_rotation)` copies the last
+completed picture on an RGB565 panel in either byte order. The destination
+belongs to the caller, must be aligned for `uint16_t`, and must hold at least
+`get_width() * get_height() * 2` bytes. If the display is busy, the output is
+unsupported or the buffer is invalid, keep the previous screenshot.
+
+With the default extra rotation of zero, the screenshot uses the display's
+coordinate system. To see what is on the physical panel when LVGL handles
+rotation, keep this default. To recover the widget orientation from a panel
+image that LVGL rotated 90 degrees clockwise, request 270 degrees clockwise.
+A 90 or 270 degree rotation swaps the width and height of the result.
+
+During final validation, component authors can check the per-display lists
+`mipi_dsi.get_data()["rgb565_transform_ids"]` and
+`mipi_dsi.get_data()["framebuffer_readback_ids"]`. Check the runtime drawing
+capability again after setup. Components that draw on a display should also
+declare the writer with `display.register_external_writer(display_id, owner)`.

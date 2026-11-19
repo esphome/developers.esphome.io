@@ -411,9 +411,10 @@ the largest frame the component accepts; a longer length is not a frame. The len
 
 In `LengthField{.offset = 4, .trailer = 4}`, `offset` is where the length field starts, counted from the first header
 byte, and `trailer` is the bytes after the payload, such as a checksum or footer (0 when left out). An optional third
-argument, `FrameMinLength<LEN>`, sets the shortest frame, so a shorter length is rejected at the length field and the
-handler can index the frame freely. `CheckedLength<RULE, AT, check>` runs `bool check(const uint8_t *buf)` once `AT`
-bytes are in and rejects the header when it fails, for a header checksum, an unknown type or a too long frame:
+argument to `FrameFormat`, `FrameMinLength<LEN>` (as in `FrameFormat<FrameHeader<...>, PayloadLength,
+FrameMinLength<10>>`), sets the shortest frame, so a shorter length is rejected at the length field and the handler can
+index the frame freely. `CheckedLength<RULE, AT, check>` runs `bool check(const uint8_t *buf)` once `AT` bytes are in
+and rejects the header when it fails, for a header checksum, an unknown type or a too long frame:
 
 ```cpp
 // tuya_uart.h: 55 AA, version, command, payload length (2, BE), payload, checksum
@@ -438,9 +439,10 @@ using DataFrame = FrameFormat<FrameHeader<0xF4, 0xF3, 0xF2, 0xF1>, PayloadLength
 LengthFrameReader<50, CmdFrame, DataFrame> reader_;
 ```
 
-Checksums, footers and a minimum length that covers them stay with the caller, in a handler that gets each complete
-frame and its length and returns `false` when the bytes are not a real frame. A rejected frame is searched for frames
-inside it and after it, which go to the same handler. The handler must not feed the same reader again.
+Checksums and footers stay with the caller, in a handler that gets each complete frame and its length and returns
+`false` when the bytes are not a real frame. A rejected frame is searched for frames inside it and after it, which go to
+the same handler. Set `FrameMinLength` to cover them so the handler can read them without a length check. The handler
+must not feed the same reader again.
 
 Feed the reader from `loop()` with `read_frames()` on `UARTDevice`:
 
@@ -452,11 +454,11 @@ void LD2410Component::loop() {
 ```
 
 It feeds the waiting bytes and sets `last_rx_` (a `uint32_t` member) to the loop time. A corrupt length can hold
-complete frames back; on a pass with nothing waiting, once the line has been quiet for the gap (250 ms by default), it
-searches the partial frame and passes the frames it holds to the handler. When the handler takes none, the partial frame
-is kept, since some UARTs hold the end of a burst back until more bytes arrive. A component that reads elsewhere, such
-as while waiting for a reply, calls it there with its own timestamp, and should not wait for an empty reader before it
-sends; a request/response component calls `reader_.drop_kept()` before each request, so kept bytes of an earlier reply
-cannot merge into the next one. Besides the buffer the reader keeps three position bytes, or six when `N` is more than
-255; a byte in the middle of a frame costs one inline compare. Both are available in ESPHome 2026.12.0 and later
-(esphome/esphome#22884).
+complete frames back; on a pass with nothing waiting, once the line has been quiet for the gap (250 ms by default, or
+the optional last argument), it searches the partial frame and passes the frames it holds to the handler. When the
+handler takes none, the partial frame is kept, since some UARTs hold the end of a burst back until more bytes arrive. A
+component that reads elsewhere, such as while waiting for a reply, calls it there with its own timestamp, and should not
+wait for an empty reader before it sends; a request/response component calls `reader_.drop_kept()` before each request,
+so kept bytes of an earlier reply cannot merge into the next one. Besides the buffer the reader keeps three position
+bytes, or six when `N` is more than 255; a byte in the middle of a frame costs one inline compare. Both are available in
+ESPHome 2026.12.0 and later (esphome/esphome#22884).

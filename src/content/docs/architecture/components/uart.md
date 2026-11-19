@@ -409,9 +409,20 @@ the largest frame the component accepts; a longer length is not a frame. The len
 | `FrameLengthU8<POS>`, `FrameLengthU16BE<POS>`, `FrameLengthU16LE<POS>` | the field counts the whole frame |
 | `FrameFixedLength<LEN>` | none: the frame always has `LEN` bytes |
 
-`AFTER` is the number of bytes that follow the payload, such as a checksum or footer, and defaults to 0. A component
-can also pass its own rule with a `KNOWN_AT` constant (the bytes needed before the length is known) and a static
-`get(buf)` returning the whole frame length, or 0 to reject a broken header (a bad header checksum or an unknown type).
+`AFTER` is the number of bytes that follow the payload, such as a checksum or footer, and defaults to 0. An optional
+third argument, `FrameMinLength<LEN>`, sets the shortest frame, so a shorter length is rejected at the length field and
+the handler can index the frame freely. `CheckedLength<RULE, AT, check>` runs `bool check(const uint8_t *buf)` once
+`AT` bytes are in and rejects the header when it fails, for a header checksum, an unknown type or a too long frame:
+
+```cpp
+// tuya_uart.h: 55 AA, version, command, payload length (2, BE), payload, checksum
+using TuyaLength = PayloadLengthU16BE<4, 1>;
+bool frame_fits(const uint8_t *buf);  // logs and returns false for a frame longer than the buffer
+using TuyaFrame = FrameFormat<FrameHeader<0x55, 0xAA>, CheckedLength<TuyaLength, TuyaLength::KNOWN_AT, frame_fits>>;
+```
+
+A component can also pass its own rule with a `KNOWN_AT` constant (the bytes needed before the length is known) and a
+static `get(buf)` returning the whole frame length, or 0 to reject the header.
 
 A reader can take several formats when their first header bytes differ, such as the command and data frames of the
 LD24xx radars. The first byte picks the format, and all of this is resolved at compile time, so no table is placed in

@@ -451,8 +451,9 @@ void LD2410Component::loop() {
 ```
 
 It feeds the waiting bytes and sets `last_rx_` (a `uint32_t` member) to the loop time. A corrupt length can hold
-complete frames back; on a pass with nothing waiting, once the line has been quiet for the gap (250 ms by default, as
-some UARTs deliver the end of a burst over 100 ms late), it gives up the partial frame and passes the frames it held to
-the handler. A component that reads elsewhere, such as while waiting for a reply, calls it there with its own timestamp.
-Besides the buffer the reader keeps three position bytes, or six when `N` is more than 255; a byte in the middle of a
-frame costs one inline compare. Both are available in ESPHome 2026.12.0 and later (esphome/esphome#22884).
+complete frames back; on a pass with nothing waiting, once the line has been quiet for the gap (250 ms by default), it
+searches the partial frame and passes the frames it holds to the handler. When the handler takes none, the partial frame
+is kept, since some UARTs hold the end of a burst back until more bytes arrive. A component that reads elsewhere, such
+as while waiting for a reply, calls it there with its own timestamp, and should not wait for an empty reader before it
+sends. Besides the buffer the reader keeps three position bytes, or six when `N` is more than 255; a byte in the middle
+of a frame costs one inline compare. Both are available in ESPHome 2026.12.0 and later (esphome/esphome#22884).

@@ -524,6 +524,34 @@ int32_t raw = sign_extend<24>(raw_energy);
 `sign_extend<24>(0xFFFFFE)` is `-2`. `BITS` can be from 1 to 32, which is checked when the code compiles. It is
 `constexpr`, so it also works in constants.
 
+#### Nibbles and 12-bit values
+
+Many chips pack two 4-bit fields into one byte, or split a 12-bit value into an 8-bit part and a nibble. Touch
+controllers are a common case: each coordinate is 12 bits, and the low 4 bits of X and Y share one byte. Spelled out
+as shifts and masks this is hard to read, so name the fields with `high_nibble()`, `low_nibble()` and
+`encode_uint12()`:
+
+```cpp
+// Before
+return {static_cast<uint8_t>(r[0] >> 4), static_cast<uint8_t>(r[0] & 0x0F),
+        static_cast<uint16_t>(r[1] << 4 | r[3] >> 4), static_cast<uint16_t>(r[2] << 4 | (r[3] & 0x0F)), r[4]};
+
+// After
+return {
+    .id = high_nibble(r[0]),
+    .event = low_nibble(r[0]),
+    .x = encode_uint12(r[1], high_nibble(r[3])),
+    .y = encode_uint12(r[2], low_nibble(r[3])),
+    .z = r[4],
+};
+```
+
+`high_nibble(b)` is the top 4 bits of a byte and `low_nibble(b)` the bottom 4. `encode_uint12(high_bits, low_bits)`
+puts 8 high bits above a 4-bit low part, ignoring anything above the low 4 bits of its second argument. When the
+nibble holds the top 4 bits instead, use `encode_uint16(low_nibble(b0), b1)`. For a signed 12-bit field, combine it
+with `sign_extend`: `sign_extend<12>(encode_uint12(msb, low_nibble(lsb)))`. All three are `constexpr` and available
+in ESPHome 2026.12.0 and later (esphome/esphome#22760).
+
 #### Setting or clearing register bits
 
 `assign_bits(reg, mask, on)` sets the bits of `mask` in `reg` when `on` is true and clears them otherwise. It changes

@@ -403,20 +403,21 @@ the largest frame the component accepts; a longer length is not a frame. The len
 
 | Rule | Length field |
 | --- | --- |
-| `PayloadLengthU8<POS, AFTER>` | one byte at `POS` counting the payload right after it |
-| `PayloadLengthU16BE<POS, AFTER>` | two bytes at `POS`, high byte first, counting the payload |
-| `PayloadLengthU16LE<POS, AFTER>` | two bytes at `POS`, low byte first, counting the payload |
-| `FrameLengthU8<POS>`, `FrameLengthU16BE<POS>`, `FrameLengthU16LE<POS>` | the field counts the whole frame |
+| `PayloadLengthU8<LengthField{...}>` | one byte counting the payload right after it |
+| `PayloadLengthU16BE<LengthField{...}>` | two bytes, high byte first, counting the payload |
+| `PayloadLengthU16LE<LengthField{...}>` | two bytes, low byte first, counting the payload |
+| `FrameLengthU8`, `FrameLengthU16BE`, `FrameLengthU16LE` | the field counts the whole frame |
 | `FrameFixedLength<LEN>` | none: the frame always has `LEN` bytes |
 
-`AFTER` is the number of bytes that follow the payload, such as a checksum or footer, and defaults to 0. An optional
-third argument, `FrameMinLength<LEN>`, sets the shortest frame, so a shorter length is rejected at the length field and
-the handler can index the frame freely. `CheckedLength<RULE, AT, check>` runs `bool check(const uint8_t *buf)` once
-`AT` bytes are in and rejects the header when it fails, for a header checksum, an unknown type or a too long frame:
+`LengthField{.at = 4, .after_payload = 4}` gives the position of the field and, for a payload length, the bytes that
+follow the payload, such as a checksum or footer (0 when left out). An optional third argument, `FrameMinLength<LEN>`,
+sets the shortest frame, so a shorter length is rejected at the length field and the handler can index the frame
+freely. `CheckedLength<RULE, AT, check>` runs `bool check(const uint8_t *buf)` once `AT` bytes are in and rejects the
+header when it fails, for a header checksum, an unknown type or a too long frame:
 
 ```cpp
 // tuya_uart.h: 55 AA, version, command, payload length (2, BE), payload, checksum
-using TuyaLength = PayloadLengthU16BE<4, 1>;
+using TuyaLength = PayloadLengthU16BE<LengthField{.at = 4, .after_payload = 1}>;
 bool frame_fits(const uint8_t *buf);  // logs and returns false for a frame longer than the buffer
 using TuyaFrame = FrameFormat<FrameHeader<0x55, 0xAA>, CheckedLength<TuyaLength, TuyaLength::KNOWN_AT, frame_fits>>;
 ```
@@ -430,8 +431,9 @@ RAM:
 
 ```cpp
 // ld2410.h: header (4), payload length (2, LE), payload, footer (4)
-using CmdFrame = FrameFormat<FrameHeader<0xFD, 0xFC, 0xFB, 0xFA>, PayloadLengthU16LE<4, 4>>;
-using DataFrame = FrameFormat<FrameHeader<0xF4, 0xF3, 0xF2, 0xF1>, PayloadLengthU16LE<4, 4>>;
+using PayloadLength = PayloadLengthU16LE<LengthField{.at = 4, .after_payload = 4}>;
+using CmdFrame = FrameFormat<FrameHeader<0xFD, 0xFC, 0xFB, 0xFA>, PayloadLength>;
+using DataFrame = FrameFormat<FrameHeader<0xF4, 0xF3, 0xF2, 0xF1>, PayloadLength>;
 LengthFrameReader<50, CmdFrame, DataFrame> reader_;
 ```
 

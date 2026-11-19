@@ -422,8 +422,9 @@ bool frame_fits(const uint8_t *buf);  // logs and returns false for a frame long
 using TuyaFrame = FrameFormat<FrameHeader<0x55, 0xAA>, CheckedLength<TuyaLength, TuyaLength::KNOWN_AT, frame_fits>>;
 ```
 
-A component can also pass its own rule with a `KNOWN_AT` constant (the bytes needed before the length is known) and a
-static `get(buf)` returning the whole frame length, or 0 to reject the header.
+`WarnIfLonger<RULE, MAX, warn>` calls `void warn(size_t len)` and rejects a frame longer than `MAX`, for a warning that
+names the cause. A component can also pass its own rule with a `KNOWN_AT` constant (the bytes needed before the length
+is known) and a static `get(buf)` returning the whole frame length, or 0 to reject the header.
 
 A reader can take several formats when their first header bytes differ, such as the command and data frames of the
 LD24xx radars. The first byte picks the format, and all of this is resolved at compile time, so no table is placed in

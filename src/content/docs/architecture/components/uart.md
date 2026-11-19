@@ -162,6 +162,97 @@ Unlike `read_available()`, it keeps reading while bytes arrive, so call it befor
 that sends without pause. It stops if a read fails. It is available in ESPHome 2026.11.0 and later
 (esphome/esphome#21029).
 
+## Holding the TX line low
+
+Some devices take a low TX line that lasts much longer than a character as a signal, for example to restart their
+receiver. `set_tx_break()` on `UARTComponent` holds the TX line at the level opposite to idle until it is released.
+That is low for a TX pin that is not inverted. It is compiled in only when a component asks for it in `to_code`:
+
+```python
+from esphome.components import uart
+from esphome.types import ConfigType
+
+
+async def to_code(config: ConfigType) -> None:
+    # after the device is created and registered on its UART
+    uart.request_tx_break()
+```
+
+`request_tx_break()` is a plain function, not a coroutine. It adds the `USE_UART_TX_BREAK` define, so guard the C++
+that calls `set_tx_break()` with a define of the component or with `USE_UART_TX_BREAK`:
+
+```cpp
+#ifdef USE_UART_TX_BREAK
+void MyDevice::start_reset_() {
+  const uart::UARTFlushResult flushed = this->flush();
+  if (flushed == uart::UARTFlushResult::UART_FLUSH_RESULT_TIMEOUT ||
+      flushed == uart::UARTFlushResult::UART_FLUSH_RESULT_FAILED) {
+    ESP_LOGW(TAG, "UART bus still sends, no break");
+    return;
+  }
+  if (!this->parent_->set_tx_break(true)) {
+    ESP_LOGE(TAG, "UART bus cannot hold TX low");
+    return;
+  }
+  this->break_start_ = millis();
+  this->break_active_ = true;
+}
+#endif
+
+void MyDevice::loop() {
+#ifdef USE_UART_TX_BREAK
+  if (this->break_active_) {
+    if (millis() - this->break_start_ < RESET_TIME_MS)
+      return;
+    this->break_active_ = false;
+    this->parent_->set_tx_break(false);
+  }
+#endif
+  this->read_available([this](uint8_t b) { this->handle_char_(b); });
+}
+```
+
+Details:
+
+- It returns `false` when the bus cannot do it: no TX pin, or a UART that is not a pin of the microcontroller, such
+  as `usb_uart`, `tcp_uart`, `uart_mux`, `ble_nus` and the host platform, which keep the default implementation.
+  ESP32 and LibreTiny also return `false` for a bus that failed its setup, and a LibreTiny hardware port for an
+  inverted `tx_pin`, which it cannot drive to the break level. LibreTiny software serial returns `false` as well:
+  it sends from a timer and its `flush()` does not wait for the bytes to leave. So does a LibreTiny port that the
+  logger writes to.
+- Every `set_tx_break(true)` that returned `true` must be followed by `set_tx_break(false)`. Nothing can be sent
+  until then.
+- Write nothing while the line is held, and call `flush()` first so a frame in flight is not cut. Skip the break
+  when `flush()` returns `UART_FLUSH_RESULT_TIMEOUT` or `UART_FLUSH_RESULT_FAILED`: bytes may still be leaving. Do
+  not block for the time of the break: release it from `loop()` or a timeout, as above. On LN882x `flush()` can
+  return before the last bits have left (libretiny-eu/libretiny#450), so the end of that frame can still be cut.
+- On LibreTiny the port is closed while the line is held and opened again on release, so bytes that arrive in
+  between are lost. A release without a break before it does nothing. Do not read during the break on any platform.
+- `load_settings()` on ESP32 and ESP8266 applies a held break again. The line can leave the break level for a moment
+  while the port is set up.
+- A component that needs the line physically low should reject an inverted `tx_pin` and a bus without one in its
+  final validation. `uart.NATIVE_UART_CLASSES` holds the class names of the UARTs of the microcontroller:
+
+  ```python
+  bus = fv.get_declaring_config(config[CONF_UART_ID])
+  if str(bus[CONF_ID].type) not in uart.NATIVE_UART_CLASSES or CONF_TX_PIN not in bus:
+      raise cv.Invalid("requires a UART bus of the microcontroller with a tx_pin")
+  if bus[CONF_TX_PIN].get(CONF_INVERTED, False):
+      raise cv.Invalid("requires a tx_pin that is not inverted")
+  ```
+
+How each platform holds the line:
+
+| Platform | Hardware UART | Software serial / PIO |
+| -------- | ------------- | --------------------- |
+| ESP32 | TX signal inverted with `uart_set_line_inverse()` | not applicable |
+| ESP8266 | break bit of the UART (`UCBRK`) | pin written as a GPIO |
+| RP2040 | pad output override (`gpio_set_outover()`) | pad output override |
+| LibreTiny | port closed, pin driven as a GPIO, port opened again | not supported, returns `false` |
+
+`set_tx_break()` and `uart.request_tx_break()` are available in ESPHome 2026.12.0 and later (esphome/esphome#22986).
+The `tuya` component uses them for `mcu_watchdog` with `action: reset` (esphome/esphome#22914).
+
 ## UARTs Without Line Timing
 
 On a serial line, bytes arrive at the pace of the baud rate, so a reader can find the end of a frame from a quiet gap,

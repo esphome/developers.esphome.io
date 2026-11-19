@@ -394,3 +394,71 @@ frame. Call it only right after `feed()` returned the frame, and use `reset()` o
 forgets the partial frame, for example after sending a new command or after a timeout. Besides the buffer the reader
 keeps one byte for its position, or two bytes when `N` is more than 255. It is available in ESPHome 2026.11.0 and
 later (esphome/esphome#21446).
+
+### Frames that give their own length
+
+When a field in the frame gives its length, use `LengthFrameReader<N, FORMAT...>` from the same header. Each
+`FrameFormat<FrameHeader<BYTES...>, LENGTH>` is one kind of frame: the bytes it starts with and a length rule. `N` is
+the largest frame the component accepts; a longer length is not a frame. The length rules are:
+
+| Rule | Length field |
+| --- | --- |
+| `PayloadLengthU8<LengthField{...}>` | one byte counting the payload right after it |
+| `PayloadLengthU16BE<LengthField{...}>` | two bytes, high byte first, counting the payload |
+| `PayloadLengthU16LE<LengthField{...}>` | two bytes, low byte first, counting the payload |
+| `FrameLengthU8`, `FrameLengthU16BE`, `FrameLengthU16LE` | the field counts the whole frame |
+| `FrameFixedLength<LEN>` | none: the frame always has `LEN` bytes |
+
+In `LengthField{.offset = 4, .trailer = 4}`, `offset` is where the length field starts, counted from the first header
+byte, and `trailer` is the bytes after the payload, such as a checksum or footer (0 when left out). An optional third
+argument to `FrameFormat`, `FrameMinLength<LEN>` (as in `FrameFormat<FrameHeader<...>, PayloadLength,
+FrameMinLength<10>>`), sets the shortest frame, so a shorter length is rejected at the length field and the handler can
+index the frame freely. `CheckedLength<RULE, AT, check>` runs `bool check(const uint8_t *buf)` once `AT` bytes are in
+and rejects the header when it fails, for a header checksum, an unknown type or a too long frame:
+
+```cpp
+// tuya_uart.h: 55 AA, version, command, payload length (2, BE), payload, checksum
+using TuyaLength = PayloadLengthU16BE<LengthField{.offset = 4, .trailer = 1}>;
+bool frame_fits(const uint8_t *buf);  // logs and returns false for a frame longer than the buffer
+using TuyaFrame = FrameFormat<FrameHeader<0x55, 0xAA>, CheckedLength<TuyaLength, TuyaLength::KNOWN_AT, frame_fits>>;
+```
+
+`WarnIfLonger<RULE, MAX, warn>` calls `void warn(size_t len)` and rejects a frame longer than `MAX`, for a warning that
+names the cause. A component can also pass its own rule with a `KNOWN_AT` constant (the bytes needed before the length
+is known) and a static `get(buf)` returning the whole frame length, or 0 to reject the header.
+
+A reader can take several formats when their first header bytes differ, such as the command and data frames of the
+LD24xx radars. The first byte picks the format, and all of this is resolved at compile time, so no table is placed in
+RAM:
+
+```cpp
+// ld2410.h: header (4), payload length (2, LE), payload, footer (4)
+using PayloadLength = PayloadLengthU16LE<LengthField{.offset = 4, .trailer = 4}>;
+using CmdFrame = FrameFormat<FrameHeader<0xFD, 0xFC, 0xFB, 0xFA>, PayloadLength>;
+using DataFrame = FrameFormat<FrameHeader<0xF4, 0xF3, 0xF2, 0xF1>, PayloadLength>;
+LengthFrameReader<50, CmdFrame, DataFrame> reader_;
+```
+
+Checksums and footers stay with the caller, in a handler that gets each complete frame and its length and returns
+`false` when the bytes are not a real frame. A rejected frame is searched for frames inside it and after it, which go to
+the same handler. Set `FrameMinLength` to cover the checksum and footer, so the handler can read them without a length
+check. The handler must not feed the same reader again.
+
+Feed the reader from `loop()` with `read_frames()` on `UARTDevice`:
+
+```cpp
+void LD2410Component::loop() {
+  auto handler = [this](const uint8_t *frame, size_t len) { return this->handle_frame_(frame, len); };
+  this->read_frames(this->reader_, handler, App.get_loop_component_start_time(), this->last_rx_);
+}
+```
+
+It feeds the waiting bytes and sets `last_rx_` (a `uint32_t` member) to the loop time. A corrupt length can hold
+complete frames back; on a pass with nothing waiting, once the line has been quiet for the gap (250 ms by default, or
+the optional last argument), it searches the partial frame and passes the frames it holds to the handler. When the
+handler takes none, the partial frame is kept, since some UARTs hold the end of a burst back until more bytes arrive. A
+component that reads elsewhere, such as while waiting for a reply, calls it there with its own timestamp, and should not
+wait for an empty reader before it sends; a request/response component calls `reader_.drop_kept()` before each request,
+so kept bytes of an earlier reply cannot merge into the next one. Besides the buffer the reader keeps three position
+bytes, or six when `N` is more than 255; a byte in the middle of a frame costs one inline compare. Both are available in
+ESPHome 2026.12.0 and later (esphome/esphome#22884).

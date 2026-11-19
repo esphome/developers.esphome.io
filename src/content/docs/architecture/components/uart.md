@@ -409,15 +409,15 @@ the largest frame the component accepts; a longer length is not a frame. The len
 | `FrameLengthU8`, `FrameLengthU16BE`, `FrameLengthU16LE` | the field counts the whole frame |
 | `FrameFixedLength<LEN>` | none: the frame always has `LEN` bytes |
 
-`LengthField{.at = 4, .after_payload = 4}` gives the position of the field and, for a payload length, the bytes that
-follow the payload, such as a checksum or footer (0 when left out). An optional third argument, `FrameMinLength<LEN>`,
-sets the shortest frame, so a shorter length is rejected at the length field and the handler can index the frame
-freely. `CheckedLength<RULE, AT, check>` runs `bool check(const uint8_t *buf)` once `AT` bytes are in and rejects the
-header when it fails, for a header checksum, an unknown type or a too long frame:
+In `LengthField{.offset = 4, .trailer = 4}`, `offset` is where the length field starts, counted from the first header
+byte, and `trailer` is the bytes after the payload, such as a checksum or footer (0 when left out). An optional third
+argument, `FrameMinLength<LEN>`, sets the shortest frame, so a shorter length is rejected at the length field and the
+handler can index the frame freely. `CheckedLength<RULE, AT, check>` runs `bool check(const uint8_t *buf)` once `AT`
+bytes are in and rejects the header when it fails, for a header checksum, an unknown type or a too long frame:
 
 ```cpp
 // tuya_uart.h: 55 AA, version, command, payload length (2, BE), payload, checksum
-using TuyaLength = PayloadLengthU16BE<LengthField{.at = 4, .after_payload = 1}>;
+using TuyaLength = PayloadLengthU16BE<LengthField{.offset = 4, .trailer = 1}>;
 bool frame_fits(const uint8_t *buf);  // logs and returns false for a frame longer than the buffer
 using TuyaFrame = FrameFormat<FrameHeader<0x55, 0xAA>, CheckedLength<TuyaLength, TuyaLength::KNOWN_AT, frame_fits>>;
 ```
@@ -431,7 +431,7 @@ RAM:
 
 ```cpp
 // ld2410.h: header (4), payload length (2, LE), payload, footer (4)
-using PayloadLength = PayloadLengthU16LE<LengthField{.at = 4, .after_payload = 4}>;
+using PayloadLength = PayloadLengthU16LE<LengthField{.offset = 4, .trailer = 4}>;
 using CmdFrame = FrameFormat<FrameHeader<0xFD, 0xFC, 0xFB, 0xFA>, PayloadLength>;
 using DataFrame = FrameFormat<FrameHeader<0xF4, 0xF3, 0xF2, 0xF1>, PayloadLength>;
 LengthFrameReader<50, CmdFrame, DataFrame> reader_;
@@ -451,8 +451,8 @@ void LD2410Component::loop() {
 ```
 
 It feeds the waiting bytes and sets `last_rx_` (a `uint32_t` member) to the loop time. A corrupt length can hold
-complete frames back; on a pass with nothing waiting, once the line has been quiet for the gap (100 ms by default),
-it gives up the partial frame and passes the frames it held to the handler. A component that reads elsewhere, such as
-while waiting for a reply, calls it there with its own timestamp. Besides the buffer the reader keeps three position
-bytes, or six when `N` is more than 255; a byte in the middle of a frame costs one inline compare. Both are available
-in ESPHome 2026.12.0 and later (esphome/esphome#22884).
+complete frames back; on a pass with nothing waiting, once the line has been quiet for the gap (250 ms by default, as
+some UARTs deliver the end of a burst over 100 ms late), it gives up the partial frame and passes the frames it held to
+the handler. A component that reads elsewhere, such as while waiting for a reply, calls it there with its own timestamp.
+Besides the buffer the reader keeps three position bytes, or six when `N` is more than 255; a byte in the middle of a
+frame costs one inline compare. Both are available in ESPHome 2026.12.0 and later (esphome/esphome#22884).

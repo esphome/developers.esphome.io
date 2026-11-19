@@ -3,7 +3,8 @@ title: "Ethernet Connection State"
 ---
 
 A component can be told when the Ethernet interface connects or disconnects, instead of polling `is_connected()`.
-The listeners are a `SLOT_LIST`: with none registered, they take no space.
+The listeners are a [`SLOT_LIST`](/contributing/code/#stl-container-guidelines): with none registered, they take no
+space.
 
 ## Python
 

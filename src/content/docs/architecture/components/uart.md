@@ -397,31 +397,31 @@ later (esphome/esphome#21446).
 
 ### Frames that give their own length
 
-When a field in the frame gives its length, use `LengthFrameReader<N, FrameFormat<LENGTH, HEADER...>...>` from the
-same header. Each `FrameFormat` is one kind of frame: the header bytes it starts with and a length rule. `N` is the
-largest frame the component accepts; a longer length is not a frame. The length rules are:
+When a field in the frame gives its length, use `LengthFrameReader<N, FORMAT...>` from the same header. Each
+`FrameFormat<FrameHeader<BYTES...>, LENGTH>` is one kind of frame: the bytes it starts with and a length rule. `N` is
+the largest frame the component accepts; a longer length is not a frame. The length rules are:
 
 | Rule | Length field |
 | --- | --- |
-| `FrameLengthU8<POS, ADD>` | one byte at `POS` |
-| `FrameLengthU16BE<POS, ADD>` | two bytes at `POS`, high byte first |
-| `FrameLengthU16LE<POS, ADD>` | two bytes at `POS`, low byte first |
+| `PayloadLengthU8<POS, AFTER>` | one byte at `POS` counting the payload right after it |
+| `PayloadLengthU16BE<POS, AFTER>` | two bytes at `POS`, high byte first, counting the payload |
+| `PayloadLengthU16LE<POS, AFTER>` | two bytes at `POS`, low byte first, counting the payload |
+| `FrameLengthU8<POS>`, `FrameLengthU16BE<POS>`, `FrameLengthU16LE<POS>` | the field counts the whole frame |
 | `FrameFixedLength<LEN>` | none: the frame always has `LEN` bytes |
 
-The length of the whole frame, header included, is the field plus `ADD`: 0 when the field counts the whole frame, or
-the size of the header, length field, checksum and footer when it counts only the payload. A component can also pass
-its own type with a `KNOWN_AT` constant (the bytes needed before the length is known) and a static `get(buf)`, which
-can return 0 to reject a broken header (a bad header checksum or an unknown type).
+`AFTER` is the number of bytes that follow the payload, such as a checksum or footer, and defaults to 0. A component
+can also pass its own rule with a `KNOWN_AT` constant (the bytes needed before the length is known) and a static
+`get(buf)` returning the whole frame length, or 0 to reject a broken header (a bad header checksum or an unknown type).
 
 A reader can take several formats when their first header bytes differ, such as the command and data frames of the
 LD24xx radars. The first byte picks the format, and all of this is resolved at compile time, so no table is placed in
 RAM:
 
 ```cpp
-// ld2410.h: payload length little-endian at 4; header, length and footer add 10
-LengthFrameReader<50, FrameFormat<FrameLengthU16LE<4, 10>, 0xFD, 0xFC, 0xFB, 0xFA>,
-                  FrameFormat<FrameLengthU16LE<4, 10>, 0xF4, 0xF3, 0xF2, 0xF1>>
-    reader_;
+// ld2410.h: header (4), payload length (2, LE), payload, footer (4)
+using CmdFrame = FrameFormat<FrameHeader<0xFD, 0xFC, 0xFB, 0xFA>, PayloadLengthU16LE<4, 4>>;
+using DataFrame = FrameFormat<FrameHeader<0xF4, 0xF3, 0xF2, 0xF1>, PayloadLengthU16LE<4, 4>>;
+LengthFrameReader<50, CmdFrame, DataFrame> reader_;
 ```
 
 Checksums, footers and a minimum length that covers them stay with the caller, in a handler that gets each complete

@@ -455,5 +455,7 @@ complete frames back; on a pass with nothing waiting, once the line has been qui
 searches the partial frame and passes the frames it holds to the handler. When the handler takes none, the partial frame
 is kept, since some UARTs hold the end of a burst back until more bytes arrive. A component that reads elsewhere, such
 as while waiting for a reply, calls it there with its own timestamp, and should not wait for an empty reader before it
-sends. Besides the buffer the reader keeps three position bytes, or six when `N` is more than 255; a byte in the middle
-of a frame costs one inline compare. Both are available in ESPHome 2026.12.0 and later (esphome/esphome#22884).
+sends; a request/response component calls `reader_.reset()` before each request, so kept bytes of an earlier reply
+cannot merge into the next one. Besides the buffer the reader keeps three position bytes, or six when `N` is more than
+255; a byte in the middle of a frame costs one inline compare. Both are available in ESPHome 2026.12.0 and later
+(esphome/esphome#22884).

@@ -441,8 +441,8 @@ LengthFrameReader<50, CmdFrame, DataFrame> reader_;
 
 Checksums and footers stay with the caller, in a handler that gets each complete frame and its length and returns
 `false` when the bytes are not a real frame. A rejected frame is searched for frames inside it and after it, which go to
-the same handler. Set `FrameMinLength` to cover them so the handler can read them without a length check. The handler
-must not feed the same reader again.
+the same handler. Set `FrameMinLength` to cover the checksum and footer, so the handler can read them without a length
+check. The handler must not feed the same reader again.
 
 Feed the reader from `loop()` with `read_frames()` on `UARTDevice`:
 

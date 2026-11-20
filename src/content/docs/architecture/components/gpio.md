@@ -82,6 +82,35 @@ The call blocks for the whole sequence, and does nothing when the pin is null, s
 check. The waits use `delay()`, so for pulses shorter than one RTOS tick keep a `delayMicroseconds()` sequence.
 It is available in ESPHome 2026.11.0 and later (esphome/esphome#21470).
 
+### Open-drain buses on internal pins
+
+For a bus that pulls a line low and releases it to high impedance, use `InternalGPIOPin::setup_open_drain()` and
+`ISRInternalGPIOPin` instead of repeatedly changing the pin mode. Require an internal pin in the schema (for example,
+`pins.internal_gpio_output_pin_schema`); these methods are not available on I/O expander pins.
+
+```cpp
+void MyBus::setup() {
+  if (!this->pin_->setup_open_drain(true)) {
+    this->mark_failed(LOG_STR("Cannot configure open-drain pin"));
+    return;
+  }
+  this->isr_pin_ = this->pin_->to_isr();
+}
+
+// In a bus operation:
+this->isr_pin_.open_drain_pull_low();
+// Hold the line low for the protocol's required time.
+this->isr_pin_.open_drain_release();
+bool line_high = this->isr_pin_.open_drain_read();
+```
+
+`setup_open_drain(true)` requests an internal pull-up and starts with the pin released. It returns `false` when the
+requested configuration is unavailable; a bus with an external resistor can retry with `setup_open_drain(false)` and
+warn the user that an external pull-up is required. A failed setup does not drive the line. The operations use
+**physical** levels, regardless of the pin's `inverted` setting: `open_drain_read()` is `true` when the line is high.
+Do not call the pin's usual `setup()` or `pin_mode()` after open-drain setup. Backends differ in how they release the
+line, so check timing on the target platform before using these methods in strict bus slots.
+
 ## Providing pins from a GPIO expander
 
 A component for an I/O expander chip offers its pins to other components through a pin schema, so a user can write

@@ -54,19 +54,22 @@ and each time slot, and the main loop waits for the whole transfer. A scratch pa
 
 ### Non-blocking transactions
 
-A bus that can run transfers in the background, such as `gpio` with `use_rmt: true`, defines `USE_ONE_WIRE_RMT`. A
-device can then hand the bus a whole transaction and return at once:
+A bus that can run transfers in the background, such as `gpio` with `use_rmt: true`, defines
+`USE_ONE_WIRE_TRANSACTION`. A device can then hand the bus a whole transaction and return at once:
 
 ```cpp
-#ifdef USE_ONE_WIRE_RMT
+#ifdef USE_ONE_WIRE_TRANSACTION
 struct Transaction {
-  uint64_t address;         // 0: Skip ROM, otherwise Match ROM
+  uint64_t address;          // 0: Skip ROM, otherwise Match ROM
   const uint8_t *write_data;
-  uint8_t write_len;
-  uint8_t *read_data;       // only defined when the status is OK
-  uint8_t read_len;
+  uint8_t *read_data;        // only defined when the status is TRANSACTION_STATUS_OK
   void (*on_done)(void *context, TransactionStatus status);
   void *context;
+  uint8_t write_len;
+  uint8_t read_len;
+  TransactionLink link;      // owned by the bus, leave it out of initializers
+
+  bool is_pending() const;
 };
 
 virtual bool OneWireBus::submit(Transaction *transaction);
@@ -76,20 +79,22 @@ virtual bool OneWireBus::submit(Transaction *transaction);
 A transaction is reset, ROM selection, `write_data`, then `read_data`, with nothing else on the bus in between.
 
 - The caller owns the `Transaction`, usually as a member, and keeps it valid until `on_done` has run. The bus keeps
-  queued transactions in a list inside the objects, so it allocates no memory.
+  queued transactions in a list inside the objects (`link`), so it allocates no memory. `Transaction` is an aggregate,
+  so designated initializers work. They must follow the order of the fields above.
 - `submit()` returns `false` only while this transaction is still pending. Nothing changes in that case, so skip the
   cycle.
-- `on_done` runs in the main loop. It can run before `submit()` returns: every bus gets a default `submit()` that runs
-  the transaction at once through the blocking calls above. `USE_ONE_WIRE_RMT` is global, so a bit-banged bus in the
-  same configuration uses that default.
-- `TransactionStatus`: `OK`, `NO_PRESENCE` (no device answered the reset), `BUS_LOW` (the bus is held low),
-  `CAPTURE_ERROR`, `TIMEOUT` or `HARDWARE_ERROR`.
+- Call `submit()` from the main loop only. `on_done` runs in the main loop, and it can run before `submit()` returns:
+  every bus gets a default `submit()` that runs the transaction at once through the blocking calls above.
+  `USE_ONE_WIRE_TRANSACTION` is global, so a bit-banged bus in the same configuration uses that default.
+- `TransactionStatus` values all start with `TRANSACTION_STATUS_`: `OK`, `NO_PRESENCE` (no device answered the reset),
+  `BUS_LOW` (the bus is held low, or a bridge such as DS248x could not run the reset), `CAPTURE_ERROR`, `TIMEOUT` or
+  `HARDWARE_ERROR`.
 
 `dallas_temp` uses two transactions: start the conversion, then read the scratch pad after the conversion time.
 
 ```cpp
 // dallas_temp.h
-one_wire::Transaction convert_{.write_len = 1, .on_done = on_convert_done, .context = this};
+one_wire::Transaction convert_{.on_done = on_convert_done, .context = this, .write_len = 1};
 
 // dallas_temp.cpp
 void DallasTemperatureSensor::update() {
@@ -106,4 +111,4 @@ void DallasTemperatureSensor::on_convert_done(void *context, one_wire::Transacti
 }
 ```
 
-Keep the blocking code for builds without `USE_ONE_WIRE_RMT`.
+Keep the blocking code for builds without `USE_ONE_WIRE_TRANSACTION`.

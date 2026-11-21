@@ -32,8 +32,20 @@ written into the build raises, and the YAML networks plus all requests can be at
 
 ## C++
 
-`WIFI_NETWORK_COUNT` is the size of the list:
-
 ```cpp
-static_assert(WIFI_NETWORK_COUNT >= MAX_NETWORKS, "call wifi.request_wifi_network_slots() in to_code");
+#include "esphome/components/wifi/wifi_component.h"
+
+class MyComponent : public Component {
+ public:
+  void setup() override {
+    wifi::WiFiAP ap;
+    ap.set_ssid("guest");
+    ap.set_password("guest-password");
+    // Goes after the YAML networks, in one of the requested slots
+    wifi::global_wifi_component->add_sta(ap);
+  }
+};
 ```
+
+`set_sta()` replaces the whole list with one network, so it needs no request. `WIFI_NETWORK_COUNT` is the size of the
+list: the YAML networks plus every request, at least one.

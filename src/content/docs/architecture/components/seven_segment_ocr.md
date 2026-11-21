@@ -20,7 +20,8 @@ Create one instance, call `reserve()` once with the widest crop that `recognize(
 seven_segment_ocr::SevenSegmentOCR ocr;
 
 void setup() {
-  ocr.reserve(crop_width);
+  if (!ocr.reserve(crop_width))
+    this->mark_failed(LOG_STR("Could not allocate the OCR column projection"));
 }
 
 void loop() {

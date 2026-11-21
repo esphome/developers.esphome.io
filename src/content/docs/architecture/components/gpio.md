@@ -64,6 +64,23 @@ The `void set_output_pin(GPIOPin *pin)` method is implemented to allow setting t
 Finally, the component implements the usual set of methods [as described here](/architecture/components/index#common-methods). This is all
 that's required for our minimal GPIO component!
 
+### Setting up an output pin
+
+An output pin is set up and then driven to its idle level before the driver uses it. `setup_output_pin()` from
+`esphome/core/gpio_pin.h` does both in one call:
+
+```cpp
+void TLC5947::setup() {
+  setup_output_pin(this->data_pin_, true);
+  setup_output_pin(this->clock_pin_, true);
+  setup_output_pin(this->lat_pin_, true);
+  setup_output_pin(this->outenable_pin_, false);  // optional
+}
+```
+
+It does nothing when the pin is null, so an optional pin needs no check. It is available in ESPHome 2026.12.0 and
+later (esphome/esphome#23016).
+
 ### Pulsing a reset pin
 
 Many chips have an active-low reset pin that is pulsed once before they are configured. `pulse_reset()` from

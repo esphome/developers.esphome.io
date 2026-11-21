@@ -82,6 +82,25 @@ The call blocks for the whole sequence, and does nothing when the pin is null, s
 check. The waits use `delay()`, so for pulses shorter than one RTOS tick keep a `delayMicroseconds()` sequence.
 It is available in ESPHome 2026.11.0 and later (esphome/esphome#21470).
 
+### Pulsing a clock, latch or strobe pin
+
+`pulse_pin()` from `esphome/core/gpio_pin.h` drives a pin to a level for a number of microseconds, then to the
+opposite level. Use it for bit-banged clocks, latches and short reset pulses in place of a write, delay, write
+sequence:
+
+```cpp
+void BP5758D::write_bit_(bool value) {
+  this->data_pin_->digital_write(value);
+  delayMicroseconds(BP5758D_DELAY);
+  pulse_pin(this->clock_pin_, true, BP5758D_DELAY);
+  delayMicroseconds(BP5758D_DELAY);
+}
+```
+
+Pass `false` for an active-low pulse, such as `pulse_pin(this->load_pin_, false, 10)`. Leave out the width to write
+the two levels back to back. The call blocks for the pulse, and the pin must not be null.
+It is available in ESPHome 2026.12.0 and later (esphome/esphome#23032).
+
 ## Providing pins from a GPIO expander
 
 A component for an I/O expander chip offers its pins to other components through a pin schema, so a user can write

@@ -96,6 +96,7 @@ export default defineConfig({
                 "architecture/components/tcp_listener",
                 "architecture/components/mdns",
                 "architecture/components/runtime_image",
+                "architecture/components/seven_segment_ocr",
                 "architecture/components/deep_sleep",
                 "architecture/components/sx126x",
                 "architecture/components/sx127x",

@@ -281,6 +281,15 @@ ESPHome offers several primitives for periodic or deferred work. Since the main-
 
 Crossover depends on how cheap your `loop()` "nothing to do" path is and whether the timer interval would force extra Phase A wakes. Use `App.get_loop_component_start_time()` rather than `millis()` — it's cached per tick.
 
+A `HighFrequencyLoopRequester` member runs the loop every tick while it is started. Call `start()` and `stop()` around
+the time-critical work, or `set()` when a condition decides it:
+
+```cpp
+this->high_freq_.set(!this->has_reached_target());
+```
+
+`set()` is available in ESPHome 2026.12.0 and later (esphome/esphome#23030).
+
 ### Why `loop()` wins for sub-second work
 
 Each main-loop tick has two phases. **Phase A** runs every tick (drains wake notifications, runs due scheduler entries, feeds the watchdog). **Phase B** runs the component list only when `loop_interval_` elapsed, `HighFrequencyLoopRequester` is active, or a `wake_loop_*` raised the flag. A `set_interval(N)` with `N` smaller than (or unaligned with) `loop_interval_` forces extra Phase A wakes that each pay scheduler-dispatch + WDT-feed cost — often more than the work itself.

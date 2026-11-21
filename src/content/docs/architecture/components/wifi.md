@@ -37,6 +37,9 @@ written into the build raises, and the YAML networks plus all requests can be at
 
 class MyComponent : public Component {
  public:
+  // Wi-Fi's own setup replaces the list with saved credentials, so add networks after it
+  float get_setup_priority() const override { return setup_priority::AFTER_WIFI; }
+
   void setup() override {
     wifi::WiFiAP ap;
     ap.set_ssid("guest");

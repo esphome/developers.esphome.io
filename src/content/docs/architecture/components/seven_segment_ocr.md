@@ -39,21 +39,22 @@ void loop() {
 | Field | Meaning |
 | --- | --- |
 | `value` | The digits as a number. Only meaningful when `complete()` is true. |
-| `digits` | Digit runs found, capped at the expected count. |
+| `digits` | Digit runs found, including runs past the expected count. |
 | `expected` | The digit count passed to `recognize()`. |
 | `unknown` | Runs whose lit segments matched no digit. |
 | `confidence` | Mean segment decision margin, 0 (at the boundary) to 1 (decisive). |
 | `overflow` | Set when the digits do not fit in the 32-bit `value`; nothing is accumulated. |
 
-`complete()` is true when `digits == expected`, `unknown == 0` and `overflow` is false, so a consumer can skip
-publishing otherwise.
+`complete()` is true when `digits == expected`, `unknown == 0` and `overflow` is false, so extra runs on a misaligned
+crop make it false instead of publishing a shifted reading.
 
 ## The recognition steps
 
 1. Threshold the image.
 2. Count the lit pixels of every column.
-3. Group consecutive columns with more than 5% of the height lit into digit runs. Runs under 6 pixels wide are
-   ignored as noise.
+3. Group consecutive columns with more than 5% of the height lit into digit runs. Runs narrower than the larger of
+   2 pixels and a thirtieth of the height, or whose tallest column is under a third of the height, are ignored as
+   noise or marks such as decimal points and signs.
 4. Sample seven segment positions per run, each through a 3x3 window. The side probes use the strongest column of the
    left and right half, so the vertical strokes can sit at the run edges or inset.
 5. Look the resulting seven-bit mask up in the digit table.
@@ -69,6 +70,6 @@ The segment positions and digit masks are constant tables in flash.
 ## Tests
 
 The component has host unit tests in `tests/components/seven_segment_ocr/`. Run them with
-`script/cpp_unit_test.py seven_segment_ocr`. They render every digit from synthetic segment strokes and check the
-value and confidence, the narrow one-bar digit, edge and inset strokes, unknown segment masks, missing digits, a value
-that would overflow, the threshold, and the bad-input guards.
+`script/cpp_unit_test.py seven_segment_ocr`. They render every digit at two scales and check the value and confidence,
+the narrow one-bar digit, edge and inset strokes, a decimal point, extra digits, unknown segment masks, a half-height
+bar, missing digits, a value that would overflow, the threshold, and the bad-input guards.

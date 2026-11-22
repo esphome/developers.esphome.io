@@ -96,6 +96,7 @@ set and every other argument are still yours to set.
 | `ILLUMINANCE` | `lx` | `illuminance` | `measurement` | 0 |
 | `CARBON_DIOXIDE` | `ppm` | `carbon_dioxide` | `measurement` | 0 |
 | `MASS_CONCENTRATION` | `µg/m³` | none | `measurement` | 0 |
+| `VOC_PPB` | `ppb` | `volatile_organic_compounds_parts` | `measurement` | 0 |
 | `PM1` | `µg/m³` | `pm1` | `measurement` | 0 |
 | `PM25` | `µg/m³` | `pm25` | `measurement` | 0 |
 | `PM10` | `µg/m³` | `pm10` | `measurement` | 0 |
@@ -121,11 +122,14 @@ set and every other argument are still yours to set.
 | `ANGLE` | `°` | none | `measurement` | - |
 | `LENGTH_M` | `m` | none | `measurement` | 2 |
 | `RESISTANCE` | `Ω` | none | `measurement` | 0 |
+| `MAGNETIC_FIELD` | `µT` | none | `measurement` | - |
 
 `PM1`, `PM25` and `PM10` also set the `mdi:chemical-weapon` icon, the icon nearly every particulate sensor uses, and
-`DURATION_H` sets `mdi:timer-outline`. A `-` means the preset sets no default decimals, because sensors of that kind
+`DURATION_H` sets `mdi:timer-outline`, `VOC_PPB` sets `mdi:radiator` and `MAGNETIC_FIELD` sets `mdi:magnet`, the icons
+most of those sensors already use.
+A `-` means the preset sets no default decimals, because sensors of that kind
 vary too much. "none" means the preset leaves that value unset. The presets with no device class
-(`MASS_CONCENTRATION`, `REACTIVE_ENERGY_KVARH`, `PERCENT`, `ANGLE`, `LENGTH_M` and `RESISTANCE`) match how those
+(`MASS_CONCENTRATION`, `REACTIVE_ENERGY_KVARH`, `PERCENT`, `ANGLE`, `LENGTH_M`, `RESISTANCE` and `MAGNETIC_FIELD`) match how those
 readings are configured today; pick a preset with a device class when one fits.
 
 ### Code generation

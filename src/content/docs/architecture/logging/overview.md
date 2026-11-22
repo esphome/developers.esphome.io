@@ -147,8 +147,19 @@ while (logger::global_logger->console_read(byte)) {
 
 They exist on ESP32 (UART, USB CDC and USB Serial JTAG), ESP8266, RP2040 and LibreTiny, not on nRF52 or
 the host. The port is the one chosen by the logger's `hardware_uart`, fixed at build time; the logger
-must have a non-zero `baud_rate`, so validate that in your component's `FINAL_VALIDATE_SCHEMA`. Log
-lines keep going to the same port, so the protocol on the other end must skip text it does not expect.
+must have a non-zero `baud_rate`, so validate that in your component's `FINAL_VALIDATE_SCHEMA`, as
+`improv_serial` does:
+
+```python
+def _validate_logger(config: ConfigType) -> None:
+    if fv.full_config.get()[LOGGER_DOMAIN][CONF_BAUD_RATE] == 0:
+        raise cv.Invalid("my_component requires the logger baud_rate to be not 0")
+
+
+FINAL_VALIDATE_SCHEMA = _validate_logger
+```
+
+Log lines keep going to the same port, so the protocol on the other end must skip text it does not expect.
 
 A UART write blocks until every byte is queued. A USB write can stop short when the host is not reading
 (USB Serial JTAG gives up after 20 ms), so a protocol that sends frames either checks the returned count

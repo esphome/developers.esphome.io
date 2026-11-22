@@ -766,6 +766,8 @@ where `on` lists the field values a binary sensor reads as on. A platform subcla
 # my_hub/binary_sensor.py
 from dataclasses import dataclass
 
+from esphome import automation
+
 
 @dataclass(frozen=True, kw_only=True)
 class _StatusBit(cg.RegisterField):

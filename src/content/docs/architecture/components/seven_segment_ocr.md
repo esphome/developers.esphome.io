@@ -9,6 +9,9 @@ result. `ssocr_reader` is the first consumer.
 The reader works on one byte per pixel. It does not crop, rotate or scale, and it does not publish anything; the
 consumer owns the entities and the timing.
 
+Digits must be upright: correct the skew of slanted LCDs before calling `recognize()`, because the side probes
+expect the two strokes on each side to share a column.
+
 ## Using it
 
 Create one instance, call `reserve()` once with the widest crop that `recognize()` will see, and then call

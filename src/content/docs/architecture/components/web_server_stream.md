@@ -47,8 +47,10 @@ void MyStream::handleRequest(AsyncWebServerRequest *request) {  // HTTP server t
 }
 
 void MyStream::loop() {  // main loop
-  if (AsyncStreamResponse *stream = this->pending_.exchange(nullptr))
+  if (AsyncStreamResponse *stream = this->pending_.exchange(nullptr)) {
     this->stream_ = stream;
+    this->pos_ = 0;  // a new client starts from the beginning
+  }
   if (this->stream_ == nullptr)
     return;
   this->stream_->loop();

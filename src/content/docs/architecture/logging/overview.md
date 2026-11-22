@@ -151,6 +151,15 @@ must have a non-zero `baud_rate`, so validate that in your component's `FINAL_VA
 `improv_serial` does:
 
 ```python
+from esphome.components.logger import DOMAIN as LOGGER_DOMAIN
+import esphome.config_validation as cv
+from esphome.const import CONF_BAUD_RATE
+import esphome.final_validate as fv
+from esphome.types import ConfigType
+
+DEPENDENCIES = ["logger"]
+
+
 def _validate_logger(config: ConfigType) -> None:
     if fv.full_config.get()[LOGGER_DOMAIN][CONF_BAUD_RATE] == 0:
         raise cv.Invalid("my_component requires the logger baud_rate to be not 0")

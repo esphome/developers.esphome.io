@@ -168,6 +168,7 @@ as `cv.enum(..., int=True)` given that number. Pass `unit="us"` for a dict keyed
 lists the allowed values, which a plain validator function would hide:
 
 ```python
+IntegrationTime = my_sensor_ns.enum("IntegrationTime")
 INTEGRATION_TIMES = {
     25: IntegrationTime.INTEGRATION_TIME_25MS,
     50: IntegrationTime.INTEGRATION_TIME_50MS,

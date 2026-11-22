@@ -82,9 +82,11 @@ Each preset sets the unit, device class and state class shown in its row of the 
 icon and a default `accuracy_decimals`. This returns exactly the same schema as passing those values yourself.
 
 The default decimals are the precision most sensors of that kind use. Pass `accuracy_decimals=` to override it when
-your chip reports more or less precision, as the humidity sensor above does. Every other value the preset sets is
-fixed: passing it as well (for example `kind=sensor.TEMPERATURE, unit_of_measurement=...`) raises an error, so write
-the values by hand when your sensor does not match a preset exactly. The entity category, any icon the preset does not
+your chip reports more or less precision, as the humidity sensor above does, and `state_class=` when the value is a
+running total, for example `kind=sensor.DURATION_S, state_class=STATE_CLASS_TOTAL_INCREASING` for an uptime counter.
+The unit, device class and any icon the preset sets are fixed: passing one as well (for example
+`kind=sensor.TEMPERATURE, unit_of_measurement=...`) raises an error, so write the values by hand when your sensor does
+not match a preset exactly. The entity category, any icon the preset does not
 set and every other argument are still yours to set.
 
 | Preset | Unit | Device class | State class | Default decimals |

@@ -126,11 +126,10 @@ set and every other argument are still yours to set.
 
 `PM1`, `PM25` and `PM10` also set the `mdi:chemical-weapon` icon, the icon nearly every particulate sensor uses, and
 `DURATION_H` sets `mdi:timer-outline`, `VOC_PPB` sets `mdi:radiator` and `MAGNETIC_FIELD` sets `mdi:magnet`, the icons
-most of those sensors already use.
-A `-` means the preset sets no default decimals, because sensors of that kind
-vary too much. "none" means the preset leaves that value unset. The presets with no device class
-(`MASS_CONCENTRATION`, `REACTIVE_ENERGY_KVARH`, `PERCENT`, `ANGLE`, `LENGTH_M`, `RESISTANCE` and `MAGNETIC_FIELD`) match how those
-readings are configured today; pick a preset with a device class when one fits.
+most of those sensors already use. A `-` means the preset sets no default decimals, because sensors of that kind vary
+too much. "none" means the preset leaves that value unset. The presets with no device class (`MASS_CONCENTRATION`,
+`REACTIVE_ENERGY_KVARH`, `PERCENT`, `ANGLE`, `LENGTH_M`, `RESISTANCE` and `MAGNETIC_FIELD`) match how those readings
+are configured today; pick a preset with a device class when one fits.
 
 ### Code generation
 

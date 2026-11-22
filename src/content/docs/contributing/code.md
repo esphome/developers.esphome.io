@@ -397,7 +397,10 @@ enum Range : uint8_t { RANGE_DEFAULT, RANGE_2000, RANGE_5000, RANGE_10000 };
 
 // RANGE_DEFAULT is 0, so entry 0 is its name and also the text for any value outside the table
 PROGMEM_STRING_TABLE(RangeStrings, "default", "0-2000 ppm", "0-5000 ppm", "0-10000 ppm");
-ESP_LOGCONFIG(TAG, "  Range: %s", LOG_STR_ARG(RangeStrings::get_log_str(this->range_, RANGE_DEFAULT)));
+
+void MySensor::dump_config() {
+  ESP_LOGCONFIG(TAG, "  Range: %s", LOG_STR_ARG(RangeStrings::get_log_str(this->range_, RANGE_DEFAULT)));
+}
 ```
 
 `get_log_str()` returns a `const LogString *` for logging and `get_progmem_str()` a `ProgmemStr` for code that reads flash

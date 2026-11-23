@@ -3,17 +3,15 @@ title: "Virtual UART"
 ---
 
 `uart::VirtualUARTComponent` is the receive half of a UART without a wire. Derive from it when a component should be
-a UART to a reader, such as the `modbus` hub, but carries the bytes somewhere else, for example over TCP. The header
-is `esphome/components/uart/uart_virtual.h`, and the implementation is `uart_virtual.cpp`. It is compiled only when a
-component calls `uart.require_virtual_uart()`, which defines `USE_UART_VIRTUAL`.
+a UART to a reader, such as the `modbus` hub, but carries the bytes somewhere else, for example over TCP. It is a
+template in `esphome/components/uart/uart_virtual.h`; its argument is the size of the RX ring.
 
 The base owns the receive side: an RX ring, `read_array()`, `peek_byte()` and `available()`. The derived class feeds
 it with `inject_rx()` and implements the send side itself: `write_array()`, `flush()` and, when the transport knows
 its free room, `available_for_write()`.
 
 Load `uart` with `AUTO_LOAD`, so no `uart:` block is needed. Declare the class with `uart.VirtualUARTComponent` as a
-parent, so a `uart_id` that expects a UART accepts it, and call `require_virtual_uart()` from `to_code`. It is a plain
-function, not a coroutine:
+parent, so a `uart_id` that expects a UART accepts it:
 
 ```python
 import esphome.codegen as cg
@@ -33,13 +31,12 @@ CONFIG_SCHEMA = cv.Schema({cv.GenerateID(): cv.declare_id(MyLink)}).extend(
 
 
 async def to_code(config: ConfigType) -> None:
-    uart.require_virtual_uart()
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 ```
 
-The constructor takes the size of the RX ring. Make it hold the largest block the reader may leave unread, for
-example one whole frame. In this example the transport is a loopback, so what the reader writes comes back as one
+The template argument is the size of the RX ring in bytes. Make it hold the largest block the reader may leave unread,
+for example one whole frame. In this example the transport is a loopback, so what the reader writes comes back as one
 received block:
 
 ```cpp
@@ -51,10 +48,8 @@ namespace esphome::my_link {
 
 ESPHOME_LOG_TAG(TAG, "my_link");
 
-class MyLink final : public uart::VirtualUARTComponent, public Component {
+class MyLink final : public uart::VirtualUARTComponent<256>, public Component {
  public:
-  MyLink() : VirtualUARTComponent(256) {}
-
   void write_array(const uint8_t *data, size_t len) override {
     if (!this->inject_rx(data, len)) {
       ESP_LOGW(TAG, "RX full, %zu bytes dropped", len);
@@ -70,7 +65,8 @@ class MyLink final : public uart::VirtualUARTComponent, public Component {
   at all: when the ring has less free room than `len`, nothing is kept and the call returns false.
 - Reads never wait. A `read_array()` for more bytes than are there, or a `peek_byte()` on an empty ring, returns false
   and takes nothing. `read_array()` of 0 bytes returns true.
-- The ring is allocated once, in the constructor.
+- The ring lives in the object, so it uses no heap. Each distinct ring size compiles its own copy of the small read
+  methods, so prefer a size other components already use, such as 256.
 - `available_for_write()` keeps the base default `SIZE_MAX`: the class cannot tell its free room, so a writer hands
   over everything at once. Override it when the transport knows its free room, and `is_connected()` when the
   transport can be down.

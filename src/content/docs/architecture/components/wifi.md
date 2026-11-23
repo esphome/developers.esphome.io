@@ -27,13 +27,17 @@ async def to_code(config):
     wifi.request_wifi_network_slots(MAX_NETWORKS)
 ```
 
-Requests from several components add up. The count must be at least 1, a request made after the list's size is
-written into the build raises, and the YAML networks plus all requests can be at most 127.
+Requests from several components add up. The count must be at least 1, the request must come from `to_code` (the
+list's size is written at `FINAL` priority, and a request after that raises), and the YAML networks plus all requests
+can be at most 127.
 
 ## C++
 
 ```cpp
+#include "esphome/core/component.h"
 #include "esphome/components/wifi/wifi_component.h"
+
+namespace esphome::my_component {
 
 class MyComponent : public Component {
  public:
@@ -48,7 +52,10 @@ class MyComponent : public Component {
     wifi::global_wifi_component->add_sta(ap);
   }
 };
+
+}  // namespace esphome::my_component
 ```
 
-`set_sta()` replaces the whole list with one network, so it needs no request. `WIFI_NETWORK_COUNT` is the size of the
-list: the YAML networks plus every request, at least one.
+`set_sta()` replaces the whole list with one network, so it needs no request. That also removes the networks added
+with `add_sta()`, for example when new credentials come in through Improv, the captive portal or `wifi.configure`.
+`WIFI_NETWORK_COUNT` is the size of the list: the YAML networks plus every request, at least one.

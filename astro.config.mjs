@@ -84,7 +84,6 @@ export default defineConfig({
                     "architecture/components/remote_base",
                     "architecture/components/spi",
                     "architecture/components/uart",
-                    "architecture/components/uart_virtual",
                     "architecture/components/usb_host",
                   ],
                 },

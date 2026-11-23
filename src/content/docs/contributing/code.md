@@ -750,6 +750,10 @@ In general, we try to avoid use of external libraries.
 - Every component's `__init__.py` **must** define `DOMAIN = "<name>"`, where `<name>` is the component's folder name,
   or CI checks will fail. Use `DOMAIN` (or `from esphome.components.<name> import DOMAIN as <NAME>_DOMAIN` from another
   component) instead of repeating the component name as a string, for example `CORE.data[DOMAIN]`.
+- Read the target's framework version with `CORE.framework_version`, a `cv.Version` that sits next to
+  `CORE.target_platform` and `CORE.target_framework`, instead of `CORE.data[KEY_CORE][KEY_FRAMEWORK_VERSION]`
+  (ESPHome 2026.12.0 and later, esphome/esphome#22881). For example:
+  `if CORE.framework_version >= cv.Version(3, 2, 0):`
 - Using `AUTO_LOAD` to load main platform components (`sensor`, `binary_sensor`, `switch`, etc.) is not permitted.
 - Use Python's walrus operator for optional config gathering, except for boolean values. For example:
   `sensor_config := config.get(CONF_SENSOR)`

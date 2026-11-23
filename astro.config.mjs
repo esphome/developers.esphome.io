@@ -95,6 +95,7 @@ export default defineConfig({
                 "architecture/components/ipv4_allow",
                 "architecture/components/tcp_client_link",
                 "architecture/components/tcp_listener",
+                "architecture/components/web_server_idf",
                 "architecture/components/mdns",
                 "architecture/components/ethernet",
                 "architecture/components/runtime_image",

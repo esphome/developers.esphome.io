@@ -38,4 +38,5 @@ class MyComponent : public Component, public ethernet::EthernetConnectStateListe
 ```
 
 `on_ethernet_connect_state()` is called with the `on_connect` and `on_disconnect` triggers: `true` once the link is up
-with an address, `false` when it is lost or `ethernet.disable` stops it.
+with an address, `false` when it is lost or, on ESP32, `ethernet.disable` stops it. On RP2040 `ethernet.disable` has no
+effect, so it sends no callback.

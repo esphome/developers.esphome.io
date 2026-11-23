@@ -6,10 +6,11 @@ On ESP32 with ESP-IDF 5.5 or later, the HTTP server shared by `web_server_base` 
 the certificate and key before it starts the listener.
 
 HTTPS can't be combined with `web_server`, `captive_portal` or `prometheus` yet: `web_server` writes its event streams to
-the socket directly, which would bypass TLS, and `prometheus` is advertised over mDNS as plain HTTP. A component that
-uses HTTPS must serve its own pages through handlers added with `add_handler()`, and start the listener itself with
-`init()`, since none of those components will. A component that needs plain HTTP calls
-`web_server_idf.require_plain_http(DOMAIN)` from its schema, and the configuration check then rejects HTTPS.
+the socket directly, which would bypass TLS, phones check for a captive portal over plain HTTP, and `prometheus` is
+advertised over mDNS as plain HTTP. A component that uses HTTPS must serve its own pages through handlers added with
+`add_handler()`, and start the listener itself with `init()`, since none of those components will. A component that
+needs plain HTTP calls `web_server_idf.require_plain_http(DOMAIN)` from its schema, and the configuration check then
+rejects HTTPS.
 
 ## Python
 
@@ -28,9 +29,10 @@ CONFIG_SCHEMA = cv.All(
 )
 ```
 
-On ESP32 it registers the HTTPS connections with `web_server_base.add_httpd_clients()`. `web_server_idf` then adds the
-`USE_WEBSERVER_SSL` define, keeps the server side of mbedTLS (ESPHome builds it client-only otherwise) and includes
-ESP-IDF's `esp_https_server`. Don't set those sdkconfig options yourself; see
+On ESP32, `consume_ssl_sockets` registers the HTTPS connections with `web_server_base.add_httpd_clients()`, which also
+counts them as sockets (see the [Socket Consumption API](/architecture/components/socket_consumption_api/)).
+`web_server_idf` then adds the `USE_WEBSERVER_SSL` define, keeps the server side of mbedTLS (ESPHome builds it
+client-only otherwise) and includes ESP-IDF's `esp_https_server`. Don't set those sdkconfig options yourself; see
 [TLS on ESP32](/architecture/components/esp32_tls/).
 
 ## C++

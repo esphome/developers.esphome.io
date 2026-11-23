@@ -208,7 +208,8 @@ ESP_LOGD(TAG, "MAC: %s", format_mac_addr_upper(mac_bytes, mac));
 For an unsigned integer, most significant byte first, without `snprintf`:
 
 ```cpp
-char hex[format_hex_size(sizeof(uint32_t))];
+uint32_t serial = 0x1A2B3C4D;
+char hex[format_hex_size(sizeof(serial))];
 format_hex_to(hex, serial);         // "1a2b3c4d"
 format_hex_pretty_to(hex, serial);  // "1A2B3C4D", no separators
 ```

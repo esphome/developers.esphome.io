@@ -79,7 +79,8 @@ void SSD1306::init_reset_() { pulse_reset(this->reset_pin_, {.high_before_ms = 1
 - `high_after_ms`: drive the pin high again and wait this long for the chip to start.
 
 The call blocks for the whole sequence, and does nothing when the pin is null, so an optional reset pin needs no
-check. The waits use `delay()`, so for pulses shorter than one RTOS tick keep a `delayMicroseconds()` sequence.
+check. The waits use `delay()`, so for pulses shorter than one RTOS tick use
+[`pulse_pin()`](#pulsing-a-clock-latch-or-strobe-pin).
 It is available in ESPHome 2026.11.0 and later (esphome/esphome#21470).
 
 ### Pulsing a clock, latch or strobe pin
@@ -98,7 +99,8 @@ void BP5758D::write_bit_(bool value) {
 ```
 
 Pass `false` for an active-low pulse, such as `pulse_pin(this->load_pin_, false, 10)`. Leave out the width to write
-the two levels back to back. The call blocks for the pulse, and the pin must not be null.
+the two levels back to back. The call blocks for the pulse. Unlike `pulse_reset()`, it does not set up the pin or
+check it for null, so set the pin up in `setup()` and pass only a configured pin.
 It is available in ESPHome 2026.12.0 and later (esphome/esphome#23032).
 
 ## Providing pins from a GPIO expander

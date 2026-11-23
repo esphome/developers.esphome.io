@@ -67,7 +67,8 @@ that's required for our minimal GPIO component!
 ### Setting up an output pin
 
 An output pin is set up and then driven to its idle level before the driver uses it. `setup_output_pin()` from
-`esphome/core/gpio_pin.h` does both in one call:
+`esphome/core/gpio_pin.h` does both in one call. The second argument is the level to drive, written with
+`digital_write()`, so the pin's `inverted:` option applies to it:
 
 ```cpp
 void TLC5947::setup() {

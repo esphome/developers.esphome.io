@@ -57,5 +57,7 @@ class MyComponent : public Component {
 ```
 
 `set_sta()` replaces the whole list with one network, so it needs no request. That also removes the networks added
-with `add_sta()`, for example when new credentials come in through Improv, the captive portal or `wifi.configure`.
+with `add_sta()`, for example when new credentials come in through Improv over serial or BLE, the captive portal, DPP
+or `wifi.configure`. Nothing tells the component when that happens, so it has to call `add_sta()` again to get its
+networks back.
 `WIFI_NETWORK_COUNT` is the size of the list: the YAML networks plus every request, at least one.

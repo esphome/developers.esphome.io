@@ -211,7 +211,8 @@ it with `inject_rx()` and implements the send side itself: `write_array()`, `flu
 its free room, `available_for_write()`.
 
 Load `uart` with `AUTO_LOAD`, so no `uart:` block is needed. Declare the class with `uart.VirtualUARTComponent` as a
-parent, so a `uart_id` that expects a UART accepts it:
+parent, so a `uart_id` that expects a UART accepts it, and mark its id with `uart.mark_unclocked`, since its bytes
+arrive in blocks rather than at line pace:
 
 ```python
 import esphome.codegen as cg
@@ -225,9 +226,9 @@ AUTO_LOAD = ["uart"]
 my_link_ns = cg.esphome_ns.namespace("my_link")
 MyLink = my_link_ns.class_("MyLink", uart.VirtualUARTComponent, cg.Component)
 
-CONFIG_SCHEMA = cv.Schema({cv.GenerateID(): cv.declare_id(MyLink)}).extend(
-    cv.COMPONENT_SCHEMA
-)
+CONFIG_SCHEMA = cv.Schema(
+    {cv.GenerateID(): cv.All(cv.declare_id(MyLink), uart.mark_unclocked)}
+).extend(cv.COMPONENT_SCHEMA)
 
 
 async def to_code(config: ConfigType) -> None:
@@ -273,8 +274,9 @@ class MyLink final : public uart::VirtualUARTComponent<256>, public Component {
 - `load_settings()` does nothing (nothing is clocked) and `check_logger_conflict()` is empty.
 - With a UART debugger configured (`USE_UART_DEBUGGER`), `read_array()` reports the bytes it returns. Call
   `debug_tx_(data, len)` in your `write_array()` to report what is written. To offer the `debug:` option, add
-  `uart.maybe_empty_debug` to your schema and, when the key is set, `await uart.debug_to_code(config[CONF_DEBUG], var)`
-  from `to_code`.
+  `cv.Optional(CONF_DEBUG): uart.maybe_empty_debug` to your schema (`CONF_DEBUG` is in `esphome.const`) and, when the
+  key is set, call `cg.add_global(uart.uart_ns.using)` and `await uart.debug_to_code(config[CONF_DEBUG], var)` from
+  `to_code`.
 - A device that checks the baud rate or framing of its UART, such as one that calls
   `final_validate_device_schema()` with `baud_rate`, rejects a virtual UART whose YAML has no such keys.
 

@@ -383,8 +383,25 @@ table is kept:
 
 PROGMEM_STRING_TABLE(FanModeStrings, "AUTO", "LOW", "MEDIUM", "HIGH", "UNKNOWN");
 
-// An index past the end returns the fallback, so the last entry is the usual "unknown" text
-ESP_LOGD(TAG, "Fan mode: %s", LOG_STR_ARG(FanModeStrings::get_log_str(mode, FanModeStrings::LAST_INDEX)));
+// mode is a FanMode enum; a value past the end returns the last entry, the usual "unknown" text
+ESP_LOGD(TAG, "Fan mode: %s", LOG_STR_ARG(FanModeStrings::get_log_str(mode)));
+```
+
+The index can be an enum or any integer type except `bool`, so it needs no cast. A value outside the table, including a
+negative one or one above 255, returns the fallback, which is the last entry unless you pass another index or enum value
+as the second argument. The fallback itself is not checked, so it must be inside the table. Declare the table at
+namespace scope, such as just above the function that uses it; the macro defines a struct with template members, which a
+function body cannot hold:
+
+```cpp
+enum Range : uint8_t { RANGE_DEFAULT, RANGE_2000, RANGE_5000, RANGE_10000 };
+
+// RANGE_DEFAULT is 0, so entry 0 is its name and also the text for any value outside the table
+PROGMEM_STRING_TABLE(RangeStrings, "default", "0-2000 ppm", "0-5000 ppm", "0-10000 ppm");
+
+void MySensor::dump_config() {
+  ESP_LOGCONFIG(TAG, "  Range: %s", LOG_STR_ARG(RangeStrings::get_log_str(this->range_, RANGE_DEFAULT)));
+}
 ```
 
 `get_log_str()` returns a `const LogString *` for logging and `get_progmem_str()` a `ProgmemStr` for code that reads flash
@@ -396,8 +413,7 @@ ordinary `const char *` rather than a flash string:
 
 ```cpp
 char message[AlarmMessages::MAX_LENGTH + 1];
-ESPHOME_strncpy_P(message, reinterpret_cast<const char *>(AlarmMessages::get_progmem_str(code, AlarmMessages::LAST_INDEX)),
-                  sizeof(message));
+ESPHOME_strncpy_P(message, reinterpret_cast<const char *>(AlarmMessages::get_progmem_str(code)), sizeof(message));
 ```
 
 A name that a device or Home Assistant sends arrives in RAM and is matched against the table with

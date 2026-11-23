@@ -114,6 +114,10 @@ For the very first reading on boot, prefer `publish_initial_state()` instead of 
 the same way but does not fire the state-change callbacks, which avoids spuriously triggering `on_state_change`
 automations for a value the device is reporting for the first time rather than transitioning to.
 
+A parser that reads optional values, such as a BLE advertisement parser, can publish them with
+[`publish_optional()`](/architecture/components/sensor#publishing-optional-readings), which skips an unset value or an
+unconfigured entity.
+
 ### Useful members
 
 - `state`: the most recent published (filtered) value.

@@ -170,23 +170,21 @@ event out through a `CallbackManager`. Subscribe in `setup()`:
 
 ```cpp
 void MyComponent::setup() {
-  this->parent_->add_metadata_update_callback([this](const sendspin::ServerMetadataStateObject &metadata) {
-    // Every field is a std::optional. An all-empty object means the cached metadata was dropped.
-    if (metadata.title.has_value()) {
-      this->show_title_(*metadata.title);
-    }
+  this->parent_->add_metadata_update_callback([this](const sendspin::TrackMetadata &metadata) {
+    // Every field is a std::optional; an absent title was cleared, so blank it.
+    this->show_title_(metadata.title.value_or(""));
   });
 }
 ```
 
 All of these fire on the main loop, from the hub's `loop()`, unless noted:
 
-- `add_group_update_callback()` - a `GroupUpdateObject` whenever the server changes the group the client belongs to.
+- `add_group_state_callback()` - a `sendspin::GroupState` whenever the server changes the group the client belongs to.
   Available regardless of roles.
 - Controller: `add_controller_state_callback()` with the group's `ServerStateControllerObject`, and
   `add_controller_state_clear_callback()` when that state is dropped. `send_client_command()` sends a transport
   command, and optionally a volume or mute, to the server.
-- Metadata: `add_metadata_update_callback()` with a `ServerMetadataStateObject`. Dropping the cached metadata delivers
+- Metadata: `add_metadata_update_callback()` with a `sendspin::TrackMetadata`. Dropping the cached metadata delivers
   a default-constructed object (every field `nullopt`), so treat an absent field as cleared rather than as no update.
   `get_track_progress_ms()` interpolates the track position between updates.
 - Artwork: `add_image_decode_callback()` hands over the encoded image bytes on the library's decode thread, so do the

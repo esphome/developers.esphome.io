@@ -281,8 +281,10 @@ ESPHome offers several primitives for periodic or deferred work. Since the main-
 
 Crossover depends on how cheap your `loop()` "nothing to do" path is and whether the timer interval would force extra Phase A wakes. Use `App.get_loop_component_start_time()` rather than `millis()` — it's cached per tick.
 
-A `HighFrequencyLoopRequester` member runs the loop every tick while it is started. Call `start()` and `stop()` around
-the time-critical work, or `set()` when a condition decides it:
+A `HighFrequencyLoopRequester` member runs the loop every tick while it is started. It is for time-critical work only;
+to stop a loop that has nothing to do, use `disable_loop()` and `enable_loop_soon_any_context()` instead (see
+[Component Loop Control](#component-loop-control)). Call `start()` and `stop()` around the time-critical work, or
+`set()` when a condition decides it:
 
 ```cpp
 this->high_freq_.set(!this->has_reached_target());

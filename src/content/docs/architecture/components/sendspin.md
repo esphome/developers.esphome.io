@@ -48,7 +48,7 @@ MyComponent = my_component_ns.class_("MyComponent", cg.Component)
 
 
 def _request_roles(config):
-    request_metadata_support()
+    request_metadata_support("title")
     return config
 
 
@@ -74,7 +74,9 @@ async def to_code(config):
 
 `esphome.components.sendspin` exports one `request_<role>_support()` function per role: `request_artwork_support`,
 `request_color_support`, `request_controller_support`, `request_metadata_support`, `request_player_support` and
-`request_visualizer_support`. Call the ones you need from a validator in your `CONFIG_SCHEMA`, as above, rather than
+`request_visualizer_support`. `request_metadata_support()` also takes the name of a `TrackMetadata` text field to
+keep, such as `"title"`; the hub drops text fields nobody asked for. Call the ones you need from a validator in your
+`CONFIG_SCHEMA`, as above, rather than
 from `to_code`: validation of the whole configuration finishes before any code generation starts, so a request made
 there is guaranteed to be recorded by the time the hub generates its own code and decides which roles to build.
 
@@ -210,14 +212,14 @@ client in its `setup()`, before the client is started (the visualizer only if `s
 - Player: the child implements `sendspin::PlayerRoleListener`; codegen calls `set_listener()` and
   `set_player_config()` on the hub (`register_player_config()` takes care of the latter). `get_player_role()` returns
   the library's `PlayerRole` once the hub is set up; the media source keeps that pointer and drives the role directly.
-  `on_audio_write()` runs on the library's sync task thread, so it must be thread safe; the stream, volume, mute and
+  `on_audio_output()` runs on the library's sync task thread, so it must be thread safe; the stream, volume, mute and
   output delay callbacks fire on the main loop.
 - Visualizer: the child implements `sendspin::VisualizerRoleListener`; codegen calls `set_visualizer(listener, &config)`
-  with a configuration in static storage. The data callbacks - `on_loudness()`, `on_beat()`, `on_spectrum()`,
+  with a configuration in static storage. The data callbacks - `on_loudness()`, `on_beat()`, `on_spectrum_bins()`,
   `on_peak()` and `on_f_peak()` - fire on the library's drain thread at each datum's playback time (earlier by
   `VisualizerRoleConfig::display_offset_ms`, if set), so they must be thread safe: store scalar values in atomics, copy
-  the spectrum bins (a `const std::vector<uint16_t> &` the library reuses between calls) into a buffer guarded by a
-  lock, and render from the main loop. The stream lifecycle callbacks (`on_visualizer_stream_start()`,
+  the spectrum bins (a `std::span<const uint16_t>` the library reuses between calls) into a buffer guarded by a
+  lock, and render from the main loop. The stream lifecycle callbacks (`on_visualizer_stream_started()`,
   `on_visualizer_stream_end()`, `on_visualizer_stream_clear()`) fire on the main loop.
 
 ### Talking to the server

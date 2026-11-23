@@ -57,13 +57,14 @@ void MyStream::loop() {  // main loop
     return;
   this->stream_->loop();
   if (this->stream_->is_attached() && !this->stream_->is_closing()) {
-    ssize_t sent = this->stream_->write(this->data_ + this->pos_, this->len_ - this->pos_);
-    if (sent > 0) {
-      this->pos_ += sent;
-      if (this->pos_ == this->len_)
-        this->stream_->close();  // nothing more to send
+    if (this->pos_ == this->len_) {
+      this->stream_->close();  // nothing more to send, including an empty payload
+    } else {
+      ssize_t sent = this->stream_->write(this->data_ + this->pos_, this->len_ - this->pos_);
+      if (sent > 0)
+        this->pos_ += sent;
+      // sent == 0: socket full, retry next pass; sent < 0: the stream failed and is already closing
     }
-    // sent < 0: the stream failed and is already closing
   }
   if (this->stream_->safe_to_delete()) {
     delete this->stream_;
@@ -81,5 +82,18 @@ suits an endless stream (send `Connection: close`). For a chunked response, pass
 
 ## Sockets
 
-A component that keeps streaming clients open registers them with
-`web_server_base.add_httpd_clients()`; see the [Socket Consumption API](/architecture/components/socket_consumption_api/).
+A component that keeps streaming clients open registers them during config validation with
+`web_server_base.add_httpd_clients(count, consumer)`. It counts them as TCP sockets for the network stack and raises
+the HTTP server's client limit; the shared listening socket is already counted by `web_server_base`:
+
+```python
+from esphome.components import web_server_base
+
+def _register_httpd_clients(config: ConfigType) -> ConfigType:
+    web_server_base.add_httpd_clients(config[CONF_MAX_CLIENTS], DOMAIN)
+    return config
+
+CONFIG_SCHEMA = cv.All(cv.Schema({...}), _register_httpd_clients)
+```
+
+See the [Socket Consumption API](/architecture/components/socket_consumption_api/) for other sockets.

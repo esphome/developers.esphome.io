@@ -1,12 +1,12 @@
 ---
-title: "Web Server Streaming Responses"
+title: "Streaming HTTP responses with web_server_idf"
 ---
 
-The web server's streaming response, `web_server_idf::AsyncStreamResponse`, keeps one HTTP response open for as long as
-the client stays connected and lets a component write to it from the main loop without blocking. The web server's event
-stream (`/events`) is built on it. It exists only on ESP32 (ESP-IDF), in
-`esphome/components/web_server_idf/web_server_idf.h`, and only on a plain HTTP server: writes go straight to the socket,
-which would bypass TLS, so on an HTTPS server `begin()` answers 501 and the stream never attaches.
+`web_server_idf::AsyncStreamResponse` keeps one HTTP response open for as long as the client stays connected and
+lets a component write to it from the main loop without blocking. The web server's event stream (`/events`) is
+built on it. It exists only on ESP32 (ESP-IDF), in `esphome/components/web_server_idf/web_server_idf.h`, and only on a
+plain HTTP server: writes go straight to the socket, which would bypass TLS, so on an HTTPS server `begin()` answers
+501 and the stream never attaches.
 
 Use it for a response that has no end, such as a live audio or sensor stream. A normal request that sends a
 reply and finishes does not need it.

@@ -98,6 +98,7 @@ export default defineConfig({
                 "architecture/components/web_server_idf",
                 "architecture/components/mdns",
                 "architecture/components/ethernet",
+                "architecture/components/sendspin",
                 "architecture/components/runtime_image",
                 "architecture/components/deep_sleep",
                 "architecture/components/sx126x",

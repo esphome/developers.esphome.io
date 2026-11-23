@@ -118,6 +118,63 @@ PC UART interface baud rate is the same baud rate as your ESPHome device UART
 (default is 115200), and that both your interface and device have a shared
 ground connection.
 
+## Sharing the Logger's Serial Port
+
+A component that talks a raw protocol over the port the logger prints to (Improv serial does this) asks
+for the console API from `to_code`:
+
+```python
+from esphome.components.logger import request_console
+
+
+async def to_code(config):
+    ...
+    request_console()
+```
+
+That compiles in two methods on `logger::global_logger`, which bypass log formatting:
+
+```cpp
+// Returns the bytes written, which can be fewer than len on a USB port
+size_t written = logger::global_logger->console_write(data, len);
+
+// Non-blocking; false when no byte is waiting
+uint8_t byte;
+while (logger::global_logger->console_read(byte)) {
+  this->handle_byte_(byte);
+}
+```
+
+They exist on ESP32 (UART, USB CDC and USB Serial JTAG), ESP8266, RP2040 and LibreTiny, not on nRF52 or
+the host. The port is the one chosen by the logger's `hardware_uart`, fixed at build time; the logger
+must have a non-zero `baud_rate`, so validate that in your component's `FINAL_VALIDATE_SCHEMA`, as
+`improv_serial` does:
+
+```python
+from esphome.components.logger import DOMAIN as LOGGER_DOMAIN
+import esphome.config_validation as cv
+from esphome.const import CONF_BAUD_RATE
+import esphome.final_validate as fv
+from esphome.types import ConfigType
+
+DEPENDENCIES = ["logger"]
+
+
+def _validate_logger(config: ConfigType) -> None:
+    if fv.full_config.get()[LOGGER_DOMAIN][CONF_BAUD_RATE] == 0:
+        raise cv.Invalid("my_component requires the logger baud_rate to be not 0")
+
+
+FINAL_VALIDATE_SCHEMA = _validate_logger
+```
+
+Log lines keep going to the same port, so the protocol on the other end must skip text it does not expect.
+
+A UART write blocks until every byte is queued. A USB write can stop short when the host is not reading
+(USB Serial JTAG gives up after 20 ms), so a protocol that sends frames either checks the returned count
+or relies on the other end resending. On ESP32 targets without USB OTG, such as the C3, C6 and H2, the
+logger accepts `hardware_uart: USB_CDC` but ESP-IDF has no CDC console there, so both methods do nothing.
+
 ## Logging Best Practices
 
 [Review the logging best practices guide](/architecture/logging/best_practices/). In general, keep log messages short and to the point in order to avoid using too much processing power and network resources, and also to avoid overwhelming users and developers. Also remember to output your component's configuration using `ESP_LOGCONFIG()` in your component's `dump_config()` function.

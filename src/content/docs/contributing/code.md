@@ -387,10 +387,11 @@ PROGMEM_STRING_TABLE(FanModeStrings, "AUTO", "LOW", "MEDIUM", "HIGH", "UNKNOWN")
 ESP_LOGD(TAG, "Fan mode: %s", LOG_STR_ARG(FanModeStrings::get_log_str(mode)));
 ```
 
-The index can be an enum or any integer type except `bool`, so it needs no cast. A value outside the table, including
-a negative one or one above 255, returns the fallback, which is the last entry unless you pass another index or enum
-value as the second argument. The fallback itself is not checked, so it must be inside the table. Declare the table at namespace scope, such as just above the function that uses it; the macro
-defines a struct with template members, which a function body cannot hold:
+The index can be an enum or any integer type except `bool`, so it needs no cast. A value outside the table, including a
+negative one or one above 255, returns the fallback, which is the last entry unless you pass another index or enum value
+as the second argument. The fallback itself is not checked, so it must be inside the table. Declare the table at
+namespace scope, such as just above the function that uses it; the macro defines a struct with template members, which a
+function body cannot hold:
 
 ```cpp
 enum Range : uint8_t { RANGE_DEFAULT, RANGE_2000, RANGE_5000, RANGE_10000 };

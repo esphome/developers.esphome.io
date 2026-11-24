@@ -570,7 +570,10 @@ Then register each entity once, with a name that stays valid for the life of the
 
 ```cpp
 auto *s = new sensor::Sensor();  // in setup(), before clients connect
-App.register_sensor(s, "Discovered temperature");
+if (!App.register_sensor(s, "Discovered temperature")) {
+  delete s;  // every reserved slot is taken; do not publish to it
+  return;
+}
 ```
 
 `register_sensor()` names the entity, computes its key the same way code generation does, and adds it to the list

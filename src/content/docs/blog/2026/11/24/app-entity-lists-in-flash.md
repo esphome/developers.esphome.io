@@ -63,8 +63,9 @@ cg.reserve_runtime_entities("sensor", 8)
 // Before
 App.register_sensor(s);
 
-// After: names the entity and computes its key
-App.register_sensor(s, "Discovered temperature");
+// After: names the entity and computes its key; false when every reserved slot is taken
+if (!App.register_sensor(s, "Discovered temperature"))
+  delete s;
 ```
 
 Without a reservation any `register_<entity>()` call fails with
@@ -92,6 +93,8 @@ auto sensors = App.get_sensors();
 if hasattr(cg, "reserve_runtime_entities"):
     cg.reserve_runtime_entities("sensor", 8)
 ```
+
+Releases before 2026.12.0 have no supported way to add entities at run time.
 
 ```cpp
 #if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 12, 0)

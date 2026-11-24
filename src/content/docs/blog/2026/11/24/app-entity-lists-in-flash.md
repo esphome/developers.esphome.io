@@ -68,8 +68,8 @@ App.register_sensor(s, "Discovered temperature");
 ```
 
 Without a reservation any `register_<entity>()` call fails with
-`Call cg.reserve_runtime_entities("sensor", n) in to_code to register entities at run time`. Entities registered after
-the reserved slots are full are dropped. See [Entities Created at Run Time](/architecture/components/advanced/#entities-created-at-run-time).
+`Call cg.reserve_runtime_entities("sensor", n) in to_code to register entities at run time`. When every reserved slot is
+taken, `register_<entity>()` logs a warning and returns `false`. See [Entities Created at Run Time](/architecture/components/advanced/#entities-created-at-run-time).
 
 ### Entities from YAML
 

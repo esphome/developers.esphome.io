@@ -575,8 +575,8 @@ App.register_sensor(s, "Discovered temperature");
 
 `register_sensor()` names the entity, computes its key the same way code generation does, and adds it to the list
 after the entities from YAML, so the native API, web server and MQTT see it like any other. It only exists when
-slots are reserved: without `cg.reserve_runtime_entities()` the call fails to compile and says so. Registering more
-entities than reserved drops the extra ones. Overriding the `ESPHOME_ENTITY_<X>_COUNT` defines does not add
+slots are reserved: without `cg.reserve_runtime_entities()` the call fails to compile and says so. When every
+reserved slot is taken it logs a warning, leaves the entity unregistered and returns `false`. Overriding the `ESPHOME_ENTITY_<X>_COUNT` defines does not add
 capacity; they count the entities from YAML only.
 
 ## See Also

@@ -33,7 +33,7 @@ arrived before it, checks it in its own `loop()`:
 ```cpp
 void MyNode::loop() {
   if (this->canbus_->rx_capped())
-    return;  // more frames are queued; the next pass of the canbus loop delivers them
+    return;  // more frames may be queued; the next pass of the canbus loop delivers them
   this->process_pending_();
 }
 ```

@@ -236,9 +236,10 @@ async def to_code(config: ConfigType) -> None:
     await cg.register_component(var, config)
 ```
 
-The template argument is the size of the RX ring in bytes. Make it hold the largest block the reader may leave unread,
-for example one whole frame. In this example the transport is a loopback, so what the reader writes comes back as one
-received block:
+The template argument is the size of the RX ring in bytes. Make it hold every byte that can arrive before the reader
+reads it, for example all the frames received in one pass of the loop, not just the largest one: `inject_rx()` checks
+the room left, so a block that arrives while earlier ones are still unread is dropped if it does not fit. In this
+example the transport is a loopback, so what the reader writes comes back as one received block:
 
 ```cpp
 #include "esphome/components/uart/uart_virtual.h"

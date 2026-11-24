@@ -54,11 +54,10 @@ and each time slot, and the main loop waits for the whole transfer. A scratch pa
 
 ### Non-blocking transactions
 
-A bus that can run transfers in the background, such as `gpio` with `use_rmt: true`, defines
-`USE_ONE_WIRE_TRANSACTION`. A device can then hand the bus a whole transaction and return at once:
+A device can hand the bus a whole transaction and return at once. A bus that can run transfers in the background,
+such as `gpio` with `use_rmt: true`, then runs it while the main loop goes on:
 
 ```cpp
-#ifdef USE_ONE_WIRE_TRANSACTION
 struct Transaction {
   uint64_t address;          // 0: Skip ROM, otherwise Match ROM
   const uint8_t *write_data;
@@ -73,7 +72,6 @@ struct Transaction {
 };
 
 virtual bool OneWireBus::submit(Transaction *transaction);
-#endif
 ```
 
 A transaction is reset, ROM selection, `write_data`, then `read_data`, with nothing else on the bus in between.
@@ -84,31 +82,37 @@ A transaction is reset, ROM selection, `write_data`, then `read_data`, with noth
 - `submit()` returns `false` only while this transaction is still pending. Nothing changes in that case, so skip the
   cycle.
 - Call `submit()` from the main loop only. `on_done` runs in the main loop, and it can run before `submit()` returns:
-  every bus gets a default `submit()` that runs the transaction at once through the blocking calls above.
-  `USE_ONE_WIRE_TRANSACTION` is global, so a bit-banged bus in the same configuration uses that default.
+  every bus gets a default `submit()` that runs the transaction at once through the blocking calls above. So a device
+  that uses `submit()` works on every bus.
+- The default `submit()` can only report a failed reset. The blocking calls cannot report write or read errors, so
+  check the read data, for example with its CRC.
 - `TransactionStatus` values all start with `TRANSACTION_STATUS_`: `OK`, `NO_PRESENCE` (no device answered the reset),
   `BUS_LOW` (the bus is held low, or a bridge such as DS248x could not run the reset), `CAPTURE_ERROR`, `TIMEOUT` or
   `HARDWARE_ERROR`.
 
-`dallas_temp` uses two transactions: start the conversion, then read the scratch pad after the conversion time.
+`dallas_temp` uses one transaction for both steps: start the conversion, then read the scratch pad after the
+conversion time.
 
 ```cpp
 // dallas_temp.h
-one_wire::Transaction convert_{.on_done = on_convert_done, .context = this, .write_len = 1};
+one_wire::Transaction transaction_{
+    .read_data = this->scratch_pad_, .on_done = on_transaction_done, .context = this, .write_len = 1};
 
 // dallas_temp.cpp
 void DallasTemperatureSensor::update() {
-  this->convert_.address = this->address_;
-  this->convert_.write_data = &DALLAS_COMMAND_START_CONVERSION;
-  if (!this->bus_->submit(&this->convert_))
-    ESP_LOGD(TAG, "skipping a cycle, still converting");
+  if (this->transaction_.is_pending()) {
+    ESP_LOGD(TAG, "'%s': skipping a cycle, bus busy", LOG_STR_ARG(this->get_log_name()));
+    return;
+  }
+  this->submit_(&DALLAS_COMMAND_START_CONVERSION, 0);
 }
 
-void DallasTemperatureSensor::on_convert_done(void *context, one_wire::TransactionStatus status) {
-  auto *self = static_cast<DallasTemperatureSensor *>(context);
-  self->set_timeout(CONVERSION_TIMEOUT_ID, self->millis_to_wait_for_conversion_(),
-                    [self] { self->bus_->submit(&self->read_); });
+void DallasTemperatureSensor::submit_(const uint8_t *command, uint8_t read_len) {
+  this->transaction_.write_data = command;
+  this->transaction_.read_len = read_len;
+  this->bus_->submit(&this->transaction_);
 }
 ```
 
-Keep the blocking code for builds without `USE_ONE_WIRE_TRANSACTION`.
+When the conversion step is done, `on_done` schedules the read step with `set_timeout()`. When the read step is done,
+it checks the CRC and publishes.

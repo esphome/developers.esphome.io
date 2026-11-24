@@ -325,7 +325,7 @@ explicit setter can be found with a search, reviewers can see it, and any setter
 
 The same helper exists for every entity type that has a `SUB_*` macro: `binary_sensor.sub_binary_sensors()`,
 `text_sensor.sub_text_sensors()`, `button.sub_buttons()`, `switch.sub_switches()`, `number.sub_numbers()` and
-`select.sub_selects()`. Entities that call back into their hub derive from `Parented<T>`; bind the hub with
+`select.sub_selects()`, and also `text.sub_texts()`, though text has no `SUB_*` macro. Entities that call back into their hub derive from `Parented<T>`; bind the hub with
 `parent=` and it is set on each entity before the setter runs. Extra arguments for the entity, such as
 `min_value` for a number or `options` for a select, go on each call. These helpers were added in ESPHome 2026.10.0;
 older code writes each entity as an `if` block around `new_sensor()` and `cg.add()`.

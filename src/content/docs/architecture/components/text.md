@@ -195,8 +195,24 @@ await texts(CONF_SSID, hub.set_ssid_text, max_length=32)
 ```
 
 A text that only passes the new value to the hub needs no class of its own: declare it with `text.ApplyText` and
-pass `apply=` to the call. `apply` can use `value`, the new string, as `espectre` does with
-`apply="request_traffic_generator_target_mac(value)"`. See
+pass `apply=` to the call. `apply` can use `value`, the new string; the length and pattern still go on the call:
+
+```python
+CONFIG_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(CONF_MY_HUB_ID): cv.use_id(MyHub),
+        cv.Optional(CONF_TARGET): text.text_schema(text.ApplyText, mode="TEXT"),
+    }
+)
+
+
+async def to_code(config):
+    hub = await cg.get_variable(config[CONF_MY_HUB_ID])
+    texts = text.sub_texts(config, parent=hub)
+    await texts(CONF_TARGET, hub.set_target_text, apply="request_target(value)", max_length=17)
+```
+
+The device checks only the length, so the hub method still checks the format of `value`. See
 [Entities that only call the hub](/architecture/components/index#entities-that-only-call-the-hub).
 
 See [Exposing multiple sensors from one component](/architecture/components/sensor#exposing-multiple-sensors-from-one-component)

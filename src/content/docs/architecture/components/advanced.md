@@ -559,6 +559,9 @@ with no spare capacity. A component that creates entities while the device runs,
 discovers on a bus, must reserve their slots in code generation:
 
 ```python
+AUTO_LOAD = ["sensor"]
+
+
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
@@ -581,8 +584,8 @@ after the entities from YAML, so the native API and web server list it like any 
 clients that already listed the entities are not told about later ones. MQTT needs its own companion object per
 entity, which this does not create. It only exists when
 slots are reserved: without `cg.reserve_runtime_entities()` the call fails to compile and says so. When every
-reserved slot is taken it logs a warning, leaves the entity unregistered and returns `false`. Overriding the `ESPHOME_ENTITY_<X>_COUNT` defines does not add
-capacity; they count the entities from YAML only.
+reserved slot is taken it logs a warning, leaves the entity unregistered and returns `false`. The
+`ESPHOME_ENTITY_<X>_COUNT` defines are set by code generation; defining them yourself fails the build.
 
 ## See Also
 

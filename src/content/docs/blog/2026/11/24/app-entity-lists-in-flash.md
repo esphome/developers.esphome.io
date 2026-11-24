@@ -33,14 +33,15 @@ run time has been silently dropped, and some external components worked around t
   `areas:` lists in YAML.
 - `cg.reserve_runtime_entities(platform, count)` is new. After it, `App.register_<entity>(obj, name)` exists for that
   platform.
-- `ESPHOME_ENTITY_<X>_COUNT` counts entities from YAML only. Overriding it no longer adds capacity.
+- `ESPHOME_ENTITY_<X>_COUNT` counts entities from YAML only and is set by code generation. Defining it to another
+  value fails code generation.
 
 ## Who This Affects
 
 **External components that:**
 
 - Create entities at run time and call `App.register_<entity>()`: compile error until they reserve slots
-- Override `ESPHOME_ENTITY_*_COUNT`: no longer has any effect
+- Override `ESPHOME_ENTITY_*_COUNT`: code generation error until the define is removed
 - Emit `cg.App.register_<entity>(...)`, `register_device()` or `register_area()` from Python: compile error
 - Keep a reference to a getter's result (`auto &sensors = App.get_sensors();`) or use `StaticVector` members such as
   `data()`: compile error
@@ -55,7 +56,7 @@ Loops such as `for (auto *s : App.get_sensors())` and indexing keep working, in 
 # Before: no reservation, entity count define overridden
 cg.add_define("ESPHOME_ENTITY_SENSOR_COUNT", 32)
 
-# After
+# After: the platform must be loaded, for example AUTO_LOAD = ["sensor"]
 cg.reserve_runtime_entities("sensor", 8)
 ```
 

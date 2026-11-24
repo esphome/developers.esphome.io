@@ -21,6 +21,7 @@ void MyNode::setup() {
 ```
 
 `add_frame_callback()` replaces `add_callback()`, which copies the payload into a `std::vector` and is deprecated.
+It is available in ESPHome 2026.12.0 and later (esphome/esphome#22008).
 
 ## Waiting for the receive queue to drain
 
@@ -36,5 +37,9 @@ void MyNode::loop() {
   this->process_pending_();
 }
 ```
+
+While frames keep arriving at least as fast as `max_frames_per_loop` per pass, every pass hits the limit and this
+check keeps deferring the work. Raise `max_frames_per_loop`, or skip only a bounded number of passes, if the component
+must make progress on a busy bus.
 
 It is available in ESPHome 2026.12.0 and later (esphome/esphome#23247).

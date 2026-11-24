@@ -554,9 +554,14 @@ emits the define that enables the RTC backend on ESP32, so always route the chos
 
 ## Entities Created at Run Time
 
+:::caution
+Experimental and not merged: this describes [PR #23242](https://github.com/esphome/esphome/pull/23242), which stays a
+draft unless there is significant community demand. Creating entities at run time is not supported in any release.
+:::
+
 Code generation knows every entity in the YAML configuration, so `App`'s entity lists are constant arrays in flash
-with no spare capacity. A component that creates entities while the device runs, for example one per device it
-discovers on a bus, must reserve their slots in code generation:
+with no spare capacity. A component that creates entities while the device runs must reserve their slots in code
+generation:
 
 ```python
 AUTO_LOAD = ["sensor"]
@@ -567,25 +572,29 @@ async def to_code(config):
     await cg.register_component(var, config)
     # Room for up to 8 sensors created at run time; each slot costs one pointer of RAM
     cg.reserve_runtime_entities("sensor", 8)
+    # Packed entity fields for those sensors, built the same way as for YAML entities
+    cg.add(var.set_fields(cg.entity_fields(device_class="temperature", unit_of_measurement="°C")))
 ```
 
-Then register each entity once, with a name that stays valid for the life of the device:
+Then register each entity once in `setup()`, with a name that stays valid for the life of the device:
 
 ```cpp
-auto *s = new sensor::Sensor();  // in setup(), before clients connect
+auto *s = new sensor::Sensor();
+// Key computed from the name, flags already set on the entity are kept
 if (!App.register_sensor(s, "Discovered temperature")) {
   delete s;  // every reserved slot is taken; do not publish to it
   return;
 }
+// Or with a stable key (0 computes it from the name) and the packed fields from cg.entity_fields()
+App.register_sensor(s2, "Probe 2", address_hash, this->fields_);
 ```
 
-`register_sensor()` names the entity, computes its key the same way code generation does, and adds it to the list
-after the entities from YAML, so the native API and web server list it like any other. Register in `setup()`:
-clients that already listed the entities are not told about later ones. MQTT needs its own companion object per
-entity, which this does not create. It only exists when
-slots are reserved: without `cg.reserve_runtime_entities()` the call fails to compile and says so. When every
-reserved slot is taken it logs a warning, leaves the entity unregistered and returns `false`. The
-`ESPHOME_ENTITY_<X>_COUNT` defines are set by code generation; defining them yourself fails the build.
+The entity is added after the entities from YAML, so the native API and web server list it like any other. Without
+`cg.reserve_runtime_entities()` any register call fails to compile and says so. When every reserved slot is taken the
+call logs a warning, leaves the entity untouched and returns `false`.
+
+Out of scope: registering after the API has sent anything to Home Assistant (clients that already listed the entities
+are not told about later ones), MQTT companions, sub-devices and areas created at run time.
 
 ## See Also
 
@@ -593,7 +602,7 @@ reserved slot is taken it logs a warning, leaves the entity unregistered and ret
 - Wake Loop Threadsafe: PR [#11681](https://github.com/esphome/esphome/pull/11681)
 - Loop Blocking Warning and `UnavoidableBlockingScope`: PR [#19020](https://github.com/esphome/esphome/pull/19020)
 - Hiding Entities at Boot: PR [#19069](https://github.com/esphome/esphome/pull/19069)
-- Entities Created at Run Time: PR [#23234](https://github.com/esphome/esphome/pull/23234)
+- Entities Created at Run Time (experimental): PR [#23242](https://github.com/esphome/esphome/pull/23242)
 - Persisting Component State: [`esphome/preferences.py`](https://github.com/esphome/esphome/blob/dev/esphome/preferences.py)
   and [`esphome/core/preferences.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/preferences.h)
 - [Socket Consumption API](/architecture/components/socket_consumption_api) - For components that use network sockets

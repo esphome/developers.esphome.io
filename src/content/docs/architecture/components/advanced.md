@@ -552,12 +552,40 @@ and C61); call it from a validator or a callable default, not while the schema i
 target is not known yet. `validate_storage` accepts `flash` or `rtc` and rejects `rtc` where it is unavailable. `is_in_flash()` also
 emits the define that enables the RTC backend on ESP32, so always route the chosen value through it in `to_code`.
 
+## Entities Created at Run Time
+
+Code generation knows every entity in the YAML configuration, so `App`'s entity lists are constant arrays in flash
+with no spare capacity. A component that creates entities while the device runs, for example one per device it
+discovers on a bus, must reserve their slots in code generation:
+
+```python
+async def to_code(config):
+    var = cg.new_Pvariable(config[CONF_ID])
+    await cg.register_component(var, config)
+    # Room for up to 8 sensors created at run time; each slot costs one pointer of RAM
+    cg.reserve_runtime_entities("sensor", 8)
+```
+
+Then register each entity once, with a name that stays valid for the life of the device:
+
+```cpp
+auto *s = new sensor::Sensor();  // during setup(), never after
+App.register_sensor(s, "Discovered temperature");
+```
+
+`register_sensor()` names the entity, computes its key the same way code generation does, and adds it to the list
+after the entities from YAML, so the native API, web server and MQTT see it like any other. It only exists when
+slots are reserved: without `cg.reserve_runtime_entities()` the call fails to compile and says so. Registering more
+entities than reserved drops the extra ones. Overriding the `ESPHOME_ENTITY_<X>_COUNT` defines does not add
+capacity; they count the entities from YAML only.
+
 ## See Also
 
 - Component Loop Control: [`esphome/core/component.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.h) and [`esphome/core/component.cpp`](https://github.com/esphome/esphome/blob/dev/esphome/core/component.cpp)
 - Wake Loop Threadsafe: PR [#11681](https://github.com/esphome/esphome/pull/11681)
 - Loop Blocking Warning and `UnavoidableBlockingScope`: PR [#19020](https://github.com/esphome/esphome/pull/19020)
 - Hiding Entities at Boot: PR [#19069](https://github.com/esphome/esphome/pull/19069)
+- Entities Created at Run Time: PR [#23234](https://github.com/esphome/esphome/pull/23234)
 - Persisting Component State: [`esphome/preferences.py`](https://github.com/esphome/esphome/blob/dev/esphome/preferences.py)
   and [`esphome/core/preferences.h`](https://github.com/esphome/esphome/blob/dev/esphome/core/preferences.h)
 - [Socket Consumption API](/architecture/components/socket_consumption_api) - For components that use network sockets

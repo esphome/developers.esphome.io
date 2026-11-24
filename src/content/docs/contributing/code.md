@@ -202,8 +202,12 @@ For MAC addresses:
 
 ```cpp
 char mac[MAC_ADDRESS_PRETTY_BUFFER_SIZE];
-ESP_LOGD(TAG, "MAC: %s", format_mac_addr_upper(mac_bytes, mac));
+ESP_LOGD(TAG, "MAC: %s", format_mac_addr_upper(mac_bytes, mac));  // "AA:BB:CC:DD:EE:FF"
+format_mac_addr_lower(mac_bytes, mac);                           // "aa:bb:cc:dd:ee:ff"
 ```
+
+Use `format_mac_addr_lower()` when a library or protocol expects lowercase. It is available in ESPHome 2026.12.0 and
+later (esphome/esphome#23246).
 
 For an unsigned integer, most significant byte first, without `snprintf`:
 

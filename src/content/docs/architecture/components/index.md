@@ -663,6 +663,7 @@ form can use the names in the table:
 | `switch` | `switch.ApplySwitch` | `entity`, `state` | `state` (`false` with `momentary`; only on `true` with `on_success`) |
 | `number` | `number.ApplyNumber` | `entity`, `value` | `value` (only on `true` with `on_success`) |
 | `select` | `select.ApplySelect` | `entity`, `index`, `option` (the selected option's text) | `index` (only on `true` with `on_success`) |
+| `text` | `text.ApplyText` | `entity`, `value` (the new string) | `value` (only on `true` with `on_success`) |
 | `output` | `output.ApplyFloatOutput`, `output.ApplyBinaryOutput` | `entity`, `index` (the channel passed to the constructor), `state` | (not available) |
 
 For outputs, use `output.sub_float_outputs` or `output.sub_binary_outputs`. Arguments given to `.create()` after the

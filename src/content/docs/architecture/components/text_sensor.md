@@ -154,9 +154,10 @@ show every value for a while. Do not use `filter_list_` or `raw_state_` for that
 sensor->publish_state_unfiltered("");
 ```
 
-The value is both the raw and the filtered state, and the raw state callbacks run. Without filters it is a plain
-`publish_state()`. To also reset the filters, so a throttle or timeout cannot hold back or resend an older value, call
-`request_filter_reset()` from the component's `to_code`; it compiles `reset_chain()` and the filters' resets:
+The value is both the raw and the filtered state, and the raw state callbacks run. The filters are also reset, so a
+throttle or timeout cannot hold back or resend an older value. Without filters it is a plain `publish_state()`. The
+method, `reapply_filters()` below and the filters' resets are compiled only when the component calls
+`request_filter_reset()` from its `to_code`:
 
 ```python
 from esphome.components import text_sensor

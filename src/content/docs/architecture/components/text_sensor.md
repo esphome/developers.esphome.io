@@ -142,42 +142,24 @@ A filter without state needs no override. A filter that cannot be reset, such as
 keeps its state.
 
 `reset_chain()` calls `initialize()` again on a filter and on every filter after it, so calling it on the first filter
-of a sensor puts the whole chain back in its state at boot. It needs `request_filter_reset()`, below.
+of a sensor puts the whole chain back in its state at boot.
 
 ### Publishing past the filters
 
-A component can publish a value of one of its own text sensors past the filters, for example to clear it at once, or to
-show every value for a while by calling it instead of `publish_state()` for each of those values; it has no mode that
-lasts past the call. Do not use `filter_list_` or `raw_state_` for that; use `publish_state_unfiltered()`
-(ESPHome 2026.12.0 and later, esphome/esphome#23270):
+To publish a value of one of its own text sensors past the filters, for example to clear it at once, a component calls
+`publish_state_unfiltered()` instead of `publish_state()` (ESPHome 2026.12.0 and later, esphome/esphome#23270):
 
 ```cpp
 sensor->publish_state_unfiltered("");
 ```
 
-The value is both the raw and the filtered state, and the raw state callbacks run. The filters are also reset, so a
-throttle or timeout cannot hold back or resend an older value. Without filters it is a plain `publish_state()`. The
-method, `reapply_filters()` below and `reset_chain()` are compiled only when the component calls
-`request_filter_reset()` from its `to_code`:
+The value becomes both the raw and the filtered state, and the filters start over, so a throttle or timeout cannot
+hold back or resend an older value. It covers only that one value.
 
-```python
-from esphome.components import text_sensor
-
-
-async def to_code(config):
-    ...
-    text_sensor.request_filter_reset()
-```
-
-`reapply_filters()` runs the raw state through the filters again without calling the raw state callbacks. Use it when
-the component stops publishing past the filters and the current value will not be sent again, so it gets its filtered
-form:
-
-```cpp
-sensor->reapply_filters();
-```
-
-The [`ld2450`](https://github.com/esphome/esphome/tree/dev/esphome/components/ld2450) `xy_unfiltered` button uses both.
+`reapply_filters()` runs the raw state through the filters again without calling the raw state callbacks, so a value
+last published past the filters gets its filtered form. The
+[`ld2450`](https://github.com/esphome/esphome/tree/dev/esphome/components/ld2450) `xy_unfiltered` button calls
+`publish_state_unfiltered()` for every position for a while, then `reapply_filters()`.
 
 ## Exposing multiple text sensors from one component
 

@@ -142,12 +142,13 @@ A filter without state needs no override. A filter that cannot be reset, such as
 keeps its state.
 
 `reset_chain()` calls `initialize()` again on a filter and on every filter after it, so calling it on the first filter
-of a sensor puts the whole chain back in its state at boot.
+of a sensor puts the whole chain back in its state at boot. It needs `request_filter_reset()`, below.
 
 ### Publishing past the filters
 
-A component can publish a value of one of its own text sensors past the filters, for example to clear it at once or to
-show every value for a while. Do not use `filter_list_` or `raw_state_` for that; use `publish_state_unfiltered()`
+A component can publish a value of one of its own text sensors past the filters, for example to clear it at once, or to
+show every value for a while by calling it instead of `publish_state()` for each of those values; it has no mode that
+lasts past the call. Do not use `filter_list_` or `raw_state_` for that; use `publish_state_unfiltered()`
 (ESPHome 2026.12.0 and later, esphome/esphome#23270):
 
 ```cpp
@@ -156,7 +157,7 @@ sensor->publish_state_unfiltered("");
 
 The value is both the raw and the filtered state, and the raw state callbacks run. The filters are also reset, so a
 throttle or timeout cannot hold back or resend an older value. Without filters it is a plain `publish_state()`. The
-method, `reapply_filters()` below and the filters' resets are compiled only when the component calls
+method, `reapply_filters()` below and `reset_chain()` are compiled only when the component calls
 `request_filter_reset()` from its `to_code`:
 
 ```python

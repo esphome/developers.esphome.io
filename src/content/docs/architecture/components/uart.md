@@ -204,8 +204,10 @@ void MyDevice::loop() {
   if (this->break_active_) {
     if (millis() - this->break_start_ < RESET_TIME_MS)
       return;
+    // Released only once it succeeds, so a failed release is retried on the next loop
+    if (!this->parent_->set_tx_break(false))
+      return;
     this->break_active_ = false;
-    this->parent_->set_tx_break(false);
   }
 #endif
   this->read_available([this](uint8_t b) { this->handle_char_(b); });

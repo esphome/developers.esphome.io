@@ -116,35 +116,7 @@ unconfigured entity.
 - `LOG_TEXT_SENSOR(prefix, type, obj)`: a convenience macro for `dump_config()` that logs the text sensor's name in
   the standard format.
 
-## Filters that keep state
-
-The [filters](https://esphome.io/components/text_sensor/#text-sensor-filters) of a text sensor are `Filter` objects
-(`esphome/components/text_sensor/filter.h`), linked into a chain. `initialize(parent, next)` puts a filter in its state
-before the first value. It can be called more than once, so a filter that remembers something between values, such as
-the time of the last value the `throttle` filter let through, or the pending timer of the `timeout` filter, clears that
-state there:
-
-```cpp
-class MyThrottleFilter : public text_sensor::Filter {
- public:
-  bool new_value(std::string &value) override;
-  void initialize(text_sensor::TextSensor *parent, text_sensor::Filter *next) override {
-    Filter::initialize(parent, next);
-    this->last_input_ = 0;
-  }
-
- protected:
-  uint32_t last_input_{0};
-};
-```
-
-A filter without state needs no override. A filter that cannot be reset, such as a lambda that uses a global variable,
-keeps its state.
-
-`reset_chain()` calls `initialize()` again on a filter and on every filter after it, so calling it on the first filter
-of a sensor puts the whole chain back in its state at boot.
-
-### Publishing past the filters
+## Publishing past the filters
 
 To publish a value of one of its own text sensors past the filters, for example to clear it at once, a component calls
 `publish_state_unfiltered()` instead of `publish_state()` (ESPHome 2026.12.0 and later, esphome/esphome#23270):
@@ -153,8 +125,8 @@ To publish a value of one of its own text sensors past the filters, for example 
 sensor->publish_state_unfiltered("");
 ```
 
-The value becomes both the raw and the filtered state, and the filters start over, so a throttle or timeout cannot
-hold back or resend an older value. It covers only that one value.
+The value becomes both the raw and the filtered state. It covers only that one value, and the filters keep their own
+state, such as the time a `throttle` last let a value through.
 
 `reapply_filters()` runs the raw state through the filters again without calling the raw state callbacks, so a value
 last published past the filters gets its filtered form. The

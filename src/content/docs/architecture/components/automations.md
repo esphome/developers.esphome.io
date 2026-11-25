@@ -272,26 +272,34 @@ on_speed_set only when the speed changes) does not need a `Trigger` class either
 automation and registers every automation of the callback as one generated function:
 
 ```python
-_REMOTE_VALUES_AUTOMATIONS = (
+_TRIGGER_AUTOMATIONS = (
     automation.GroupedAutomation(
         CONF_ON_TURN_ON, lambda light: light.remote_values.is_on(), automation.filter_entered
+    ),
+    automation.GroupedAutomation(
+        CONF_ON_TURN_OFF,
+        when="!{parent}->current_values.is_on()",
+        callback_method="add_target_state_reached_callback",
     ),
     automation.GroupedAutomation(CONF_ON_STATE),
 )
 
 # In to_code:
 await automation.build_grouped_callback_automations(
-    var, config, "add_remote_values_callback", _REMOTE_VALUES_AUTOMATIONS
+    var, config, "add_remote_values_callback", _TRIGGER_AUTOMATIONS
 )
 ```
 
 - `watched` gets the parent and returns the value the filter reads; `last_type` is the type of the kept copy
   (`cg.bool_` by default).
 - The filters are `filter_entered` (edge into true), `filter_left` (edge out of true) and `filter_changed` (any
-  change; a `const char *` copy compared with a `StringRef` compares the text). They render as `esphome::entered()`,
+  change; text is watched as a null-terminated `const char *` and compared as text). They render as `esphome::entered()`,
   `esphome::left()` and `esphome::changed()` from `esphome/core/automation.h`.
-- `args` passes the watched value to the automation (`x` in its actions); `when` adds a filter that keeps nothing and
-  may name `{parent}`.
+- `args` passes the watched value to the automation (`x` in its actions), or `forwarded` of the parent when that
+  differs; `when` adds a filter that keeps nothing and may name `{parent}`.
+- `callback_method` registers an entry on another callback list than the builder's, as on_turn_off does above. Entries
+  are built in table order, so a lambda can name the `automation_id` of an earlier entry's automation, and each list is
+  registered once.
 - Automations run in entry order; one automation without a filter is registered directly.
 
 This was added in [esphome/esphome#23285](https://github.com/esphome/esphome/pull/23285).

@@ -182,9 +182,9 @@ those actions can execute or stop the script itself.
   `TemplateArguments` first, then the constructor arguments).
 
 Abridged from the script component (esphome/esphome#22037, on the helpers of esphome/esphome#23309), where `template`
-holds the script's parameter types. `automation.plan_automation()` builds the actions first;
-`automation.automation_or_run_function()` then emits them as an `Automation` on the script, or returns the one function
-that runs them when every action is inline:
+holds the script's parameter types. `automation.plan_automation()` builds the actions first; `plan.direct` says whether
+every action is inline, and the caller then emits them either as one function (`plan.run_function()`) or as an
+`Automation` on the script (`plan.build()`):
 
 ```python
 id_ = conf[CONF_ID].copy()
@@ -193,11 +193,13 @@ late = cg.LatePvariable(id_)
 cg.add(late.var.set_name(cg.LogStringLiteral(id_.id)))
 ...
 plan = await automation.plan_automation(func_args, conf)
-# The function is declared in the script's place, so the class can name it
-fn = automation.automation_or_run_function(plan, late.var, late.global_slot.add)
 script_class = late.id.type  # actions that wait: keep the mode's class
 ctor_args = []
-if fn is not None:
+if not plan.direct:
+    plan.build(late.var)
+else:
+    # The function is declared in the script's place, so the class can name it
+    fn = plan.run_function(late.var, late.global_slot.add)
     # All inline, e.g. SingleMode<FunctionBody<int>, int>
     mode_class = MODES[conf[CONF_MODE]][1].template(FunctionBody.template(template), *template)
     if conf[CONF_MODE] == CONF_QUEUED:

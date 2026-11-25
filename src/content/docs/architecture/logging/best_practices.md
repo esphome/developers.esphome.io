@@ -256,6 +256,28 @@ if (setting1) ESP_LOGCONFIG(TAG, "  Setting1: %d", value1);
 if (setting2) ESP_LOGCONFIG(TAG, "  Setting2: %d", value2);
 ```
 
+## Quieting a Library's Log Tags
+
+A prebuilt library (an ESP-IDF component shipped as a binary) logs with its own tags. The build-time maximum log
+level (`logger: level`, which removes log calls when the firmware is compiled) does not apply to code that was not
+compiled in the build, but the logger's run-time level still filters it. If one floods the log, call
+`logger.request_tag_log_level()` (ESPHome 2026.12.0 and later, esphome/esphome#23269) from `to_code` once for every
+noisy tag to lower them at run time:
+
+```python
+from esphome.components import logger
+
+
+async def to_code(config):
+    # esp_ipa logs at DEBUG on every frame
+    for tag in ("esp_ipa_ian", "esp_ipa_agc", "esp_ipa_acc", "esp_ipa_adn", "esp_ipa_atc"):
+        await logger.request_tag_log_level(tag, "WARN")
+```
+
+A `logger: logs:` entry for the same tag wins, and the call generates no code when the logger's own level already
+drops those messages or there is no logger. ESP-IDF libraries keep their own tags only with ESP-IDF Log V2 (6.1 and later,
+not ESP32-C2/S2); otherwise they log under `esp-idf` and a tag level has no effect.
+
 ## Runtime Logging Best Practices
 
 Runtime logging affects the ongoing operation of your component:

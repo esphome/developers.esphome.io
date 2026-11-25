@@ -258,9 +258,10 @@ if (setting2) ESP_LOGCONFIG(TAG, "  Setting2: %d", value2);
 
 ## Quieting a Library's Log Tags
 
-A prebuilt library (an ESP-IDF component shipped as a binary) logs with its own tags, and the framework log level
-does not reach code that was not compiled in the build. If one floods the log, call
-`logger.request_tag_log_level()` from `to_code` to lower those tags at run time:
+A prebuilt library (an ESP-IDF component shipped as a binary) logs with its own tags. The build-time maximum log
+level (`logger: level`, which removes log calls when the firmware is compiled) does not apply to code that was not
+compiled in the build, but the logger's run-time level still filters it. If one floods the log, call
+`logger.request_tag_log_level()` from `to_code` once for every noisy tag to lower them at run time:
 
 ```python
 from esphome.components import logger
@@ -268,7 +269,7 @@ from esphome.components import logger
 
 async def to_code(config):
     # esp_ipa logs at DEBUG on every frame
-    for tag in ("esp_ipa_agc", "esp_ipa_acc"):
+    for tag in ("esp_ipa_ian", "esp_ipa_agc", "esp_ipa_acc", "esp_ipa_adn", "esp_ipa_atc"):
         await logger.request_tag_log_level(tag, "WARN")
 ```
 

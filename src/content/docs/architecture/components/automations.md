@@ -264,6 +264,38 @@ mqtt_client->subscribe(progmem_string(ESPHOME_F("livingroom/ota_mode")), [](cons
 }, 1);
 ```
 
+### Triggers that fire on a change or an edge
+
+A trigger that has to remember the previous value (on_turn_on fires only when the light goes from off to on,
+on_speed_set only when the speed changes) does not need a `Trigger` class either. Describe each on_* key as a
+`GroupedAutomation` and pass them to `build_grouped_callback_automations`, which keeps one zero-initialised copy per
+automation and registers every automation of the callback as one generated function:
+
+```python
+_REMOTE_VALUES_AUTOMATIONS = (
+    automation.GroupedAutomation(
+        CONF_ON_TURN_ON, lambda light: light.remote_values.is_on(), automation.filter_entered
+    ),
+    automation.GroupedAutomation(CONF_ON_STATE),
+)
+
+# In to_code:
+await automation.build_grouped_callback_automations(
+    var, config, "add_remote_values_callback", _REMOTE_VALUES_AUTOMATIONS
+)
+```
+
+- `watched` gets the parent and returns the value the filter reads; `last_type` is the type of the kept copy
+  (`cg.bool_` by default).
+- The filters are `filter_entered` (edge into true), `filter_left` (edge out of true) and `filter_changed` (any
+  change; a `const char *` copy compared with a `StringRef` compares the text). They render as `esphome::entered()`,
+  `esphome::left()` and `esphome::changed()` from `esphome/core/automation.h`.
+- `args` passes the watched value to the automation (`x` in its actions); `when` adds a filter that keeps nothing and
+  may name `{parent}`.
+- Automations run in entry order; one automation without a filter is registered directly.
+
+This was added in [esphome/esphome#23285](https://github.com/esphome/esphome/pull/23285).
+
 ### Trigger class method
 
 Use this when the trigger needs **mutable state beyond a single `Automation*` pointer** (e.g. tracked previous state for edge detection, or timing logic). A forwarder struct must be pointer-sized with only an `Automation*` field, so any additional state requires a full `Trigger` subclass.
@@ -477,7 +509,7 @@ When each automation needs its own stored value next to it, such as a threshold 
 | Trigger with no arguments that is a component | `build_component_automation` | `esphome on_boot` -- `StartupCallback` calls the generated function from `setup()` ([esphome/esphome#21989](https://github.com/esphome/esphome/pull/21989), pending) |
 | Fire when a float enters `above`/`below` | `new_value_range_trigger` | `sensor on_value_range` -- the trigger keeps `previous`, the bounds come from one generated `ValueRange` function ([esphome/esphome#21817](https://github.com/esphome/esphome/pull/21817), pending) |
 | Hub fires the event itself, no other listeners | `AutomationList` | [`wiegand on_key`](https://github.com/esphome/esphome/blob/dev/esphome/components/wiegand/wiegand.h) -- `AutomationList<WIEGAND_ON_KEY_COUNT, uint8_t>` ([esphome/esphome#21790](https://github.com/esphome/esphome/pull/21790), pending) |
-| Extra state needed | Trigger class | [`fan on_turn_on`](https://github.com/esphome/esphome/blob/dev/esphome/components/fan/automation.h) -- `FanTurnOnTrigger` tracks `last_on_` for edge detection (mutable state, can't be a forwarder) |
+| Previous value or edge (on_turn_on, on_speed_set) | Grouped callback automations | `light on_turn_on` -- `filter_entered` keeps one bool per automation ([esphome/esphome#23285](https://github.com/esphome/esphome/pull/23285)) |
 | Complex logic (timing, state machine) | Trigger class | [`binary_sensor on_multi_click`](https://github.com/esphome/esphome/blob/dev/esphome/components/binary_sensor/automation.h) -- `MultiClickTrigger` with timing, cooldown, and multiple state fields |
 
 ### Triggers with short-lived arguments

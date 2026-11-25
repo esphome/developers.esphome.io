@@ -274,7 +274,7 @@ automation and registers every automation of the callback as one generated funct
 ```python
 _TRIGGER_AUTOMATIONS = (
     automation.GroupedAutomation(
-        CONF_ON_TURN_ON, lambda light: light.remote_values.is_on(), automation.filter_entered
+        CONF_ON_TURN_ON, lambda light: light.remote_values.is_on(), automation.CHANGE_TRIGGER.entered
     ),
     automation.GroupedAutomation(
         CONF_ON_TURN_OFF,
@@ -291,17 +291,19 @@ await automation.build_grouped_callback_automations(
 ```
 
 - `watched` gets the parent and returns the value the filter reads; `last_type` is the type of the kept copy
-  (`cg.bool_` by default).
-- The filters are `filter_entered` (edge into true), `filter_left` (edge out of true) and `filter_changed` (any
-  change; text is watched as a null-terminated `const char *` and compared as text). They render as
-  `esphome::change_trigger::entered()`, `left()` and `changed()` from `esphome/core/automation.h`, in a nested
-  namespace so YAML ids with those names stay usable.
+  (by default the type of the first of `args`, else `cg.bool_`).
+- The filters are `CHANGE_TRIGGER.entered` (edge into true), `CHANGE_TRIGGER.left` (edge out of true) and
+  `CHANGE_TRIGGER.changed` (any change; text is watched as a null-terminated `const char *` and compared as text).
+  They render as `esphome::change_trigger::entered()`, `left()` and `changed()` from `esphome/core/automation.h`, in
+  a nested namespace so YAML ids with those names stay usable.
 - `args` passes the watched value to the automation (`x` in its actions), or `forwarded` of the parent when that
-  differs; `when` adds a filter that keeps nothing and may name `{parent}`.
+  differs; `when` adds a filter that keeps nothing and may name `{parent}`. It is tested in the generated function,
+  after the filter.
 - `callback_method` registers an entry on another callback list than the builder's, as on_turn_off does above. Entries
   are built in table order, so a lambda can name the `automation_id` of an earlier entry's automation, and each list is
   registered once.
-- Automations run in entry order; one automation without a filter is registered directly.
+- Automations run in entry order from one function per list, named like `esphome__<id>__remote_values_callback`; one
+  automation without a filter or `when` is registered directly.
 
 This was added in [esphome/esphome#23285](https://github.com/esphome/esphome/pull/23285).
 

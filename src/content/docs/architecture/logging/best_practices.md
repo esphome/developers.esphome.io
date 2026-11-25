@@ -274,8 +274,8 @@ async def to_code(config):
         await logger.request_tag_log_level(tag, "WARN")
 ```
 
-A `logger: logs:` entry for the same tag wins, and nothing is emitted when the logger's own level already drops
-those messages or there is no logger. ESP-IDF libraries keep their own tags only with ESP-IDF Log V2 (6.1 and later,
+A `logger: logs:` entry for the same tag wins, and the call generates no code when the logger's own level already
+drops those messages or there is no logger. ESP-IDF libraries keep their own tags only with ESP-IDF Log V2 (6.1 and later,
 not ESP32-C2/S2); otherwise they log under `esp-idf` and a tag level has no effect.
 
 ## Runtime Logging Best Practices

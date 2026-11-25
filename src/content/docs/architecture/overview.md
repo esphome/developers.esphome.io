@@ -178,8 +178,8 @@ those actions can execute or stop the script itself.
 - `id` is the ID; its `type` is the class so far, and the final one after `define()`.
 - `global_slot.add(statement)` puts a global declaration in its place. The place is filled in order and `define()`
   adds the variable to it, so call `global_slot.add()` before `define()` for a declaration the variable needs.
-- `define(type_, *args)` creates it in its place as `type_`, with the same arguments as `cg.new_Pvariable` (optional
-  `TemplateArguments` first, then the constructor arguments).
+- `define(type_, *args)` creates it in its place as `type_`, the final class with any template arguments already
+  applied (`Final.template(cg.int32)`), passing `args` to its constructor.
 
 Abridged from the script component (esphome/esphome#22037, on the helpers of esphome/esphome#23309), where `template`
 holds the script's parameter types. `automation.plan_automation()` builds the actions first; `plan.direct` says whether

@@ -129,7 +129,8 @@ The value becomes both the raw and the filtered state. It covers only that one v
 state, such as the time a `throttle` last let a value through.
 
 `reapply_filters()` runs the raw state through the filters again without calling the raw state callbacks, so a value
-last published past the filters gets its filtered form. The
+last published past the filters gets its filtered form. The filters apply their current state, so a throttle can still
+drop it and a timeout can delay it. The
 [`ld2450`](https://github.com/esphome/esphome/tree/dev/esphome/components/ld2450) `xy_unfiltered` button calls
 `publish_state_unfiltered()` for every position for a while, then `reapply_filters()`.
 

@@ -66,7 +66,7 @@ void MyReceiver::loop() {
     this->data_.satellites = sats;
     if (/* the receiver's UTC is valid */) {
       this->data_.utc = timestamp;  // UTC seconds of the solution
-      this->data_.utc_millis = millis();
+      this->data_.utc_millis = millis_64();
     }
     this->publish_fix_();
   }
@@ -76,8 +76,10 @@ void MyReceiver::loop() {
 `GNSSComponent::update()` publishes the latest `data_` to the sensors. If your platform overrides `update()`, call
 `GNSSComponent::update()` from it.
 
-Set `utc` only when the receiver says its UTC is valid. The time source corrects it by the time elapsed since
-`utc_millis`, so it doesn't matter that the clock is set later than the solution arrived.
+Set `utc` only when the receiver says its UTC is valid, and set `utc_millis` to `millis_64()` at the same time. The
+time source corrects `utc` by the time elapsed since `utc_millis`, so it doesn't matter that the clock is set later
+than the solution arrived. It ignores a `utc` older than 10 seconds, so a receiver that stops sending time leaves the
+clock alone.
 
 ## Consumers
 

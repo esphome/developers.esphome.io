@@ -293,8 +293,9 @@ await automation.build_grouped_callback_automations(
 - `watched` gets the parent and returns the value the filter reads; `last_type` is the type of the kept copy
   (`cg.bool_` by default).
 - The filters are `filter_entered` (edge into true), `filter_left` (edge out of true) and `filter_changed` (any
-  change; text is watched as a null-terminated `const char *` and compared as text). They render as `esphome::entered()`,
-  `esphome::left()` and `esphome::changed()` from `esphome/core/automation.h`.
+  change; text is watched as a null-terminated `const char *` and compared as text). They render as
+  `esphome::change_trigger::entered()`, `left()` and `changed()` from `esphome/core/automation.h`, in a nested
+  namespace so YAML ids with those names stay usable.
 - `args` passes the watched value to the automation (`x` in its actions), or `forwarded` of the parent when that
   differs; `when` adds a filter that keeps nothing and may name `{parent}`.
 - `callback_method` registers an entry on another callback list than the builder's, as on_turn_off does above. Entries

@@ -73,6 +73,9 @@ void MyReceiver::loop() {
     d.longitude_e7 = lon_e7;   // degrees times 10^7, east positive
     d.altitude_e3 = alt_mm;    // m above mean sea level times 1000
     d.updated |= geolocation::GEOLOCATION_FIELD_LOCATION | geolocation::GEOLOCATION_FIELD_ALTITUDE;
+    d.horizontal_accuracy_e3 = h_acc_mm;  // the receiver's estimate, m times 1000
+    d.vertical_accuracy_e3 = v_acc_mm;
+    d.updated |= geolocation::GEOLOCATION_FIELD_HORIZONTAL_ACCURACY | geolocation::GEOLOCATION_FIELD_VERTICAL_ACCURACY;
     d.satellites = sats;
     d.updated |= geolocation::GEOLOCATION_FIELD_SATELLITES;
     if (/* the receiver's UTC is valid */) {
@@ -93,8 +96,8 @@ void MyReceiver::loop() {
 }
 ```
 
-When the receiver reports that it has no fix, either keep the last position (`nmea` does, like most receivers'
-NMEA output) or clear its bits from `valid` so the sensors show no value.
+When the receiver reports that it has no fix, either keep the last position (`nmea` does, like `gps` did) or clear
+the bits of position, speed, course and accuracy from `valid` so the sensors show no value (`ubx` does).
 
 `publish_fix_()` also stamps the age of each `updated` field for `get_age()`, so set `updated` before calling it.
 `GeolocationComponent::update()` publishes the latest `data_` to the sensors. If your platform overrides `update()`,

@@ -167,7 +167,15 @@ async def to_code(config):
     text_sensor.request_filter_reset()
 ```
 
-The [`ld2450`](https://github.com/esphome/esphome/tree/dev/esphome/components/ld2450) `xy_unfiltered` button does this.
+`reapply_filters()` runs the raw state through the filters again without calling the raw state callbacks. Use it when
+the component stops publishing past the filters and the current value will not be sent again, so it gets its filtered
+form:
+
+```cpp
+sensor->reapply_filters();
+```
+
+The [`ld2450`](https://github.com/esphome/esphome/tree/dev/esphome/components/ld2450) `xy_unfiltered` button uses both.
 
 ## Exposing multiple text sensors from one component
 

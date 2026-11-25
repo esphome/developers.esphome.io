@@ -54,10 +54,12 @@ A component with its own final validation calls `esp32_rmt.final_validate_rmt_ch
 
 A component that creates several channels of a fixed size and has no `rmt_symbols` option uses
 `esp32_rmt.request_rmt_channels(channels, setup_priority)` instead of `request_rmt_channel()`. `channels` lists the
-direction and the number of memory blocks of each channel, in the order `setup()` creates them. The channels do not
-use DMA. All of them are recorded under the `id` of the entry, and `name` is used when present. Final validation and
-`register_rmt_channel()` work as above. The error and the warning name such a component once, with its channel count,
-and show the direction of each of its channels.
+direction and the number of memory blocks of each channel, in the order `setup()` creates them. `setup()` must stop
+at the first channel it fails to create: the check does not count the channels after it. The channels do not use DMA.
+All of them are recorded under the `id` of the entry, and `name` is used when present. Final validation and
+`register_rmt_channel()` work as above. The error names such a component once, with its channel count, for example
+`'bus' (2 channels)`. The warning lists each channel with its direction and size, for example
+`'bus' (RX 48), 'bus' (TX 48)`, and names the component once among those that do not fit.
 
 ```python
 # One RX and one TX channel of one memory block each, in the order setup() creates them

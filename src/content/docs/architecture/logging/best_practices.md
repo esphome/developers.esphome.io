@@ -261,7 +261,8 @@ if (setting2) ESP_LOGCONFIG(TAG, "  Setting2: %d", value2);
 A prebuilt library (an ESP-IDF component shipped as a binary) logs with its own tags. The build-time maximum log
 level (`logger: level`, which removes log calls when the firmware is compiled) does not apply to code that was not
 compiled in the build, but the logger's run-time level still filters it. If one floods the log, call
-`logger.request_tag_log_level()` from `to_code` once for every noisy tag to lower them at run time:
+`logger.request_tag_log_level()` (ESPHome 2026.12.0 and later, esphome/esphome#23269) from `to_code` once for every
+noisy tag to lower them at run time:
 
 ```python
 from esphome.components import logger

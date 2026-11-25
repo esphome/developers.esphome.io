@@ -264,6 +264,37 @@ mqtt_client->subscribe(progmem_string(ESPHOME_F("livingroom/ota_mode")), [](cons
 }, 1);
 ```
 
+#### Callback managers from the static pool
+
+Entity callbacks such as `add_on_state_callback` are stored in a `LazyCallbackManager`, which creates its
+`CallbackManager` only when the first callback is added. When codegen knows that an entity will get a callback, that
+manager comes from a static pool sized at build time instead of the heap.
+
+A domain lists which of its `add_*_callback` methods fill a `LazyCallbackManager`, next to the class:
+
+```python
+Sensor = sensor_ns.class_("Sensor", cg.EntityBase)
+cg.lazy_callback_methods(Sensor, "add_on_state_callback", "add_on_raw_state_callback")
+```
+
+`build_callback_automation`, the value range automation, the follow helpers (`sensor.follow_sensor` and friends) and
+the MQTT entity integration already reserve a slot for the method they use. A component whose C++ adds a callback to
+another entity, like `combination` does in its `setup()`, reserves the slot in `to_code`:
+
+```python
+async def to_code(config: ConfigType) -> None:
+    var = await sensor.new_sensor(config)
+    source = await cg.get_variable(config[CONF_SOURCE])
+    cg.add(var.set_source(source))
+    cg.reserve_callback_manager(source, "add_on_state_callback")
+```
+
+Each entity and method pair takes one slot, however many callbacks it gets. A method that was not listed with
+`lazy_callback_methods` is ignored, and a manager nothing reserved still comes from the heap, so a missing call costs
+a heap allocation but does not break anything.
+
+This was added in [esphome/esphome#23302](https://github.com/esphome/esphome/pull/23302).
+
 ### Trigger class method
 
 Use this when the trigger needs **mutable state beyond a single `Automation*` pointer** (e.g. tracked previous state for edge detection, or timing logic). A forwarder struct must be pointer-sized with only an `Automation*` field, so any additional state requires a full `Trigger` subclass.

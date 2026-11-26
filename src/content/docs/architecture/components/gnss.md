@@ -20,7 +20,7 @@ gnss:
 ```
 
 Build the schema with `gnss_schema()` and create the variable with `new_gnss()` in `to_code`. It creates the
-variable and registers it as a component; extra arguments go to the constructor:
+variable and registers it as a component:
 
 ```python
 import esphome.codegen as cg

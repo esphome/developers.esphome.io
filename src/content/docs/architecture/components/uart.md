@@ -414,7 +414,7 @@ byte, and `trailer` is the bytes after the payload, such as a checksum or footer
 between the length field and the payload, `payload_at` says where the payload starts (right after the field when left
 out). A payload rule's `PAYLOAD_AT` constant gives that position, for the handler.
 
-After the length rule, a `FrameFormat` takes any of these options, in any order:
+After the length rule, a `FrameFormat` takes any of these options, each at most once and in any order:
 
 | Option | Effect |
 | --- | --- |

@@ -114,6 +114,10 @@ For the very first reading on boot, prefer `publish_initial_state()` instead of 
 the same way but does not fire the state-change callbacks, which avoids spuriously triggering `on_state_change`
 automations for a value the device is reporting for the first time rather than transitioning to.
 
+A parser that reads optional values, such as a BLE advertisement parser, can publish them with
+[`publish_optional()`](/architecture/components/sensor#publishing-optional-readings), which skips an unset value or an
+unconfigured entity.
+
 ### Useful members
 
 - `state`: the most recent published (filtered) value.
@@ -180,6 +184,15 @@ class MyComponent final : public Component {
   SUB_BINARY_SENSOR(still_target)
 };
 // this->moving_target_binary_sensor_->publish_state(moving); once null-checked
+```
+
+In `to_code`, create each configured binary sensor and pass it to its setter with
+`binary_sensor.sub_binary_sensors()`:
+
+```python
+binary_sensors = binary_sensor.sub_binary_sensors(config)
+await binary_sensors(CONF_HAS_MOVING_TARGET, var.set_moving_target_binary_sensor)
+await binary_sensors(CONF_HAS_STILL_TARGET, var.set_still_target_binary_sensor)
 ```
 
 See [Exposing multiple sensors from one component](/architecture/components/sensor#exposing-multiple-sensors-from-one-component)

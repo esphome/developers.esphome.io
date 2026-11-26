@@ -62,6 +62,77 @@ Passing your class (`MySensor`) as the first argument tells the helper which cla
 need a separate `cv.GenerateID()`. The `.extend(cv.polling_component_schema("60s"))` call adds the `update_interval`
 option with a default of 60 seconds.
 
+### Measurement presets
+
+Most sensors measure something common, and for those the unit, device class and state class always come together.
+Pass `kind=` with one of the presets in `esphome.components.sensor` instead of writing the three values by hand:
+
+```python
+CONFIG_SCHEMA = cv.Schema(
+    {
+        cv.Optional(CONF_TEMPERATURE): sensor.sensor_schema(kind=sensor.TEMPERATURE),
+        cv.Optional(CONF_HUMIDITY): sensor.sensor_schema(
+            kind=sensor.HUMIDITY, accuracy_decimals=2
+        ),
+    }
+)
+```
+
+Each preset sets the unit, device class and state class shown in its row of the table below, and some also set an
+icon and a default `accuracy_decimals`. This returns exactly the same schema as passing those values yourself.
+
+The default decimals are the precision most sensors of that kind use. Pass `accuracy_decimals=` to override it when
+your chip reports more or less precision, as the humidity sensor above does, and `state_class=` when the value is a
+running total, for example `kind=sensor.DURATION_S, state_class=STATE_CLASS_TOTAL_INCREASING` (from `esphome.const`)
+for an uptime counter. The unit, device class and any icon the preset sets are fixed: passing one as well (for
+example `kind=sensor.TEMPERATURE, unit_of_measurement=...`) raises an error, so write the values by hand when your
+sensor does not match a preset exactly. The entity category, any icon the preset does not set and every other
+argument are still yours to set.
+
+| Preset | Unit | Device class | State class | Default decimals |
+| --- | --- | --- | --- | --- |
+| `TEMPERATURE` | `°C` | `temperature` | `measurement` | 1 |
+| `HUMIDITY` | `%` | `humidity` | `measurement` | 1 |
+| `BATTERY` | `%` | `battery` | `measurement` | 0 |
+| `PRESSURE` | `hPa` | `pressure` | `measurement` | 1 |
+| `ILLUMINANCE` | `lx` | `illuminance` | `measurement` | 0 |
+| `CARBON_DIOXIDE` | `ppm` | `carbon_dioxide` | `measurement` | 0 |
+| `MASS_CONCENTRATION` | `µg/m³` | none | `measurement` | 0 |
+| `VOC_PPB` | `ppb` | `volatile_organic_compounds_parts` | `measurement` | 0 |
+| `PM1` | `µg/m³` | `pm1` | `measurement` | 0 |
+| `PM25` | `µg/m³` | `pm25` | `measurement` | 0 |
+| `PM10` | `µg/m³` | `pm10` | `measurement` | 0 |
+| `SIGNAL_STRENGTH` | `dBm` | `signal_strength` | `measurement` | 0 |
+| `VOLTAGE` | `V` | `voltage` | `measurement` | - |
+| `CURRENT` | `A` | `current` | `measurement` | - |
+| `FREQUENCY` | `Hz` | `frequency` | `measurement` | - |
+| `POWER` | `W` | `power` | `measurement` | - |
+| `POWER_KW` | `kW` | `power` | `measurement` | 3 |
+| `APPARENT_POWER` | `VA` | `apparent_power` | `measurement` | - |
+| `APPARENT_POWER_KVA` | `kVA` | `apparent_power` | `measurement` | 3 |
+| `REACTIVE_POWER` | `var` | `reactive_power` | `measurement` | - |
+| `REACTIVE_POWER_KVAR` | `kvar` | `reactive_power` | `measurement` | 3 |
+| `POWER_FACTOR` | none | `power_factor` | `measurement` | - |
+| `ENERGY_WH` | `Wh` | `energy` | `total_increasing` | - |
+| `ENERGY_KWH` | `kWh` | `energy` | `total_increasing` | 3 |
+| `REACTIVE_ENERGY_KVARH` | `kvarh` | none | `total_increasing` | 3 |
+| `DISTANCE_MM` | `mm` | `distance` | `measurement` | 0 |
+| `DURATION_H` | `h` | `duration` | `measurement` | 0 |
+| `DURATION_MIN` | `min` | `duration` | `measurement` | 0 |
+| `DURATION_S` | `s` | `duration` | `measurement` | 0 |
+| `PERCENT` | `%` | none | `measurement` | 0 |
+| `ANGLE` | `°` | none | `measurement` | - |
+| `LENGTH_M` | `m` | none | `measurement` | 2 |
+| `RESISTANCE` | `Ω` | none | `measurement` | 0 |
+| `MAGNETIC_FIELD` | `µT` | none | `measurement` | - |
+
+`PM1`, `PM25` and `PM10` also set the `mdi:chemical-weapon` icon, the icon nearly every particulate sensor uses.
+`DURATION_H`, `VOC_PPB` and `MAGNETIC_FIELD` set `mdi:timer-outline`, `mdi:radiator` and `mdi:magnet`, the icons most
+of those sensors already use. A `-` means the preset sets no default decimals, because sensors of that kind vary too
+much. "none" means the preset leaves that value unset. The presets with no device class (`MASS_CONCENTRATION`,
+`REACTIVE_ENERGY_KVARH`, `PERCENT`, `ANGLE`, `LENGTH_M`, `RESISTANCE` and `MAGNETIC_FIELD`) match how those readings
+are configured today; pick a preset with a device class when one fits.
+
 ### Code generation
 
 In `to_code`, use the `sensor.new_sensor()` helper. It calls `cg.new_Pvariable()` for you *and* generates all the code
@@ -241,10 +312,23 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
 
-    if temperature_config := config.get(CONF_TEMPERATURE):
-        sens = await sensor.new_sensor(temperature_config)
-        cg.add(var.set_temperature_sensor(sens))
+    sensors = sensor.sub_sensors(config)
+    await sensors(CONF_TEMPERATURE, var.set_temperature_sensor)
+    await sensors(CONF_HUMIDITY, var.set_humidity_sensor)
 ```
+
+`sensor.sub_sensors(config)` binds the configuration once. Each call with a key and a setter creates the sensor
+whenever `key` is present in the configuration and passes it to `setter`. It returns the new sensor, or `None` only
+when the key is absent, so the result can be used directly as a condition when a configured sensor needs more setup.
+Always write the setter out at the call site as shown. Do not build its name with `getattr` and an f-string: an
+explicit setter can be found with a search, reviewers can see it, and any setter name works.
+
+The same helper exists for every entity type that has a `SUB_*` macro: `binary_sensor.sub_binary_sensors()`,
+`text_sensor.sub_text_sensors()`, `button.sub_buttons()`, `switch.sub_switches()`, `number.sub_numbers()` and
+`select.sub_selects()`, and also `text.sub_texts()`, though text has no `SUB_*` macro. Entities that call back into their hub derive from `Parented<T>`; bind the hub with
+`parent=` and it is set on each entity before the setter runs. Extra arguments for the entity, such as
+`min_value` for a number or `options` for a select, go on each call. These helpers were added in ESPHome 2026.10.0;
+older code writes each entity as an `if` block around `new_sensor()` and `cg.add()`.
 
 On the C++ side, your component holds a pointer per reading and publishes to whichever ones the user configured. Rather
 than writing those members and setters out by hand, use the `SUB_SENSOR(name)` macro from `sensor.h`, which generates a
@@ -260,15 +344,71 @@ class MyComponent final : public PollingComponent {
 };
 
 void MyComponent::update() {
-  // Always null-check: the user may have configured only one of them.
-  if (this->temperature_sensor_ != nullptr) {
-    this->temperature_sensor_->publish_state(this->read_temperature_());
-  }
-  if (this->humidity_sensor_ != nullptr) {
-    this->humidity_sensor_->publish_state(this->read_humidity_());
-  }
+  PUBLISH_STATE(this->temperature_sensor_, this->read_temperature_());
+  PUBLISH_STATE(this->humidity_sensor_, this->read_humidity_());
 }
 ```
+
+The user may have configured only some of the sensors, so every publish needs a null check.
+`PUBLISH_STATE(entity, ...)` from `esphome/core/entity_base.h` does that check: it calls `entity->publish_state(...)`
+only when `entity` is set, and it evaluates the arguments only in that case, so `this->read_temperature_()` above does
+not run when no temperature sensor is configured. It works for every entity type with `publish_state()` (binary
+sensors, text sensors, switches, numbers, selects, ...), and passes several arguments through, for example
+`PUBLISH_STATE(this->version_text_sensor_, buf, len)`. `PUBLISH_STATE` was added in ESPHome 2026.11.0; older code
+writes the `if (this->x_sensor_ != nullptr)` check by hand.
+
+#### Skipping repeated values
+
+A device that streams frames many times a second, such as a presence radar, mostly repeats the last value. Publishing
+each one runs the filters and sends an update for nothing. Declare such a sensor with `SUB_SENSOR_WITH_DEDUP(name, type)`
+from `sensor_with_dedup.h` instead of `SUB_SENSOR(name)`. It keeps the last published value next to the pointer and
+skips a value equal to it:
+
+```cpp
+#include "esphome/components/sensor/sensor_with_dedup.h"
+
+class LD2412Component final : public Component, public uart::UARTDevice {
+  SUB_SENSOR_WITH_DEDUP(light, uint8_t)
+  SUB_SENSOR_WITH_DEDUP(detection_distance, int)
+  ...
+};
+
+// No null check needed: nothing is published when the sensor is not configured
+this->detection_distance_sensor_.publish_state_if_not_dup(new_detect_distance);
+```
+
+The repeats are skipped before the user's filters run, so filters only see changes. Keep `SUB_SENSOR` when a filter
+needs every sample: after a `throttle` drops a change, the following equal values never reach it and the state stays
+stale, and a `timeout` filter reports the sensor as unknown even while equal frames keep arriving.
+
+The member `name##_sensor_` is a `sensor::SensorWithDedup<type>`, and the setter is the same `set_##name##_sensor()`,
+so the Python side does not change. Choose `type` as the type of the raw reading, so the comparison is exact and the
+stored value is small. `publish_state_unknown()` publishes `NAN`; calling it again before a real value arrives does
+nothing. `has_sensor()` tells whether the sensor is configured, and `get_sensor()` returns the `sensor::Sensor *`. In
+`dump_config()` use `LOG_SENSOR_WITH_DEDUP(prefix, type, member)` in place of `LOG_SENSOR`. A `SensorWithDedup` can
+also be used directly, for example in a `std::array` of per-target sensors. `SensorWithDedup` was added in ESPHome
+2026.11.0.
+
+#### Publishing optional readings
+
+A parser that fills a struct of `optional` fields, one per reading it found in a packet, publishes each field only
+when it has a value and the entity is configured. `publish_optional()` from `esphome/core/entity_base.h` does both
+checks, in one call per field. It works for any entity with a matching `publish_state()`, such as a binary sensor
+with an `optional<bool>` field:
+
+```cpp
+// Before
+if (res.temperature.has_value() && this->temperature_sensor_ != nullptr)
+  this->temperature_sensor_->publish_state(*res.temperature);
+
+// After
+publish_optional(this->temperature_sensor_, res.temperature);
+```
+
+It takes an entity pointer, such as a `SUB_SENSOR` or `SUB_BINARY_SENSOR` member. A `SUB_SENSOR_WITH_DEDUP` member is
+not a pointer and already skips an unset sensor, so check only the value:
+`if (res.temperature.has_value()) this->temperature_sensor_.publish_state_if_not_dup(*res.temperature);`. Keep the `if`
+when the value needs changing before it is published. `publish_optional` was added in ESPHome 2026.11.0.
 
 ### Choosing between them
 
@@ -288,6 +428,107 @@ new component with no hub, sub-configs are usually the smaller change.
 
 Equivalent `SUB_*` macros exist for the other entity types that are commonly exposed this way:
 `SUB_BINARY_SENSOR`, `SUB_BUTTON`, `SUB_NUMBER`, `SUB_SELECT`, `SUB_SWITCH` and `SUB_TEXT_SENSOR`.
+
+## Reading another sensor as an input
+
+Some components take another sensor as an input, such as the temperature and humidity a gas sensor uses for
+compensation. Read it with `sensor::source_value(sensor, min, max)` from `esphome/components/sensor/sensor.h`. It
+returns the sensor's state when it lies in `[min, max]`, and `NAN` when the pointer is null, the sensor has no state
+yet, its state is `NAN` or it is out of range. The caller decides how to handle `NAN` (skip the update or fall back
+to a default) and what to log.
+
+```cpp
+float humidity = sensor::source_value(this->humidity_sensor_, 0.0f, 100.0f);
+if (std::isnan(humidity))
+  humidity = 50;  // the chip's default
+```
+
+This helper was added in ESPHome 2026.11.0.
+
+## Filters that only compute a value
+
+A filter that keeps no state between values, such as `offset` or `multiply`, does not need its own C++ class. Register
+it on the domain's `APPLY_FILTER` (`sensor`, `binary_sensor` and `text_sensor` each define one in their `__init__.py`) and codegen emits one
+function per filter, with the config values built in. The filter object is then only the `Filter` base, and filters
+with identical constant settings share one function. A filter with a `!lambda` value always gets its own function, so
+any `static` state in the lambda stays separate:
+
+```python
+from esphome import automation
+import esphome.codegen as cg
+from esphome.components.sensor import APPLY_FILTER
+import esphome.config_validation as cv
+
+APPLY_FILTER.register(
+    "multiply",
+    cv.templatable(cv.float_),
+    automation.ApplyCall("return x * {};", ((automation.WHOLE_CONFIG, cg.float_),)),
+)
+```
+
+```cpp
+// generated for `multiply: 0.1`
+static std::optional<float> esphome__sensor_applyfilter_id__fn(float x) { return x * 0.1f; }
+```
+
+- Each `ApplyCall` is one statement whose `{}` take config values. A constant is built in, and a `!lambda` value
+  becomes its own function, so an id named like the filter's `x` still means that entity. `WHOLE_CONFIG` is the key for
+  a filter whose schema is a single value. A statement whose keys are all missing is skipped, except the last: the
+  function returns there, so code generation fails if it would be skipped.
+- The function receives `x` and returns what the domain's filters return: `optional<float>` for sensors,
+  `optional<bool>` for binary sensors (which also receive the filter, to schedule a delayed output), and `bool` after
+  changing `x` in place for text sensors.
+- When the statements depend on the shape of the config (a shorthand value or a mapping, for example), pick them in
+  the filter's `to_code` and call `await APPLY_FILTER.build(name, config, filter_id, *statements, schema=SCHEMA)`.
+  `schema` is the filter's config schema; it checks the statement keys, so a misspelled key is an error instead of
+  a skipped statement.
+- Keep a C++ filter class when the filter remembers anything between values (windows, throttling, the last value) or
+  uses the scheduler on its own.
+
+These helpers were added in ESPHome 2026.11.0.
+
+## Following another entity
+
+A sensor that only republishes what another entity or a hub reports needs no C++ class. Create a plain `sensor::Sensor`
+and subscribe it to the source with `sensor.follow_sensor(entity, source)`:
+
+```python
+CONFIG_SCHEMA = sensor.sensor_schema(sensor.Sensor).extend(
+    {
+        cv.Required(CONF_SOURCE_ID): cv.use_id(sensor.Sensor),
+    }
+)
+
+
+async def to_code(config):
+    var = await sensor.new_sensor(config)
+    sensor.follow_sensor(var, await cg.get_variable(config[CONF_SOURCE_ID]))
+```
+
+The generated code registers a lambda that captures nothing on the source's `add_on_state_callback`, so the callback
+is stored inline and the entity keeps no source pointer, no `Component` part and no slot in the component list. The
+callback is registered before any `setup()` runs, so the entity sees every state the source publishes, including the
+first. Any source with the same `float` state callback works, such as a `number::Number`;
+`text_sensor.follow_text_sensor()` does the same for text sensors and any source with a `const std::string &` state
+callback.
+
+For a hub or a source with a different callback, describe the callback with `FollowEntity` from
+`esphome.core.entity_helpers`: the method name, its parameters and the value to publish. Arguments after the source
+are passed before the callback:
+
+```python
+from esphome.core.entity_helpers import FollowEntity
+
+_FOLLOW_DATAPOINT = FollowEntity("register_listener", ((cg.uint16, "x"),), "x * 0.1f")
+_FOLLOW_DATAPOINT(var, hub, config[CONF_DATAPOINT])
+# With datapoint: 7
+# hub->register_listener(7, [](uint16_t x) -> void { ::var->publish_state(x * 0.1f); });
+```
+
+Keep a C++ class when the entity has to act in `setup()`. A state the source already holds before `setup()` runs
+reaches no callback, so copying it needs a `setup()` that runs after the entity's own automations are wired. A binary
+sensor deriving from `BinarySensorInitiallyOff` is one such source. These helpers were added in ESPHome
+2026.11.0.
 
 For everything else, the component implements the usual set of methods
 [as described here](/architecture/components/index#common-methods).

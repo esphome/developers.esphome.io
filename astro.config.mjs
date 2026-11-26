@@ -57,6 +57,7 @@ export default defineConfig({
         {
           label: "Contributing",
           items: [
+            "contributing/forks-and-pull-requests",
             "contributing/development-environment",
             "contributing/submitting-your-work",
             {
@@ -77,18 +78,32 @@ export default defineConfig({
                 {
                   label: "Common hardware interfaces",
                   items: [
+                    "architecture/components/bluetooth",
+                    "architecture/components/canbus",
                     "architecture/components/gpio",
                     "architecture/components/i2c",
+                    "architecture/components/remote_base",
                     "architecture/components/spi",
                     "architecture/components/uart",
+                    "architecture/components/usb_host",
                   ],
                 },
                 "architecture/components/automations",
-                "architecture/components/ethernet",
                 "architecture/components/socket_consumption_api",
+                "architecture/components/wifi",
+                "architecture/components/esp32_tls",
+                "architecture/components/esp32_rmt",
                 "architecture/components/ipv4_allow",
                 "architecture/components/tcp_client_link",
                 "architecture/components/tcp_listener",
+                "architecture/components/web_server_idf",
+                "architecture/components/mdns",
+                "architecture/components/ethernet",
+                "architecture/components/sendspin",
+                "architecture/components/runtime_image",
+                "architecture/components/deep_sleep",
+                "architecture/components/sx126x",
+                "architecture/components/sx127x",
                 "architecture/components/advanced",
                 {
                   label: "Entity base classes",
@@ -105,6 +120,8 @@ export default defineConfig({
                     "architecture/components/light",
                     "architecture/components/lock",
                     "architecture/components/media_player",
+                    "architecture/components/microphone",
+                    "architecture/components/motion",
                     "architecture/components/number",
                     "architecture/components/output",
                     "architecture/components/select",
@@ -124,7 +141,10 @@ export default defineConfig({
               label: "API",
               items: ["architecture/api", "architecture/api/protocol_details"],
             },
-            "architecture/logging",
+            {
+              label: "Logging",
+              items: ["architecture/logging/overview", "architecture/logging/best_practices"],
+            },
             {
               label: "CI",
               items: ["architecture/ci", "architecture/ci/component_tests"],

@@ -1,18 +1,58 @@
 ---
-title: "Ethernet Lifecycle"
-description: "Coordinate ESP32 Ethernet driver shutdown, PHY operations and asynchronous restart."
+title: "Ethernet Connection State"
 ---
+
+A component can be told when the Ethernet interface connects or disconnects, instead of polling `is_connected()`.
+The listeners are a [`SLOT_LIST`](/contributing/code/#stl-container-guidelines): with none registered, they take no
+space.
+
+## Python
+
+Register the component in `to_code`:
+
+```python
+import esphome.codegen as cg
+from esphome.components import ethernet
+from esphome.const import CONF_ID
+
+DEPENDENCIES = ["ethernet"]
+
+
+async def to_code(config):
+    var = cg.new_Pvariable(config[CONF_ID])
+    await cg.register_component(var, config)
+    await ethernet.register_connect_state_listener(var)
+```
+
+## C++
+
+```cpp
+#include "esphome/components/ethernet/ethernet_component.h"
+
+class MyComponent : public Component, public ethernet::EthernetConnectStateListener {
+ public:
+  void on_ethernet_connect_state(bool connected) override {
+    // On the main loop; is_connected() already returns the new state
+  }
+};
+```
+
+`on_ethernet_connect_state()` is called with the `on_connect` and `on_disconnect` triggers: `true` once the link is up
+with an address, `false` when it is lost or, on ESP32, `ethernet.disable` stops it. On RP2040 `ethernet.disable` has no
+effect, so it sends no callback.
+
+## Driver Lifecycle (ESP32)
 
 `ethernet::EthernetComponent` provides `enable()`, `disable()`, `is_enabled()`, `is_disabled()` and
 `is_connected()`. Include `esphome/components/ethernet/ethernet_component.h` to use these methods.
-The stop acknowledgement described below, including `is_driver_stopped()`, is available only under
-`USE_ESP32` and was introduced by [esphome#19734](https://github.com/esphome/esphome/pull/19734).
+The stop acknowledgement described below, including `is_driver_stopped()`, is specific to
+`USE_ESP32` and depends on the implementation in [esphome#19734](https://github.com/esphome/esphome/pull/19734).
 
 Call lifecycle methods and inspect their status from the ESPHome main loop. The driver's event task
 publishes the STOP acknowledgement through an atomic release/acquire operation; this does not make
 all component methods or state safe to access from arbitrary tasks or interrupts.
 
-## Disabled Versus Stopped
+### Disabled Versus Stopped
 
 `disable()` requests a driver stop. On ESP32, if `esp_eth_stop()` succeeds, `is_disabled()` becomes
 `true` immediately. Delivery of `ETHERNET_EVENT_STOP` is asynchronous, so this does not yet confirm
@@ -49,7 +89,7 @@ If the helper returns `false`, defer the PHY operation and retry on a later iter
 for the STOP event. Once it returns `true`, complete the PHY operation before requesting `enable()`.
 Stop calling the helper after advancing to the next phase; each `disable()` cancels a pending enable.
 
-## Deferred Enable
+### Deferred Enable
 
 Calling `enable()` while a successful stop is waiting for STOP delivery records a pending enable.
 The main loop performs the restart after the acknowledgement arrives. The event handler does not
@@ -60,7 +100,7 @@ A sequence of `disable(); enable();` therefore schedules a restart, but `is_enab
 after `enable()` is not proof that the restart has completed. Connectivity requires a separate check
 of `is_connected()`.
 
-## Failure Handling
+### Failure Handling
 
 If `esp_eth_stop()` fails, `disable()` leaves the component's enabled/disabled status unchanged and
 does not claim a confirmed stop. Do not infer that the driver is safe for PHY operations from an

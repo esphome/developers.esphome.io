@@ -104,6 +104,10 @@ through the user-configured [filter chain](https://esphome.io/components/text_se
 (uppercasing, substitution, mapping, etc.), stores the final result in the `state` member and notifies all
 front-ends. Publish the raw, unfiltered value - the filters the user configured in YAML are applied for you.
 
+A parser that reads optional values, such as a BLE advertisement parser, can publish them with
+[`publish_optional()`](/architecture/components/sensor#publishing-optional-readings), which skips an unset value or an
+unconfigured entity.
+
 ### Useful members
 
 - `state`: the most recent published (filtered) value.
@@ -111,6 +115,24 @@ front-ends. Publish the raw, unfiltered value - the filters the user configured 
 - `get_raw_state()`: the pre-filter value, when a filter chain is configured.
 - `LOG_TEXT_SENSOR(prefix, type, obj)`: a convenience macro for `dump_config()` that logs the text sensor's name in
   the standard format.
+
+## Publishing past the filters
+
+To publish a value of one of its own text sensors past the filters, for example to clear it at once, a component calls
+`publish_state_unfiltered()` instead of `publish_state()` (ESPHome 2026.12.0 and later, esphome/esphome#23270):
+
+```cpp
+sensor->publish_state_unfiltered("");
+```
+
+The value becomes both the raw and the filtered state. It covers only that one value, and the filters keep their own
+state, such as the time a `throttle` last let a value through.
+
+`reapply_filters()` runs the raw state through the filters again without calling the raw state callbacks, so a value
+last published past the filters gets its filtered form. The filters apply their current state, so a throttle can still
+drop it and a timeout can delay it. The
+[`ld2450`](https://github.com/esphome/esphome/tree/dev/esphome/components/ld2450) `xy_unfiltered` button calls
+`publish_state_unfiltered()` for every position for a while, then `reapply_filters()`.
 
 ## Exposing multiple text sensors from one component
 
@@ -171,6 +193,14 @@ class MyComponent final : public Component {
 // this->firmware_version_text_sensor_->publish_state(version); once null-checked
 ```
 
+In `to_code`, create each configured text sensor and pass it to its setter with `text_sensor.sub_text_sensors()`:
+
+```python
+text_sensors = text_sensor.sub_text_sensors(config)
+await text_sensors(CONF_FIRMWARE_VERSION, var.set_firmware_version_text_sensor)
+await text_sensors(CONF_SERIAL_NUMBER, var.set_serial_number_text_sensor)
+```
+
 See [Exposing multiple sensors from one component](/architecture/components/sensor#exposing-multiple-sensors-from-one-component)
 for a fully worked example of both patterns.
 
@@ -189,6 +219,14 @@ and its strings, so let the hardware decide:
   different strings need different C++ classes or update strategies.
 
 If both descriptions fit your device equally well, follow whichever pattern the surrounding component already uses.
+
+## Following another entity
+
+A text sensor that only republishes another entity's string needs no C++ class: create a plain
+`text_sensor::TextSensor` and call `text_sensor.follow_text_sensor(entity, source)`. It works with any source whose
+state callback takes a `const std::string &`, such as a `text::Text`. See
+[following another entity](/architecture/components/sensor#following-another-entity) for how it works and for
+`FollowEntity`.
 
 For everything else, the component implements the usual set of methods
 [as described here](/architecture/components/index#common-methods).

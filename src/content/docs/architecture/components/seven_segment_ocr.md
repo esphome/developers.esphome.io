@@ -62,10 +62,10 @@ crop make it false instead of publishing a shifted reading.
 
 1. Threshold the image.
 2. Count the lit pixels of every column.
-3. Group consecutive columns with more than 1/40 of the height (at least 1 pixel) lit into digit
-   runs. Runs narrower than the larger of 2 pixels and a thirtieth of the height, or whose tallest
-   column is under a third of the height, are ignored as noise or marks such as decimal points and
-   signs.
+3. Group consecutive columns with more lit pixels than `height / 40` (rounded down, at least 1) into
+   digit runs. Runs narrower than `height / 30` pixels (rounded down, at least 2), or whose tallest
+   column has fewer than `height / 3` (rounded down) lit pixels, are ignored as noise or marks such
+   as decimal points and signs.
 4. Sample seven segment positions per run, each through a 3x3 window. The side probes use the strongest column of the
    left and right half, so the vertical strokes can sit at the run edges or inset.
 5. Look the resulting seven-bit mask up in the digit table.

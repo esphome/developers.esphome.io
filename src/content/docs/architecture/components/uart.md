@@ -410,22 +410,31 @@ the largest frame the component accepts; a longer length is not a frame. The len
 | `FrameFixedLength<LEN>` | none: the frame always has `LEN` bytes |
 
 In `LengthField{.offset = 4, .trailer = 4}`, `offset` is where the length field starts, counted from the first header
-byte, and `trailer` is the bytes after the payload, such as a checksum or footer (0 when left out). An optional third
-argument to `FrameFormat`, `FrameMinLength<LEN>` (as in `FrameFormat<FrameHeader<...>, PayloadLength,
-FrameMinLength<10>>`), sets the shortest frame, so a shorter length is rejected at the length field and the handler can
-index the frame freely. `CheckedLength<RULE, AT, check>` runs `bool check(const uint8_t *buf)` once `AT` bytes are in
-and rejects the header when it fails, for a header checksum, an unknown type or a too long frame:
+byte, and `trailer` is the bytes after the payload, such as a checksum or footer (0 when left out). When other bytes sit
+between the length field and the payload, `payload_at` says where the payload starts (right after the field when left
+out). A payload rule's `PAYLOAD_AT` constant gives that position, for the handler.
+
+After the length rule, a `FrameFormat` takes any of these options, in any order:
+
+| Option | Effect |
+| --- | --- |
+| `FrameMinLength<LEN>` | the shortest frame, so a shorter length is rejected at the length field and the handler can index the frame freely |
+| `CheckFirstBytes<BYTES, check>` | runs `bool check(const uint8_t *frame)` once the first `BYTES` bytes are in and rejects the header when it fails, for a header checksum or an unknown type |
+| `WarnIfLongerThan<MAX, warn>` | calls `void warn(size_t len)` and rejects a frame longer than `MAX`, for a warning that names the cause |
+
+A failed check never warns. Name the length rule and the format with `using`, so each line holds one part and the
+reader member stays on one line:
 
 ```cpp
 // tuya_uart.h: 55 AA, version, command, payload length (2, BE), payload, checksum
 using TuyaLength = PayloadLengthU16BE<LengthField{.offset = 4, .trailer = 1}>;
-bool frame_fits(const uint8_t *buf);  // logs and returns false for a frame longer than the buffer
-using TuyaFrame = FrameFormat<FrameHeader<0x55, 0xAA>, CheckedLength<TuyaLength, TuyaLength::KNOWN_AT, frame_fits>>;
+void warn_too_long(size_t len);
+using TuyaFrame = FrameFormat<FrameHeader<0x55, 0xAA>, TuyaLength, WarnIfLongerThan<MAX_FRAME_SIZE, warn_too_long>>;
+LengthFrameReader<MAX_FRAME_SIZE, TuyaFrame> reader_;
 ```
 
-`WarnIfLonger<RULE, MAX, warn>` calls `void warn(size_t len)` and rejects a frame longer than `MAX`, for a warning that
-names the cause. A component can also pass its own rule with a `KNOWN_AT` constant (the bytes needed before the length
-is known) and a static `get(buf)` returning the whole frame length, or 0 to reject the header.
+A component can also pass its own length rule with a `KNOWN_AT` constant (the bytes needed before the length is known)
+and a static `get(buf)` returning the whole frame length, or 0 to reject the header.
 
 A reader can take several formats when their first header bytes differ, such as the command and data frames of the
 LD24xx radars. The first byte picks the format, and all of this is resolved at compile time, so no table is placed in

@@ -20,18 +20,25 @@ Create one instance, call `reserve()` once with the widest crop that `recognize(
 ```cpp
 #include "esphome/components/seven_segment_ocr/seven_segment_ocr.h"
 
-seven_segment_ocr::SevenSegmentOCR ocr;
+class MeterReader : public Component {
+ public:
+  void setup() override {
+    if (!this->ocr_.reserve(CROP_WIDTH))
+      this->mark_failed(LOG_STR("Could not allocate the OCR column projection"));
+  }
 
-void setup() {
-  if (!ocr.reserve(crop_width))
-    this->mark_failed(LOG_STR("Could not allocate the OCR column projection"));
-}
+ protected:
+  // Call this once the consumer has copied a new frame into crop_.
+  void process_crop_() {
+    const auto result = this->ocr_.recognize(this->crop_, CROP_WIDTH, CROP_HEIGHT, DIGIT_COUNT);
+    if (result.complete())
+      this->value_sensor_->publish_state(result.value);
+  }
 
-void loop() {
-  seven_segment_ocr::OcrResult result = ocr.recognize(crop, crop_width, crop_height, digit_count);
-  if (result.complete())
-    value_sensor->publish_state(result.value);
-}
+  seven_segment_ocr::SevenSegmentOCR ocr_;
+  uint8_t *crop_{nullptr};
+  sensor::Sensor *value_sensor_{nullptr};
+};
 ```
 
 `recognize()` modifies the image in place, so pass a buffer that the consumer owns. Pixels above `threshold_level`
@@ -55,9 +62,10 @@ crop make it false instead of publishing a shifted reading.
 
 1. Threshold the image.
 2. Count the lit pixels of every column.
-3. Group consecutive columns with more than 5% of the height lit into digit runs. Runs narrower than the larger of
-   2 pixels and a thirtieth of the height, or whose tallest column is under a third of the height, are ignored as
-   noise or marks such as decimal points and signs.
+3. Group consecutive columns with more than 1/40 of the height (at least 1 pixel) lit into digit
+   runs. Runs narrower than the larger of 2 pixels and a thirtieth of the height, or whose tallest
+   column is under a third of the height, are ignored as noise or marks such as decimal points and
+   signs.
 4. Sample seven segment positions per run, each through a 3x3 window. The side probes use the strongest column of the
    left and right half, so the vertical strokes can sit at the run edges or inset.
 5. Look the resulting seven-bit mask up in the digit table.
@@ -73,6 +81,6 @@ The segment positions and digit masks are constant tables in flash.
 ## Tests
 
 The component has host unit tests in `tests/components/seven_segment_ocr/`. Run them with
-`script/cpp_unit_test.py seven_segment_ocr`. They render every digit at two scales and check the value and confidence,
-the narrow one-bar digit, edge and inset strokes, a decimal point, extra digits, unknown segment masks, a half-height
-bar, missing digits, a value that would overflow, the threshold, and the bad-input guards.
+`script/cpp_unit_test.py seven_segment_ocr`. They render every digit at two scales and cover the
+confidence, the narrow one-bar digit, edge and inset strokes, a decimal point, extra digits, unknown segment masks,
+a half-height bar, missing digits, a value that would overflow, the threshold, and the bad-input guards.

@@ -60,6 +60,7 @@ See [Entity Preferences: Use make_entity_preference() Instead of get_preference_
 ## Timeline
 
 - **ESPHome 2026.12.0 (December 2026):** `get_entity_key()` available, `get_object_id_hash()` deprecated
+- **ESPHome 2027.1.0 (January 2027):** `get_preference_hash()` removed, as announced in February
 - **ESPHome 2027.6.0 (June 2027):** `get_object_id_hash()` removed
 
 ## Finding Code That Needs Updates

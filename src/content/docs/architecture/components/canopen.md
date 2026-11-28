@@ -223,10 +223,12 @@ The object dictionary is available in ESPHome 2026.12.0 and later (esphome/espho
 ### OD handlers
 
 By default an SDO access reads or writes the entry's storage. To run code instead, for example to act on a written
-command or to generate a value when it is read, attach a handler with `get_od().set_object(index, handler)` after
-adding the entry. The handler derives from `canopen::OdObject` and defines `od_read()` and/or `od_write()` with the
-signatures below; they aren't virtual, the hub calls the handler type's own functions. What a handler doesn't define
-reads or writes the entry's storage.
+command or to generate a value when it is read, attach a handler with `get_od().set_object(index, handler)` before
+the hub's `setup()`, before or after adding the entry: the hub attaches the handlers when it builds the OD. An entry
+has at most one handler; a handler for an index that doesn't exist, or a second handler for one, fails the hub's setup,
+as adding an index twice does. The handler derives from `canopen::OdObject` and defines `od_read()` and/or
+`od_write()` with the signatures below; they aren't virtual, the hub calls the handler type's own functions. What a
+handler doesn't define reads or writes the entry's storage.
 
 ```cpp
 #include "esphome/components/canopen/canopen.h"

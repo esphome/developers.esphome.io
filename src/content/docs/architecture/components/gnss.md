@@ -45,8 +45,10 @@ async def to_code(config):
 ## C++
 
 Derive from `gnss::GNSSComponent`. Read the receiver, write each new value into `this->data_`, and call
-`this->publish_fix_()` once a new solution is complete. Leave values the receiver doesn't report as they are: unset
-floats are `NAN`, `satellites` and `utc` are `0`.
+`this->publish_fix_()` once a new solution is complete. `GNSSData` holds integers scaled by a power of ten (a name
+ending in `eN` is the value times 10^N), and a `gnss::GNSSField` bit for each value: set it in `updated` for each
+value the solution carries and in `valid` for each value that is still good. The sensors publish `NAN` for a field
+without its `valid` bit.
 
 ```cpp
 class MyReceiver final : public gnss::GNSSComponent, public uart::UARTDevice {
@@ -57,21 +59,28 @@ class MyReceiver final : public gnss::GNSSComponent, public uart::UARTDevice {
 void MyReceiver::loop() {
   // parse what has arrived
   if (/* a solution is complete */) {
-    this->data_.latitude = lat;    // degrees, double
-    this->data_.longitude = lon;   // degrees, double
-    this->data_.altitude = alt;    // m above mean sea level
-    this->data_.speed = speed;     // km/h
-    this->data_.course = course;   // degrees from true north
-    this->data_.hdop = hdop;
-    this->data_.satellites = sats;
+    auto &d = this->data_;
+    d.updated = 0;
+    d.latitude_e7 = lat_e7;    // degrees times 10^7, north positive
+    d.longitude_e7 = lon_e7;   // degrees times 10^7, east positive
+    d.altitude_e3 = alt_mm;    // m above mean sea level times 1000
+    d.updated |= gnss::GNSS_FIELD_LOCATION | gnss::GNSS_FIELD_ALTITUDE;
+    d.satellites = sats;
+    d.updated |= gnss::GNSS_FIELD_SATELLITES;
     if (/* the receiver's UTC is valid */) {
-      this->data_.utc = timestamp;  // UTC seconds of the solution
-      this->data_.utc_millis = millis_64();
+      d.year = year;  // and month, day, hour, minute, second
+      d.utc = timestamp;  // UTC seconds of the solution
+      d.utc_millis = millis_64();
+      d.updated |= gnss::GNSS_FIELD_TIME | gnss::GNSS_FIELD_DATE;
     }
+    d.valid |= d.updated;
     this->publish_fix_();
   }
 }
 ```
+
+When the receiver reports that it has no fix, either keep the last position (`nmea` does, like most receivers'
+NMEA output) or clear its bits from `valid` so the sensors show no value.
 
 `GNSSComponent::update()` publishes the latest `data_` to the sensors. If your platform overrides `update()`, call
 `GNSSComponent::update()` from it.
@@ -103,6 +112,7 @@ async def to_code(config):
 ## Moving from `gps`
 
 The `gps` component is deprecated and will be removed in 2027.6.0. `gps::GPSListener` and its
-`on_update(TinyGPSPlus &)` have no replacement in `gnss`: add a `FIX_PUBLISHER` item as shown above and read
-`GNSSData` instead of TinyGPS++. A lambda that used `id(my_gps).get_tiny_gps()` can call `get_tiny_gps()` on the
-`nmea` platform.
+`on_update(const GPSData &)` have no replacement in `gnss`: add a `FIX_PUBLISHER` item as shown above and read
+`GNSSData` instead. The NMEA parser that `gps` uses moved to `nmea/nmea_parser.h` and fills `GNSSData`; `gps` keeps
+`GPSData` and `GPS_FIELD_*` as aliases of `gnss::GNSSData` and `gnss::GNSS_FIELD_*` until it is removed. A lambda
+calls `get_data()` on the `nmea` receiver instead of `get_tiny_gps()`.

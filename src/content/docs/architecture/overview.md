@@ -241,11 +241,14 @@ Finally, your component must have a `dump_config` method that prints the complet
 ### Threading
 
 `setup()`, `loop()`, `update()`, scheduler callbacks and automations all run on the main loop, one at a time.
-Entities, their traits and their `*Call` objects (`FanCall`, `NumberCall` and so on) are not thread-safe and belong to
-that loop: build and perform a call there, and treat options such as a fan's preset modes or a select's options as
-fixed once setup is done. Code on another task hands its work to the main loop with `defer()`, and an interrupt handler
-uses `enable_loop_soon_any_context()`; neither touches an entity directly. Component code therefore needs no locks or
-revalidation against an entity changing while a call is built or performed.
+Entities and their traits are not thread-safe and belong to that loop, and options such as a fan's preset modes or a
+select's options are fixed once setup is done. Code on another task hands its change to the main loop with `defer()`,
+and an interrupt handler uses `enable_loop_soon_any_context()`.
+
+The web server is the model to follow. On ESP-IDF its request handlers run on the HTTP server's task: a handler fills a
+`*Call` (`FanCall`, `NumberCall` and so on), which is a plain value, and defers `call.perform()`, so the entity only
+changes on the main loop. Component code therefore needs no locks or revalidation against an entity changing under a
+pending call.
 
 ## Further reading
 

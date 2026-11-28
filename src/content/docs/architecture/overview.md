@@ -240,11 +240,14 @@ Finally, your component must have a `dump_config` method that prints the complet
 
 ### Threading
 
-`setup()`, `loop()`, `update()`, scheduler callbacks and automations all run on the main loop, one at a time.
-Entities and their traits are not thread-safe and belong to that loop. Options such as a fan's preset modes or a
-select's options are usually set during setup, and when they change later (a Home Assistant select receiving new
-options, for example) that happens on the loop too. Code outside the loop, on another task or in a network callback,
-hands its change to the main loop with `defer()`, and an interrupt handler uses `enable_loop_soon_any_context()`.
+Almost everything runs only on the main loop, one thing at a time: `setup()`, `loop()`, `update()`, scheduler
+callbacks, automations, and every entity and its traits, none of which is thread-safe. The scheduler is how code
+outside the loop gets work onto it, and a component's `setup()` or `loop()` is never called from outside the loop.
+
+Options such as a fan's preset modes or a select's options are usually set during setup, and when they change later (a
+Home Assistant select receiving new options, for example) that happens on the loop too. Code outside the loop, on
+another task or in a network callback, hands its change to the main loop through the scheduler with `defer()`, and an
+interrupt handler uses `enable_loop_soon_any_context()`.
 
 The web server is the model to follow. Its request handlers run outside the main loop on every platform: on the ESP-IDF
 HTTP server's task on ESP32, and from the async TCP library's task or network callbacks on ESP8266, RP2040 and

@@ -252,9 +252,11 @@ interrupt handler uses `enable_loop_soon_any_context()`.
 The web server is the model to follow. Its request handlers run outside the main loop on every platform: on the ESP-IDF
 HTTP server's task on ESP32, and from the async TCP library's task or network callbacks on ESP8266, RP2040 and
 LibreTiny. A handler fills a `*Call` (`FanCall`, `NumberCall` and so on), which is a plain value, and defers
-`call.perform()`, so the entity only changes on the main loop. Component code therefore needs no locks, revalidation
-or bounds checks against an entity changing under a pending call, whether from another task or from a callback that
-runs inside `perform()`.
+`call.perform()`, so the entity only changes on the main loop. Filling the call only reads the entity's options off the
+loop, which is accepted because only the loop changes them. Component code therefore needs no locks or revalidation
+against an entity changing under a pending call, whether from another task or from a callback that runs inside
+`perform()`. The one exception: a call that stores an index into options a runtime setter can replace (such as
+`Fan::set_supported_preset_modes()`) checks the index where `perform()` applies it.
 
 ## Further reading
 

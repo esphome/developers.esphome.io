@@ -104,6 +104,7 @@ export default defineConfig({
                 "architecture/components/deep_sleep",
                 "architecture/components/sx126x",
                 "architecture/components/sx127x",
+                "architecture/components/gps",
                 "architecture/components/advanced",
                 {
                   label: "Entity base classes",

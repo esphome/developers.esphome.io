@@ -243,8 +243,9 @@ Finally, your component must have a `dump_config` method that prints the complet
 Almost everything runs only on the main loop, one thing at a time: `setup()`, `loop()`, `update()`, scheduler
 callbacks, automations, and every entity and its traits, none of which is thread-safe. The scheduler is how code on
 another task or in a network callback gets work onto the loop, and a component's `setup()` or `loop()` is never called
-from outside the loop. The scheduler is not interrupt-safe, so an interrupt handler records the work and calls
-`enable_loop_soon_any_context()`, and the component does the work in `loop()`.
+from outside the loop. RP2's lwIP callbacks run in a low-priority interrupt that the scheduler supports, so they use
+`defer()` like any other network callback. A hardware interrupt handler (ISR) must not call the scheduler: it records
+the work and calls `enable_loop_soon_any_context()`, and the component does the work in `loop()`.
 
 Options such as a fan's preset modes or a select's options are usually set during setup, and when they change later (a
 Home Assistant select receiving new options, for example) that happens on the loop too. Code on another task or in a

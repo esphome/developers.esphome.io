@@ -51,6 +51,13 @@ errors; they look like this:
 You can click the "Details" link to the right of each check to see the logs for that check. If a red ❌ appears next to
 any given check, *you'll need to view that check's logs and make the suggested changes so that the test will pass.*
 
+If a check failed because of a temporary problem outside your PR, such as a timeout while downloading a package,
+comment `/rerun-failed` in the PR's conversation, with nothing else in the comment. It re-runs only the failed jobs
+of the newest run of the `CI` workflow for your latest commit, up to its third attempt, and works for the PR author and anyone
+with write access. The re-run builds the same merge with `dev` as before, so it does not help when `dev` itself was
+broken. A 🚀 reaction means the jobs started again, 👀 that CI is still running, and 😕 that nothing was re-run. A red
+`codecov/patch` is not a failed job: it reports missing test coverage, which a re-run does not change.
+
 #### Implementing Feedback from Automated Checks
 
 Occasionally, an automated check may suggest a change that either isn't directly related to your PR or that may require

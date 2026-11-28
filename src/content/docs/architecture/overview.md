@@ -238,6 +238,28 @@ latest data from your component and publish them with the provided methods.
 
 Finally, your component must have a `dump_config` method that prints the complete user configuration.
 
+### Threading
+
+Almost everything runs only on the main loop, one thing at a time: `setup()`, `loop()`, `update()`, scheduler
+callbacks, automations, and every entity and its traits, none of which is thread-safe. The scheduler is how code on
+another task or in a network callback gets work onto the loop, and a component's `setup()` or `loop()` is never called
+from outside the loop. RP2's lwIP callbacks run in a low-priority interrupt that the scheduler supports, so they use
+`defer()` like any other network callback. A hardware interrupt handler (ISR) must not call the scheduler: it records
+the work and calls `enable_loop_soon_any_context()`, and the component does the work in `loop()`.
+
+Options such as a fan's preset modes or a select's options are usually set during setup, and when they change later (a
+Home Assistant select receiving new options, for example) that happens on the loop too. Code on another task or in a
+network callback hands its change to the main loop through the scheduler with `defer()`.
+
+The web server is the model to follow. Its request handlers run outside the main loop on every platform: on the ESP-IDF
+HTTP server's task on ESP32, and from the async TCP library's task or network callbacks on ESP8266, RP2040 and
+LibreTiny. A handler fills a `*Call` (`FanCall`, `NumberCall` and so on), which is a plain value, and defers
+`call.perform()`, so the entity only changes on the main loop. Filling the call only reads the entity off the loop (its
+options, or its current state for a toggle), which is accepted because only the loop changes it. Component code
+therefore needs no locks or revalidation against an entity changing under a pending call, whether from another task or
+from a callback that runs inside `perform()`. The one exception: a call that stores an index into options a runtime
+setter can replace (such as `Fan::set_supported_preset_modes()`) checks that index before `perform()` applies it.
+
 ## Further reading
 
 If you are preparing your code for [integration into ESPHome](/contributing/submitting-your-work), you'll need to

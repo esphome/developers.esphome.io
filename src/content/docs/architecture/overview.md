@@ -248,8 +248,8 @@ options, for example) that happens on the loop too. Code on another task hands i
 
 The web server is the model to follow. On ESP-IDF its request handlers run on the HTTP server's task: a handler fills a
 `*Call` (`FanCall`, `NumberCall` and so on), which is a plain value, and defers `call.perform()`, so the entity only
-changes on the main loop. Component code therefore needs no locks or revalidation against another task changing an
-entity.
+changes on the main loop. Component code therefore needs no locks, revalidation or bounds checks against an entity
+changing under a pending call, whether from another task or from a callback that runs inside `perform()`.
 
 ## Further reading
 

@@ -77,8 +77,10 @@ void MyReceiver::loop() {
     d.updated |= geolocation::GEOLOCATION_FIELD_SATELLITES;
     if (/* the receiver's UTC is valid */) {
       d.year = year;  // and month, day, hour, minute, second
-      d.utc = timestamp;  // UTC seconds of the solution
-      d.utc_millis = millis_64();
+#ifdef USE_GEOLOCATION_MILLISECOND
+      d.millisecond = ms;
+#endif
+      geolocation::set_utc(d, timestamp, millis_64());  // UTC seconds of the solution
       d.updated |= geolocation::GEOLOCATION_FIELD_TIME | geolocation::GEOLOCATION_FIELD_DATE;
     }
 #ifdef USE_GEOLOCATION_GEOID_SEPARATION
@@ -98,9 +100,10 @@ NMEA output) or clear its bits from `valid` so the sensors show no value.
 `GeolocationComponent::update()` publishes the latest `data_` to the sensors. If your platform overrides `update()`,
 call `GeolocationComponent::update()` from it.
 
-Set `utc` only when the receiver says its UTC is valid, and set `utc_millis` to `millis_64()` at the same time. The
-time source corrects `utc` by the time elapsed since `utc_millis`, so it doesn't matter that the clock is set later
-than the solution arrived. It ignores a `utc` older than 10 seconds, so a receiver that stops sending time leaves the
+Set `utc` with `set_utc()` only when the receiver says its UTC is valid, after the `millisecond` of the time. It sets
+`utc_millis` to `millis_64()` moved back by that millisecond, and the time source corrects `utc` by the time elapsed
+since `utc_millis`, so it doesn't matter that the clock is set later than the solution arrived. The time source
+requests `millisecond`, so a platform that knows the fraction of the second should fill it. It ignores a `utc` older than 10 seconds, so a receiver that stops sending time leaves the
 clock alone.
 
 ## Consumers

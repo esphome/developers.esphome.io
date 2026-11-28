@@ -102,6 +102,7 @@ export default defineConfig({
                 "architecture/components/sendspin",
                 "architecture/components/runtime_image",
                 "architecture/components/storage",
+                "architecture/components/filesystem",
                 "architecture/components/deep_sleep",
                 "architecture/components/sx126x",
                 "architecture/components/sx127x",

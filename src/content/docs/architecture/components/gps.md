@@ -37,8 +37,9 @@ the `gps::GPS *` from `cg.get_variable()` instead.
 
 ## Reading data
 
-`on_update()` is called from the `gps` component's `loop()` after each GGA or RMC sentence that passed its checksum.
-`data.updated` has the `GPSField` bits that sentence set, and `data.valid` has every bit set by any sentence so far:
+`on_update()` is called from the `gps` component's `loop()` after each GGA or RMC sentence that
+`parse_nmea_sentence()` accepts. `data.updated` has the `GPSField` bits that sentence set, and `data.valid` has every
+bit set by any sentence so far:
 
 ```cpp
 class MyTracker : public Component, public gps::GPSListener {
@@ -110,12 +111,12 @@ void MyTracker::loop() {
 `millisecond` is the fraction of the time, with digits past milliseconds dropped. It is 0 when the receiver sends whole
 seconds, which many do.
 
-`geoid_separation_e3` is the height of mean sea level above the WGS84 ellipsoid, from GGA field 11. Add it to
-`altitude_e3` for the height above the ellipsoid. Some receivers leave the field empty, and then
-`GPS_FIELD_GEOID_SEPARATION` is never set.
+`geoid_separation_e3` is the height of mean sea level above the WGS84 ellipsoid, negative where sea level is below
+it, from GGA field 11. Add it to `altitude_e3` for the height above the ellipsoid. Some receivers leave the field empty,
+and then `GPS_FIELD_GEOID_SEPARATION` is never set.
 
 ## Parsing without a UART
 
 `parse_nmea_sentence()` in `nmea.h` parses one line into a `GPSData`, for a component that gets NMEA by another route.
 It returns `false` and leaves the data unchanged for a sentence that is not GGA or RMC, has a bad checksum, or has a
-malformed field. The line is changed in place.
+malformed value in a field it reads. The line is changed in place.

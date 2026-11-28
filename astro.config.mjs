@@ -116,7 +116,7 @@ export default defineConfig({
                     "architecture/components/display",
                     "architecture/components/event",
                     "architecture/components/fan",
-                    "architecture/components/gnss",
+                    "architecture/components/geolocation",
                     "architecture/components/light",
                     "architecture/components/lock",
                     "architecture/components/media_player",

@@ -148,6 +148,73 @@ Next, there's a special method - `cg.add` - that you will often use. `cg.add()` 
 C++ declared in the parentheses of `cg.add()` will be added to the generated code. Note that, if you do not call
 "add" to insert a piece of code explicitly, it will not be added to the `main.cpp` file!
 
+### Generated functions
+
+`cg.static_function(name, return_type, parameters, body, add_global_=None)` emits
+`static <return_type> <name>(<parameters>) { <body> }` and returns an expression naming the function, for use as a
+template argument or a function pointer. The declaration goes with the other globals, so the function can be named at
+once; the body goes after the user includes, where every id is in scope. `body` is a list of C++ statements.
+
+```python
+fn = cg.static_function("esphome__my_script__fn", cg.void, [(cg.int32, "x")], ["ESP_LOGD(\"main\", \"x=%d\", x);"])
+```
+
+`add_global_` is a callable that takes the declaration statement in place of `cg.add_global`, for a declaration that
+must come before a global emitted earlier, such as `late.global_slot.add` for a `LatePvariable` (below).
+
+### Objects whose class is known later
+
+`cg.Pvariable` and `cg.new_Pvariable` need the object's class up front. Sometimes the class depends on code that is only
+generated afterwards, while that code must already refer to the object. A script, for example, is a `FunctionScript`
+templated on a generated function when all of its actions are inline (a queued one is a `FunctionPointerScript`
+given the function in its constructor), and otherwise the class of its mode (such as
+`SingleScript` or `QueueingScript`) with an `Automation`; which one is only known after its actions are built, and
+those actions can execute or stop the script itself.
+
+`cg.LatePvariable(id_)` registers the variable at once and reserves its place in the globals and in `setup()`:
+
+- `var` is the variable, used like the result of `cg.new_Pvariable` (method calls, `cg.get_variable()` elsewhere,
+  lambdas) before the class is known.
+- `id` is the ID; its `type` is the class so far, and the final one after `define()`.
+- `global_slot.add(statement)` puts a global declaration in its place. The place is filled in order and `define()`
+  adds the variable to it, so call `global_slot.add()` before `define()` for a declaration the variable needs.
+- `define(type_, *args)` creates it in its place as `type_`, the final class with any template arguments already
+  applied (`Final.template(cg.int32)`), passing `args` to its constructor.
+
+Abridged from the script component (esphome/esphome#22037, on the helpers of esphome/esphome#23309), where `template`
+holds the script's parameter types. `automation.plan_automation()` builds the actions first; `plan.direct` says whether
+every action is inline, and the caller then emits them either as one function (`plan.run_function()`) or as an
+`Automation` on the script (`plan.build()`):
+
+```python
+id_ = conf[CONF_ID].copy()
+id_.type = id_.type.template(template)  # e.g. script::SingleScript<int>
+late = cg.LatePvariable(id_)
+cg.add(late.var.set_name(cg.LogStringLiteral(id_.id)))
+...
+plan = await automation.plan_automation(func_args, conf)
+script_class = late.id.type  # actions that wait: keep the mode's class
+ctor_args = []
+if not plan.direct:
+    plan.build(late.var)
+else:
+    # The function is declared in the script's place, so the class can name it
+    fn = plan.run_function(late.var, late.global_slot.add)
+    # All inline, e.g. SingleMode<FunctionBody<int>, int>
+    mode_class = MODES[conf[CONF_MODE]][1].template(FunctionBody.template(template), *template)
+    if conf[CONF_MODE] == CONF_QUEUED:
+        # One class for all queued scripts, given fn as a constructor argument
+        script_class = FunctionPointerScript.template(mode_class, *template)
+        ctor_args = [fn]
+    else:
+        script_class = FunctionScript.template(mode_class, fn, *template)
+late.define(script_class, *ctor_args)
+```
+
+Use `cg.new_Pvariable` whenever the class is known when the object is created; use `cg.LatePvariable` only when it is
+not. Every `LatePvariable` must be defined, and code in `setup()` may only use its pointer, not the object, before its
+place there.
+
 ### Static buffers
 
 A buffer whose size comes from the configuration belongs in static memory (BSS), not on the heap.

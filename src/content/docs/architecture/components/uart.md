@@ -70,7 +70,7 @@ Arguments after `config` go to the constructor, for example `await uart.new_uart
 A component that is itself a UART but passes on the bytes of another UART has no baud rate, data bits, parity or stop
 bits of its own. Devices on it that require them would be rejected. `uart.inherit_settings(uart_id, source_id)` makes
 `final_validate_device_schema()` check those devices against the settings of the source UART instead, following every
-hop. No pins are checked on a forwarding UART: `require_tx` and `require_rx` apply to hardware UARTs only.
+hop. No pins are checked on a forwarding UART: `require_tx` and `require_rx` check the pins of hardware UARTs only.
 
 Call it from `CONFIG_SCHEMA`. `to_code` runs after final validation, so a call there is always too late. Final
 validation runs in YAML order, so a call from final validation can miss devices that were checked before it. `inherit_settings` is a plain function, not a coroutine:
@@ -103,6 +103,13 @@ CONFIG_SCHEMA = cv.All(
     _inherit_settings,
 )
 ```
+
+### Receive-Only UARTs
+
+A UART that drops what is written to it, such as a tap that only listens, passes its id to
+`uart.mark_receive_only(uart_id)`. `final_validate_device_schema()` then rejects a device on it that passes
+`require_tx=True`; devices that only receive are not affected. Call it from `CONFIG_SCHEMA`, like `inherit_settings()`.
+It is a plain function, not a coroutine.
 
 ## C++
 

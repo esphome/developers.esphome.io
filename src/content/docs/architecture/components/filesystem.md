@@ -61,6 +61,10 @@ class MyFs final : public filesystem::Filesystem {
 - The base class calls `fs_unmount()` after a media change with handles still open. It must drop them without writing
   to the media, which may now be a different card.
 - Read and write the media through `get_device()`; the block device checks ranges and feeds the watchdog.
+- Positions and sizes are `int32_t`, so a file holds at most 2 GiB - 1 bytes. A platform refuses to open a larger file
+  and fails a write that would grow a file past the limit.
+- The base class sets the setup priority to `setup_priority::HARDWARE - 1`, after the block device and before the
+  components that use files.
 
 `tests/components/filesystem/fake_fs.h` is a small filesystem in RAM that implements every hook.
 
@@ -87,12 +91,15 @@ The `max_open_files` and `max_open_dirs` options cover the user's lambdas. A com
 and closes it in the same call needs no reservation.
 
 In C++, `open()` returns a `File` and `open_dir()` a `Dir`. Both close when they go out of scope and can be moved.
-Check a handle with `if (file)`, and read the reason for a failure from `last_error()`. `fs_error_to_string()` gives
+Check a handle with `if (file)`, and read the reason for a failure from `last_error()`. A handle stops being open
+when the media it was opened on is unmounted or changed. `fs_error_to_string()` gives
 the name of an `FsError` for a log line.
 
 Handles opened on earlier media fail with `FS_ERROR_CLOSED` once the media changes, so a component that keeps a file
-open opens it again when a call fails that way. `on_shutdown()` closes every handle still open, so the data written
-reaches the media before a restart.
+open opens it again when `if (!file)` is true or a call fails that way. `on_shutdown()` closes every handle still open,
+so the data written reaches the media before a restart.
 
-Every call must come from the main loop. A call can take hundreds of milliseconds on an SD card, and `format()` or
-`space()` several seconds on a large one, so spread large transfers over several loop passes.
+Every call must come from the main loop. A call from a log callback while the filesystem mounts or formats returns
+`FS_ERROR_BUSY`, so it cannot change the filesystem in the middle of that operation. `unmount()` returns the first error
+from closing the open handles. A call can take hundreds of milliseconds on an SD card, and `format()` or `space()`
+several seconds on a large one, so spread large transfers over several loop passes.

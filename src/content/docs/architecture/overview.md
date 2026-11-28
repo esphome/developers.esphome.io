@@ -243,13 +243,15 @@ Finally, your component must have a `dump_config` method that prints the complet
 `setup()`, `loop()`, `update()`, scheduler callbacks and automations all run on the main loop, one at a time.
 Entities and their traits are not thread-safe and belong to that loop. Options such as a fan's preset modes or a
 select's options are usually set during setup, and when they change later (a Home Assistant select receiving new
-options, for example) that happens on the loop too. Code on another task hands its change to the main loop with
-`defer()`, and an interrupt handler uses `enable_loop_soon_any_context()`.
+options, for example) that happens on the loop too. Code outside the loop, on another task or in a network callback,
+hands its change to the main loop with `defer()`, and an interrupt handler uses `enable_loop_soon_any_context()`.
 
-The web server is the model to follow. On ESP-IDF its request handlers run on the HTTP server's task: a handler fills a
-`*Call` (`FanCall`, `NumberCall` and so on), which is a plain value, and defers `call.perform()`, so the entity only
-changes on the main loop. Component code therefore needs no locks, revalidation or bounds checks against an entity
-changing under a pending call, whether from another task or from a callback that runs inside `perform()`.
+The web server is the model to follow. Its request handlers run outside the main loop on every platform: on the ESP-IDF
+HTTP server's task on ESP32, and from the async TCP library's task or network callbacks on ESP8266, RP2040 and
+LibreTiny. A handler fills a `*Call` (`FanCall`, `NumberCall` and so on), which is a plain value, and defers
+`call.perform()`, so the entity only changes on the main loop. Component code therefore needs no locks, revalidation
+or bounds checks against an entity changing under a pending call, whether from another task or from a callback that
+runs inside `perform()`.
 
 ## Further reading
 

@@ -77,7 +77,9 @@ from `to_code`:
 `canopen.require_node_id(hub_id, what)` checks from a `FINAL_VALIDATE_SCHEMA` that the hub is a node, for components
 that need its OD; it returns the hub's config.
 
-These helpers are available in ESPHome 2026.12.0 and later (esphome/esphome#23440).
+`CANOPEN_NODE_SCHEMA`, `register_node()`, `final_validate_canopen_node` and `require_node_id()` are available in
+ESPHome 2026.12.0 and later (esphome/esphome#23440); `enable_sdo_client()` (esphome/esphome#23299) and
+`enable_nmt_master()` (esphome/esphome#23327) in the same release.
 
 ## Setup order
 

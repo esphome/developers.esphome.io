@@ -238,6 +238,15 @@ latest data from your component and publish them with the provided methods.
 
 Finally, your component must have a `dump_config` method that prints the complete user configuration.
 
+### Threading
+
+`setup()`, `loop()`, `update()`, scheduler callbacks and automations all run on the main loop, one at a time.
+Entities, their traits and their `*Call` objects (`FanCall`, `NumberCall` and so on) are not thread-safe and belong to
+that loop: build and perform a call there, and treat options such as a fan's preset modes or a select's options as
+fixed once setup is done. Code on another task hands its work to the main loop with `defer()`, and an interrupt handler
+uses `enable_loop_soon_any_context()`; neither touches an entity directly. Component code therefore needs no locks or
+revalidation against an entity changing while a call is built or performed.
+
 ## Further reading
 
 If you are preparing your code for [integration into ESPHome](/contributing/submitting-your-work), you'll need to
